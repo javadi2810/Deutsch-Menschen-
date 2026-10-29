@@ -2,67 +2,611 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2c3e50">
 <title>واژگان Menschen - کارت و جدول</title>
 <style>
-  * { box-sizing: border-box; }
-  body { font-family: 'Tahoma', 'Vazirmatn', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; direction: rtl; }
-  h1 { text-align: center; color: #2c3e50; margin-bottom: 10px; }
-  .selector-panel { background: white; border-radius: 12px; padding: 12px 16px; max-width: 900px; margin: 0 auto 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-  .selector-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .selector-row label { font-weight: 600; color: #2c3e50; }
-  .selector-row select, .selector-row input { padding: 8px 14px; font-size: 15px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; }
-  .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid #d0dcf0; background: #f5f8ff; cursor: pointer; font-family: inherit; font-size: 14px; transition: all 0.15s; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: 'Tahoma', 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f0f2f5;
+    padding: 16px;
+    direction: rtl;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #2c3e50;
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+    font-size: clamp(20px, 5vw, 28px);
+    margin: 0 0 16px;
+  }
+
+  /* ---------- پنل‌های انتخاب ---------- */
+  .selector-panel {
+    background: white;
+    border-radius: 12px;
+    padding: 12px 14px;
+    max-width: 900px;
+    margin: 0 auto 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .selector-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .selector-row label {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .selector-row select,
+  .selector-row input {
+    padding: 9px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    background: white;
+    min-width: 0;
+    flex: 1 1 160px;
+    max-width: 100%;
+  }
+
+  .btn {
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: 1px solid #d0dcf0;
+    background: #f5f8ff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    touch-action: manipulation;
+  }
+  .btn:active { transform: scale(0.97); }
   .btn:hover { background: #e5efff; }
+
   .btn-primary { background: #1f6feb; color: white; border-color: #1f6feb; }
   .btn-primary:hover { background: #145bb8; }
+
   .btn-danger { background: #fee; color: #b00020; border-color: #f5c2c7; }
   .btn-danger:hover { background: #fdd; }
+
   .hidden { display: none !important; }
   .inline-form { margin-top: 10px; }
-  .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow-x: auto; max-width: 900px; margin: 0 auto 30px; }
+
+  .count-badge {
+    background: #eef3fb;
+    color: #1f6feb;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .hint {
+    text-align: center;
+    color: #888;
+    padding: 16px;
+    font-size: 14px;
+    max-width: 900px;
+    margin: 0 auto 20px;
+  }
+
+  /* ---------- جدول (Responsive) ---------- */
+  .table-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    overflow-x: auto;
+    max-width: 900px;
+    margin: 0 auto 24px;
+    -webkit-overflow-scrolling: touch;
+  }
+
   table { width: 100%; border-collapse: collapse; direction: ltr; }
-  th { background: #2c3e50; color: white; padding: 12px; font-size: 15px; }
-  td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: center; font-size: 15px; }
+  th {
+    background: #2c3e50;
+    color: white;
+    padding: 12px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+    font-size: 14px;
+    word-break: break-word;
+  }
   tr:hover td { background: #f8faff; cursor: pointer; }
+  tr:last-child td { border-bottom: none; }
+
   .de { font-weight: bold; color: #1a5276; }
   .fa { color: #7d3c98; font-weight: 600; }
   .art { font-weight: bold; }
   .art.der { color: #1f6feb; }
   .art.die { color: #e63946; }
   .art.das { color: #2a9d3f; }
-  .note-cell { color: #666; font-size: 13px; font-style: italic; max-width: 160px; }
-  .action-cell { width: 40px; }
-  .sound-cell { width: 50px; padding: 6px !important; }
-  .speak-btn { background: #eef3fb; border: 1px solid #d0dcf0; border-radius: 8px; cursor: pointer; font-size: 18px; padding: 4px 8px; transition: all 0.2s; }
-  .speak-btn:hover { background: #dbe7fa; transform: scale(1.1); }
-  .icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 4px; border-radius: 6px; }
+  .note-cell { color: #666; font-size: 12px; font-style: italic; max-width: 140px; }
+  .action-cell { width: 44px; }
+  .sound-cell { width: 48px; padding: 4px !important; }
+
+  .speak-btn {
+    background: #eef3fb;
+    border: 1px solid #d0dcf0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 17px;
+    padding: 6px 8px;
+    transition: all 0.2s;
+    touch-action: manipulation;
+  }
+  .speak-btn:active { transform: scale(0.92); }
+  .speak-btn:hover { background: #dbe7fa; transform: scale(1.08); }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 6px;
+    border-radius: 6px;
+    touch-action: manipulation;
+  }
   .icon-btn.delete:hover { background: #fdd; }
-  .hint { text-align: center; color: #888; padding: 14px; font-size: 14px; max-width: 900px; margin: 0 auto 20px; }
-  .count-badge { background: #eef3fb; color: #1f6feb; padding: 2px 10px; border-radius: 20px; font-size: 13px; font-weight: 600; }
-  .add-word-form { background: white; border-radius: 12px; padding: 16px; max-width: 900px; margin: 0 auto 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-  .add-word-form h3 { margin: 0 0 12px; color: #2c3e50; font-size: 16px; }
-  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
-  .form-grid input, .form-grid select { padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; font-size: 14px; }
-  .io-panel { display: flex; gap: 10px; justify-content: center; max-width: 900px; margin: 20px auto; flex-wrap: wrap; }
-  .card-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; direction: ltr; }
+
+  /* ---------- فرم افزودن کلمه ---------- */
+  .add-word-form {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    max-width: 900px;
+    margin: 0 auto 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .add-word-form h3 {
+    margin: 0 0 12px;
+    color: #2c3e50;
+    font-size: 15px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .form-grid input,
+  .form-grid select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    font-size: 14px;
+    background: white;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* ---------- خروجی/ورودی ---------- */
+  .io-panel {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    max-width: 900px;
+    margin: 16px auto;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- فلش‌کارت ---------- */
+  .card-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    direction: ltr;
+    padding: 20px;
+  }
   .card-overlay.active { display: flex; }
-  .flashcard { width: 300px; height: 200px; perspective: 1000px; cursor: pointer; }
-  .flashcard-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+
+  .flashcard {
+    width: min(300px, 90vw);
+    height: min(200px, 60vw);
+    min-height: 160px;
+    perspective: 1000px;
+    cursor: pointer;
+    position: relative;
+  }
+  .flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+  }
   .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
-  .flashcard-front, .flashcard-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); padding: 20px; }
-  .flashcard-front { background: #ffffff; color: #2c3e50; }
-  .flashcard-front .art { font-size: 18px; margin-bottom: 4px; }
-  .flashcard-front .de { font-size: 28px; }
-  .flashcard-back { background: #7d3c98; color: white; transform: rotateY(180deg); font-size: 26px; }
-  .card-note { font-size: 14px; opacity: 0.85; margin-top: 10px; }
-  .close-card { position: absolute; top: 20px; right: 20px; font-size: 30px; color: white; cursor: pointer; background: none; border: none; }
+
+  .flashcard-front,
+  .flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    padding: 20px;
+    text-align: center;
+  }
+  .flashcard-front {
+    background: #ffffff;
+    color: #2c3e50;
+  }
+  .flashcard-front .art {
+    font-size: clamp(14px, 4vw, 18px);
+    margin-bottom: 4px;
+  }
+  .flashcard-front .de {
+    font-size: clamp(20px, 6vw, 28px);
+    word-break: break-word;
+  }
+  .flashcard-back {
+    background: #7d3c98;
+    color: white;
+    transform: rotateY(180deg);
+    font-size: clamp(18px, 5vw, 26px);
+    word-break: break-word;
+  }
+  .card-note {
+    font-size: clamp(12px, 3vw, 14px);
+    opacity: 0.85;
+    margin-top: 10px;
+    font-weight: normal;
+  }
+  .close-card {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 32px;
+    color: white;
+    cursor: pointer;
+    background: none;
+    border: none;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    touch-action: manipulation;
+  }
+  .close-card:active { background: rgba(255,255,255,0.1); }
+
+  /* ============================================ */
+  /* 📱 Responsive — موبایل (زیر 640px)          */
+  /* ============================================ */
+  @media (max-width: 640px) {
+    body {
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+
+    .selector-panel {
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+    }
+
+    .selector-row {
+      gap: 6px;
+    }
+
+    .selector-row label {
+      font-size: 13px;
+      width: 100%;
+      margin-bottom: 2px;
+    }
+
+    .selector-row select {
+      flex: 1 1 100%;
+      font-size: 14px;
+      padding: 10px 12px;
+    }
+
+    .selector-row .btn {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    .selector-row .btn-primary { flex: 1 1 auto; }
+    .selector-row .btn-danger { flex: 0 0 44px; padding: 8px; }
+
+    .count-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+    }
+
+    /* جدول به کارت تبدیل می‌شود */
+    .table-container {
+      border-radius: 10px;
+      background: transparent;
+      box-shadow: none;
+      overflow: visible;
+    }
+
+    table, thead, tbody, tr, th, td {
+      display: block;
+      width: 100%;
+    }
+
+    thead { display: none; }
+
+    tbody tr {
+      background: white;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      padding: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "de    speak"
+        "art   art"
+        "plural plural"
+        "fa    fa"
+        "note  note"
+        "action action";
+      gap: 6px 8px;
+      cursor: pointer;
+      border-bottom: none;
+    }
+
+    tbody tr:hover td { background: transparent; }
+
+    tbody td {
+      padding: 0;
+      border-bottom: none;
+      text-align: right;
+      font-size: 14px;
+    }
+
+    td.de {
+      grid-area: de;
+      font-size: 17px;
+      font-weight: 700;
+      color: #1a5276;
+    }
+
+    td.sound-cell {
+      grid-area: speak;
+      width: auto;
+      justify-self: end;
+    }
+
+    .speak-btn {
+      padding: 8px 12px;
+      font-size: 18px;
+    }
+
+    td.art {
+      grid-area: art;
+      font-size: 13px;
+    }
+
+    /* نمایش Artikel به شکل برچسب */
+    td.art::before {
+      content: "Artikel: ";
+      color: #999;
+      font-weight: normal;
+      font-size: 12px;
+    }
+
+    td.art.der,
+    td.art.die,
+    td.art.das {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      justify-self: start;
+    }
+    td.art.der { background: #eaf1fd; }
+    td.art.die { background: #fdeaea; }
+    td.art.das { background: #eaf5ec; }
+    td.art.der::before,
+    td.art.die::before,
+    td.art.das::before { display: none; }
+
+    /* Plural */
+    tbody td:nth-child(4) {
+      grid-area: plural;
+      font-size: 13px;
+      color: #555;
+      direction: ltr;
+      text-align: right;
+    }
+    tbody td:nth-child(4)::before {
+      content: "Plural: ";
+      color: #999;
+      font-size: 12px;
+      direction: rtl;
+      display: inline-block;
+      margin-left: 4px;
+    }
+
+    td.fa {
+      grid-area: fa;
+      font-size: 15px;
+      font-weight: 600;
+      color: #7d3c98;
+      border-top: 1px dashed #eee;
+      padding-top: 8px;
+      margin-top: 4px;
+    }
+
+    td.note-cell {
+      grid-area: note;
+      font-size: 12px;
+      max-width: none;
+      text-align: right;
+    }
+    td.note-cell:empty { display: none; }
+
+    td.action-cell {
+      grid-area: action;
+      width: 100%;
+      text-align: left;
+      margin-top: 4px;
+    }
+    .icon-btn.delete {
+      background: #fee;
+      color: #b00020;
+      border: 1px solid #f5c2c7;
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 8px;
+    }
+    .icon-btn.delete::after {
+      content: " حذف";
+      font-size: 12px;
+    }
+
+    /* فرم */
+    .add-word-form {
+      padding: 14px;
+      border-radius: 10px;
+    }
+
+    .add-word-form h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .form-grid {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .form-grid input,
+    .form-grid select {
+      padding: 11px 12px;
+      font-size: 15px;
+    }
+
+    .add-word-form > .btn-primary {
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      margin-top: 4px;
+    }
+
+    /* دکمه‌های io */
+    .io-panel {
+      flex-direction: column;
+      gap: 8px;
+      margin: 16px auto;
+    }
+    .io-panel .btn {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+    }
+
+    /* فلش‌کارت */
+    .flashcard {
+      width: 88vw;
+      height: 55vw;
+      min-height: 180px;
+    }
+
+    .close-card {
+      font-size: 36px;
+      top: 6px;
+      right: 6px;
+    }
+
+    .card-overlay { padding: 12px; }
+  }
+
+  /* ============================================ */
+  /* 📱 موبایل خیلی کوچک (زیر 380px)              */
+  /* ============================================ */
+  @media (max-width: 380px) {
+    body { padding: 8px; font-size: 13px; }
+    h1 { font-size: 18px; }
+    .selector-row .btn { font-size: 12px; padding: 7px 10px; }
+    .count-badge { display: none; }
+    td.de { font-size: 16px; }
+    td.fa { font-size: 14px; }
+  }
+
+  /* ============================================ */
+  /* 📱 تبلت (641px تا 1024px)                   */
+  /* ============================================ */
+  @media (min-width: 641px) and (max-width: 1024px) {
+    body { padding: 20px; }
+    .form-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ============================================ */
+  /* 🖥 دسکتاپ (بالای 1024px) — ظاهر اصلی         */
+  /* ============================================ */
+  @media (min-width: 1025px) {
+    body { padding: 24px; font-size: 15px; }
+  }
+
+  /* ============================================ */
+  /* 🖨 چاپ                                       */
+  /* ============================================ */
+  @media print {
+    body { background: white; padding: 0; }
+    .selector-panel, .add-word-form, .io-panel, .action-cell, .sound-cell { display: none !important; }
+    .table-container { box-shadow: none; border: 1px solid #ddd; }
+    th { background: #2c3e50 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>
 
 <h1>📚 واژگان Menschen</h1>
 
+<!-- انتخاب کتاب -->
 <div class="selector-panel">
   <div class="selector-row">
     <label>📖 کتاب:</label>
@@ -73,14 +617,18 @@
   <div class="selector-row inline-form hidden" id="bookForm">
     <input id="bookName" placeholder="نام کتاب (مثلاً Menschen)">
     <select id="bookLevel">
-      <option>A1.1</option><option>A1.2</option><option>A2.1</option><option>A2.2</option>
-      <option>B1.1</option><option>B1.2</option><option>B2.1</option><option>B2.2</option><option>C1</option>
+      <option>A1.1</option><option>A1.2</option>
+      <option>A2.1</option><option>A2.2</option>
+      <option>B1.1</option><option>B1.2</option>
+      <option>B2.1</option><option>B2.2</option>
+      <option>C1</option>
     </select>
     <button class="btn btn-primary" id="saveBook">ذخیره</button>
     <button class="btn" id="cancelBook">لغو</button>
   </div>
 </div>
 
+<!-- انتخاب درس -->
 <div class="selector-panel">
   <div class="selector-row">
     <label>📚 درس:</label>
@@ -96,8 +644,10 @@
   </div>
 </div>
 
+<!-- جدول -->
 <div id="tableWrapper"></div>
 
+<!-- فرم افزودن کلمه -->
 <div class="add-word-form hidden" id="addWordPanel">
   <h3>➕ افزودن کلمه به درس جاری</h3>
   <div class="form-grid">
@@ -116,6 +666,7 @@
   <button class="btn btn-primary" id="saveWord">ذخیره کلمه</button>
 </div>
 
+<!-- خروجی/ورودی -->
 <div class="io-panel">
   <button class="btn" id="exportBtn">📤 خروجی JSON</button>
   <button class="btn" id="importBtn">📥 ورود JSON</button>
@@ -123,6 +674,7 @@
   <button class="btn btn-danger" id="resetBtn">↺ ریست کامل</button>
 </div>
 
+<!-- مودال کارت -->
 <div class="card-overlay" id="cardOverlay">
   <button class="close-card" id="closeCard">&times;</button>
   <div class="flashcard" id="flashcard">
@@ -372,7 +924,7 @@
           '<td class="de">' + escapeHtml(w.de) + '</td>' +
           '<td class="sound-cell"><button class="speak-btn" data-speak="' + escapeHtml(w.speak) + '">🔊</button></td>' +
           '<td class="art ' + articleClass(w.art) + '">' + escapeHtml(w.art) + '</td>' +
-          '<td>' + escapeHtml(w.plural) + '</td>' +
+          '<td class="plural-cell">' + escapeHtml(w.plural) + '</td>' +
           '<td class="fa">' + escapeHtml(w.fa) + '</td>' +
           '<td class="note-cell">' + escapeHtml(w.note || '') + '</td>' +
           '<td class="action-cell"><button class="icon-btn delete" data-del="' + escapeHtml(w.id) + '">🗑</button></td>' +
