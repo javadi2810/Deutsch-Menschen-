@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>واژگان Menschen - کارت و جدول</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Tahoma', 'Vazirmatn', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; direction: rtl; }
+  h1 { text-align: center; color: #2c3e50; margin-bottom: 10px; }
+  .selector-panel { background: white; border-radius: 12px; padding: 12px 16px; max-width: 900px; margin: 0 auto 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .selector-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .selector-row label { font-weight: 600; color: #2c3e50; }
+  .selector-row select, .selector-row input { padding: 8px 14px; font-size: 15px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; }
+  .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid #d0dcf0; background: #f5f8ff; cursor: pointer; font-family: inherit; font-size: 14px; transition: all 0.15s; }
+  .btn:hover { background: #e5efff; }
+  .btn-primary { background: #1f6feb; color: white; border-color: #1f6feb; }
+  .btn-primary:hover { background: #145bb8; }
+  .btn-danger { background: #fee; color: #b00020; border-color: #f5c2c7; }
+  .btn-danger:hover { background: #fdd; }
+  .hidden { display: none !important; }
+  .inline-form { margin-top: 10px; }
+  .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow-x: auto; max-width: 900px; margin: 0 auto 30px; }
+  table { width: 100%; border-collapse: collapse; direction: ltr; }
+  th { background: #2c3e50; color: white; padding: 12px; font-size: 15px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: center; font-size: 15px; }
+  tr:hover td { background: #f8faff; cursor: pointer; }
+  .de { font-weight: bold; color: #1a5276; }
+  .fa { color: #7d3c98; font-weight: 600; }
+  .art { font-weight: bold; }
+  .art.der { color: #1f6feb; }
+  .art.die { color: #e63946; }
+  .art.das { color: #2a9d3f; }
+  .note-cell { color: #666; font-size: 13px; font-style: italic; max-width: 160px; }
+  .action-cell { width: 40px; }
+  .sound-cell { width: 50px; padding: 6px !important; }
+  .speak-btn { background: #eef3fb; border: 1px solid #d0dcf0; border-radius: 8px; cursor: pointer; font-size: 18px; padding: 4px 8px; transition: all 0.2s; }
+  .speak-btn:hover { background: #dbe7fa; transform: scale(1.1); }
+  .icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 4px; border-radius: 6px; }
+  .icon-btn.delete:hover { background: #fdd; }
+  .hint { text-align: center; color: #888; padding: 14px; font-size: 14px; max-width: 900px; margin: 0 auto 20px; }
+  .count-badge { background: #eef3fb; color: #1f6feb; padding: 2px 10px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .add-word-form { background: white; border-radius: 12px; padding: 16px; max-width: 900px; margin: 0 auto 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  .add-word-form h3 { margin: 0 0 12px; color: #2c3e50; font-size: 16px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .form-grid input, .form-grid select { padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; font-size: 14px; }
+  .io-panel { display: flex; gap: 10px; justify-content: center; max-width: 900px; margin: 20px auto; flex-wrap: wrap; }
+  .card-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; direction: ltr; }
+  .card-overlay.active { display: flex; }
+  .flashcard { width: 300px; height: 200px; perspective: 1000px; cursor: pointer; }
+  .flashcard-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+  .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+  .flashcard-front, .flashcard-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); padding: 20px; }
+  .flashcard-front { background: #ffffff; color: #2c3e50; }
+  .flashcard-front .art { font-size: 18px; margin-bottom: 4px; }
+  .flashcard-front .de { font-size: 28px; }
+  .flashcard-back { background: #7d3c98; color: white; transform: rotateY(180deg); font-size: 26px; }
+  .card-note { font-size: 14px; opacity: 0.85; margin-top: 10px; }
+  .close-card { position: absolute; top: 20px; right: 20px; font-size: 30px; color: white; cursor: pointer; background: none; border: none; }
+</style>
+</head>
+<body>
+
+<h1>📚 واژگان Menschen</h1>
+
+<div class="selector-panel">
+  <div class="selector-row">
+    <label>📖 کتاب:</label>
+    <select id="bookSelect"></select>
+    <button class="btn btn-primary" id="toggleBookForm">➕ کتاب جدید</button>
+    <button class="btn btn-danger" id="deleteBook">🗑</button>
+  </div>
+  <div class="selector-row inline-form hidden" id="bookForm">
+    <input id="bookName" placeholder="نام کتاب (مثلاً Menschen)">
+    <select id="bookLevel">
+      <option>A1.1</option><option>A1.2</option><option>A2.1</option><option>A2.2</option>
+      <option>B1.1</option><option>B1.2</option><option>B2.1</option><option>B2.2</option><option>C1</option>
+    </select>
+    <button class="btn btn-primary" id="saveBook">ذخیره</button>
+    <button class="btn" id="cancelBook">لغو</button>
+  </div>
+</div>
+
+<div class="selector-panel">
+  <div class="selector-row">
+    <label>📚 درس:</label>
+    <select id="lessonSelect"></select>
+    <span class="count-badge" id="wordCount">0 کلمه</span>
+    <button class="btn btn-primary" id="toggleLessonForm">➕ درس جدید</button>
+    <button class="btn btn-danger" id="deleteLesson">🗑</button>
+  </div>
+  <div class="selector-row inline-form hidden" id="lessonForm">
+    <input id="lessonTitle" placeholder="عنوان درس (مثلاً Lektion 3)">
+    <button class="btn btn-primary" id="saveLesson">ذخیره</button>
+    <button class="btn" id="cancelLesson">لغو</button>
+  </div>
+</div>
+
+<div id="tableWrapper"></div>
+
+<div class="add-word-form hidden" id="addWordPanel">
+  <h3>➕ افزودن کلمه به درس جاری</h3>
+  <div class="form-grid">
+    <input id="wDe" placeholder="کلمه آلمانی *">
+    <select id="wArt">
+      <option value="der">der</option>
+      <option value="die">die</option>
+      <option value="das">das</option>
+      <option value="–">–</option>
+    </select>
+    <input id="wPlural" placeholder="جمع (Plural)">
+    <input id="wFa" placeholder="ترجمه فارسی *">
+    <input id="wSpeak" placeholder="تلفظ (اختیاری)">
+    <input id="wNote" placeholder="یادداشت / مثال">
+  </div>
+  <button class="btn btn-primary" id="saveWord">ذخیره کلمه</button>
+</div>
+
+<div class="io-panel">
+  <button class="btn" id="exportBtn">📤 خروجی JSON</button>
+  <button class="btn" id="importBtn">📥 ورود JSON</button>
+  <input type="file" id="importFile" accept=".json" hidden>
+  <button class="btn btn-danger" id="resetBtn">↺ ریست کامل</button>
+</div>
+
+<div class="card-overlay" id="cardOverlay">
+  <button class="close-card" id="closeCard">&times;</button>
+  <div class="flashcard" id="flashcard">
+    <div class="flashcard-inner">
+      <div class="flashcard-front">
+        <span class="art" id="cardArt"></span>
+        <span class="de" id="cardDe"></span>
+      </div>
+      <div class="flashcard-back" id="cardBack"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'german-vocab-v2';
+  var uidCounter = 0;
+  function uid() {
+    uidCounter++;
+    return 'id' + Date.now().toString(36) + uidCounter.toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  // ---------- داده‌های پیش‌فرض ----------
+  function defaultBooks() {
+    return [{
+      id: 'menschen-a1-1',
+      name: 'Menschen',
+      level: 'A1.1',
+      lessons: [
+        {
+          id: uid(), title: 'Lektion 1',
+          words: [
+            { id: uid(), de: 'Name',  art: 'der', plural: 'Namen',   fa: 'نام',  speak: 'Name' },
+            { id: uid(), de: 'Hallo', art: '–',   plural: '–',       fa: 'سلام', speak: 'Hallo' },
+            { id: uid(), de: 'Frau',  art: 'die', plural: 'Frauen',  fa: 'زن',   speak: 'Frau' },
+            { id: uid(), de: 'Mann',  art: 'der', plural: 'Männer',  fa: 'مرد',  speak: 'Mann' },
+            { id: uid(), de: 'Land',  art: 'das', plural: 'Länder',  fa: 'کشور', speak: 'Land' }
+          ]
+        },
+        {
+          id: uid(), title: 'Lektion 2',
+          words: [
+            { id: uid(), de: 'Buch',  art: 'das', plural: 'Bücher', fa: 'کتاب', speak: 'Buch' },
+            { id: uid(), de: 'Tisch', art: 'der', plural: 'Tische', fa: 'میز',  speak: 'Tisch' },
+            { id: uid(), de: 'Lampe', art: 'die', plural: 'Lampen', fa: 'لامپ', speak: 'Lampe' }
+          ]
+        },
+        {
+          id: uid(), title: 'Lektion 3',
+          words: [
+            { id: uid(), de: 'Apfel',  art: 'der', plural: 'Äpfel', fa: 'سیب', speak: 'Apfel' },
+            { id: uid(), de: 'Wasser', art: 'das', plural: '–',     fa: 'آب',  speak: 'Wasser' },
+            { id: uid(), de: 'Milch',  art: 'die', plural: '–',     fa: 'شیر', speak: 'Milch' }
+          ]
+        },
+        {
+          id: uid(), title: 'Lektion 4 — رنگ‌ها، متریال‌ها و اشیا',
+          words: [
+            { id: uid(), de: 'Farbe',       art: 'die', plural: 'Farben',        fa: 'رنگ',              speak: 'Farbe' },
+            { id: uid(), de: 'rot',         art: '–',   plural: '–',              fa: 'قرمز',             speak: 'rot' },
+            { id: uid(), de: 'blau',        art: '–',   plural: '–',              fa: 'آبی',              speak: 'blau' },
+            { id: uid(), de: 'grün',        art: '–',   plural: '–',              fa: 'سبز',              speak: 'grün' },
+            { id: uid(), de: 'gelb',        art: '–',   plural: '–',              fa: 'زرد',              speak: 'gelb' },
+            { id: uid(), de: 'schwarz',     art: '–',   plural: '–',              fa: 'مشکی',             speak: 'schwarz' },
+            { id: uid(), de: 'weiß',        art: '–',   plural: '–',              fa: 'سفید',             speak: 'weiß' },
+            { id: uid(), de: 'grau',        art: '–',   plural: '–',              fa: 'خاکستری',          speak: 'grau' },
+            { id: uid(), de: 'braun',       art: '–',   plural: '–',              fa: 'قهوه‌ای',           speak: 'braun' },
+            { id: uid(), de: 'orange',      art: '–',   plural: '–',              fa: 'نارنجی',           speak: 'orange' },
+            { id: uid(), de: 'rosa / pink', art: '–',   plural: '–',              fa: 'صورتی',            speak: 'rosa' },
+            { id: uid(), de: 'lila',        art: '–',   plural: '–',              fa: 'بنفش',             speak: 'lila' },
+            { id: uid(), de: 'Kunststoff',  art: 'der', plural: 'Kunststoffe',    fa: 'پلاستیک',          speak: 'Kunststoff' },
+            { id: uid(), de: 'Glas',        art: 'das', plural: 'Gläser',         fa: 'شیشه',             speak: 'Glas' },
+            { id: uid(), de: 'Metall',      art: 'das', plural: 'Metalle',        fa: 'فلز',              speak: 'Metall' },
+            { id: uid(), de: 'Holz',        art: 'das', plural: 'Hölzer',         fa: 'چوب',              speak: 'Holz' },
+            { id: uid(), de: 'Eisen',       art: 'das', plural: '–',              fa: 'آهن',              speak: 'Eisen' },
+            { id: uid(), de: 'Gummi',       art: 'das', plural: '–',              fa: 'لاستیک',           speak: 'Gummi' },
+            { id: uid(), de: 'Papier',      art: 'das', plural: 'Papiere',        fa: 'کاغذ',             speak: 'Papier' },
+            { id: uid(), de: 'Leder',       art: 'das', plural: '–',              fa: 'چرم',              speak: 'Leder' },
+            { id: uid(), de: 'Wolle',       art: 'die', plural: 'Wollen',         fa: 'پشم',              speak: 'Wolle' },
+            { id: uid(), de: 'Baumwolle',   art: 'die', plural: '–',              fa: 'پنبه',             speak: 'Baumwolle' },
+            { id: uid(), de: 'Bleistift',      art: 'der', plural: 'Bleistifte',     fa: 'مداد',                speak: 'Bleistift' },
+            { id: uid(), de: 'Brille',         art: 'die', plural: 'Brillen',        fa: 'عینک',                speak: 'Brille' },
+            { id: uid(), de: 'Buch',           art: 'das', plural: 'Bücher',         fa: 'کتاب',                speak: 'Buch' },
+            { id: uid(), de: 'Flasche',        art: 'die', plural: 'Flaschen',       fa: 'بطری',                speak: 'Flasche' },
+            { id: uid(), de: 'Feuerzeug',      art: 'das', plural: 'Feuerzeuge',     fa: 'فندک',                speak: 'Feuerzeug' },
+            { id: uid(), de: 'Kamera',         art: 'die', plural: 'Kameras',        fa: 'دوربین',              speak: 'Kamera' },
+            { id: uid(), de: 'Halskette',      art: 'die', plural: 'Halsketten',     fa: 'زنجیر گردن‌بند',     speak: 'Halskette' },
+            { id: uid(), de: 'Kugelschreiber', art: 'der', plural: 'Kugelschreiber', fa: 'خودکار',              speak: 'Kugelschreiber' },
+            { id: uid(), de: 'Schlüssel',      art: 'der', plural: 'Schlüssel',      fa: 'کلید',                speak: 'Schlüssel' },
+            { id: uid(), de: 'Tasche',         art: 'die', plural: 'Taschen',        fa: 'کیف',                 speak: 'Tasche' },
+            { id: uid(), de: 'Uhr',            art: 'die', plural: 'Uhren',          fa: 'ساعت',                speak: 'Uhr' },
+            { id: uid(), de: 'Regenschirm',    art: 'der', plural: 'Regenschirme',   fa: 'چتر',                 speak: 'Regenschirm' },
+            { id: uid(), de: 'Streichholz',    art: 'das', plural: 'Streichhölzer',  fa: 'کبریت',               speak: 'Streichholz' },
+            { id: uid(), de: 'Geldbörse',      art: 'die', plural: 'Geldbörsen',     fa: 'کیف پول',             speak: 'Geldbörse' },
+            { id: uid(), de: 'Seife',          art: 'die', plural: 'Seifen',         fa: 'صابون',               speak: 'Seife' },
+            { id: uid(), de: 'Laptop',         art: 'der', plural: 'Laptops',        fa: 'لپ‌تاپ',              speak: 'Laptop' },
+            { id: uid(), de: 'E-Mail',         art: 'die', plural: 'E-Mails',        fa: 'ایمیل',               speak: 'E-Mail' },
+            { id: uid(), de: 'Telefon',        art: 'das', plural: 'Telefone',       fa: 'تلفن',                speak: 'Telefon' },
+            { id: uid(), de: 'SMS',            art: 'die', plural: 'SMS',            fa: 'اس ام اس',            speak: 'SMS' },
+            { id: uid(), de: 'Briefmarke',     art: 'die', plural: 'Briefmarken',    fa: 'تمبر',                speak: 'Briefmarke' },
+            { id: uid(), de: 'Rechnung',       art: 'die', plural: 'Rechnungen',     fa: 'صورت‌حساب / فاکتور', speak: 'Rechnung' },
+            { id: uid(), de: 'Formular',       art: 'das', plural: 'Formulare',      fa: 'فرم / پرسشنامه',      speak: 'Formular' },
+            { id: uid(), de: 'Drucker',        art: 'der', plural: 'Drucker',        fa: 'پرینتر',              speak: 'Drucker' },
+            { id: uid(), de: 'Maus',           art: 'die', plural: 'Mäuse',          fa: 'موس',                 speak: 'Maus' },
+            { id: uid(), de: 'Computer',       art: 'der', plural: 'Computer',       fa: 'کامپیوتر',            speak: 'Computer' },
+            { id: uid(), de: 'Stift',          art: 'der', plural: 'Stifte',         fa: 'خودکار / مداد',       speak: 'Stift' },
+            { id: uid(), de: 'Notizbuch',      art: 'das', plural: 'Notizbücher',    fa: 'دفتر',                speak: 'Notizbuch' },
+            { id: uid(), de: 'Kalender',       art: 'der', plural: 'Kalender',       fa: 'تقویم',               speak: 'Kalender' },
+            { id: uid(), de: 'Monitor',        art: 'der', plural: 'Monitore',       fa: 'مانیتور',             speak: 'Monitor' }
+          ]
+        }
+      ]
+    }];
+  }
+
+  // ---------- State ----------
+  var state;
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var p = JSON.parse(raw);
+      if (!p || !Array.isArray(p.books) || p.books.length === 0) return null;
+      return p;
+    } catch (e) { return null; }
+  }
+
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { console.error(e); }
+  }
+
+  function currentBook() {
+    if (!state) return null;
+    for (var i = 0; i < state.books.length; i++) {
+      if (state.books[i].id === state.activeBookId) return state.books[i];
+    }
+    return null;
+  }
+  function currentLesson() {
+    var b = currentBook();
+    if (!b) return null;
+    for (var i = 0; i < b.lessons.length; i++) {
+      if (b.lessons[i].id === state.activeLessonId) return b.lessons[i];
+    }
+    return null;
+  }
+
+  function initState() {
+    var loaded = loadState();
+    state = loaded || { books: defaultBooks(), activeBookId: null, activeLessonId: null };
+    var found = false;
+    for (var i = 0; i < state.books.length; i++) {
+      if (state.books[i].id === state.activeBookId) { found = true; break; }
+    }
+    if (!found) state.activeBookId = state.books.length ? state.books[0].id : null;
+    var b = currentBook();
+    found = false;
+    if (b) {
+      for (var j = 0; j < b.lessons.length; j++) {
+        if (b.lessons[j].id === state.activeLessonId) { found = true; break; }
+      }
+    }
+    if (!found) state.activeLessonId = (b && b.lessons.length) ? b.lessons[0].id : null;
+  }
+
+  // ---------- Render ----------
+  function renderBooks() {
+    var sel = document.getElementById('bookSelect');
+    sel.innerHTML = '';
+    if (state.books.length === 0) {
+      var o = document.createElement('option');
+      o.value = ''; o.textContent = '— بدون کتاب —';
+      sel.appendChild(o);
+    } else {
+      for (var i = 0; i < state.books.length; i++) {
+        var b = state.books[i];
+        var opt = document.createElement('option');
+        opt.value = b.id;
+        opt.textContent = b.name + ' — ' + b.level;
+        if (b.id === state.activeBookId) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+    document.getElementById('deleteBook').style.display = state.books.length > 1 ? '' : 'none';
+  }
+
+  function renderLessons() {
+    var sel = document.getElementById('lessonSelect');
+    sel.innerHTML = '';
+    var b = currentBook();
+    if (!b || b.lessons.length === 0) {
+      var o = document.createElement('option');
+      o.value = ''; o.textContent = '— بدون درس —';
+      sel.appendChild(o);
+      document.getElementById('deleteLesson').style.display = 'none';
+      return;
+    }
+    for (var i = 0; i < b.lessons.length; i++) {
+      var l = b.lessons[i];
+      var opt = document.createElement('option');
+      opt.value = l.id; opt.textContent = l.title;
+      if (l.id === state.activeLessonId) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    document.getElementById('deleteLesson').style.display = '';
+  }
+
+  function articleClass(a) {
+    return (a === 'der' || a === 'die' || a === 'das') ? a : '';
+  }
+
+  function renderTable() {
+    var wrap = document.getElementById('tableWrapper');
+    var addPanel = document.getElementById('addWordPanel');
+    var badge = document.getElementById('wordCount');
+    var lesson = currentLesson();
+
+    badge.textContent = (lesson ? lesson.words.length : 0) + ' کلمه';
+
+    if (!lesson) {
+      wrap.innerHTML = '<p class="hint">برای دیدن کلمات، ابتدا یک درس انتخاب یا ایجاد کنید.</p>';
+      addPanel.classList.add('hidden');
+      return;
+    }
+    addPanel.classList.remove('hidden');
+
+    if (lesson.words.length === 0) {
+      wrap.innerHTML = '<p class="hint">هنوز کلمه‌ای در این درس نیست. از فرم پایین اضافه کنید. ⬇</p>';
+      return;
+    }
+
+    var rows = '';
+    for (var i = 0; i < lesson.words.length; i++) {
+      var w = lesson.words[i];
+      rows +=
+        '<tr data-id="' + escapeHtml(w.id) + '">' +
+          '<td class="de">' + escapeHtml(w.de) + '</td>' +
+          '<td class="sound-cell"><button class="speak-btn" data-speak="' + escapeHtml(w.speak) + '">🔊</button></td>' +
+          '<td class="art ' + articleClass(w.art) + '">' + escapeHtml(w.art) + '</td>' +
+          '<td>' + escapeHtml(w.plural) + '</td>' +
+          '<td class="fa">' + escapeHtml(w.fa) + '</td>' +
+          '<td class="note-cell">' + escapeHtml(w.note || '') + '</td>' +
+          '<td class="action-cell"><button class="icon-btn delete" data-del="' + escapeHtml(w.id) + '">🗑</button></td>' +
+        '</tr>';
+    }
+
+    wrap.innerHTML =
+      '<div class="table-container">' +
+        '<table>' +
+          '<thead><tr>' +
+            '<th>Deutsch</th><th>🔊</th><th>Artikel</th><th>Plural</th>' +
+            '<th>فارسی</th><th>یادداشت</th><th></th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div>';
+
+    var speakBtns = wrap.querySelectorAll('.speak-btn');
+    for (var s = 0; s < speakBtns.length; s++) {
+      speakBtns[s].addEventListener('click', function (e) {
+        e.stopPropagation();
+        speakGerman(this.getAttribute('data-speak'));
+      });
+    }
+    var delBtns = wrap.querySelectorAll('[data-del]');
+    for (var d = 0; d < delBtns.length; d++) {
+      delBtns[d].addEventListener('click', function (e) {
+        e.stopPropagation();
+        var id = this.getAttribute('data-del');
+        var target = null;
+        for (var k = 0; k < lesson.words.length; k++) {
+          if (lesson.words[k].id === id) { target = lesson.words[k]; break; }
+        }
+        if (target && confirm('حذف «' + target.de + '»؟')) {
+          var newWords = [];
+          for (var m = 0; m < lesson.words.length; m++) {
+            if (lesson.words[m].id !== id) newWords.push(lesson.words[m]);
+          }
+          lesson.words = newWords;
+          saveState();
+          renderTable();
+        }
+      });
+    }
+    var trs = wrap.querySelectorAll('tbody tr');
+    for (var t = 0; t < trs.length; t++) {
+      (function (tr) {
+        tr.addEventListener('click', function () {
+          var id = tr.getAttribute('data-id');
+          for (var k = 0; k < lesson.words.length; k++) {
+            if (lesson.words[k].id === id) { openCard(lesson.words[k]); return; }
+          }
+        });
+      })(trs[t]);
+    }
+  }
+
+  // ---------- تلفظ ----------
+  function speakGerman(text) {
+    if (!('speechSynthesis' in window)) {
+      alert('مرورگر شما از تلفظ صوتی پشتیبانی نمی‌کند.');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = 'de-DE';
+    u.rate = 0.9;
+    window.speechSynthesis.speak(u);
+  }
+
+  // ---------- فلش‌کارت ----------
+  function openCard(word) {
+    var art = document.getElementById('cardArt');
+    art.textContent = word.art !== '–' ? word.art : '';
+    art.className = 'art ' + articleClass(word.art);
+    document.getElementById('cardDe').textContent = word.de;
+    document.getElementById('cardBack').innerHTML =
+      escapeHtml(word.fa) + (word.note ? '<div class="card-note">' + escapeHtml(word.note) + '</div>' : '');
+    document.getElementById('flashcard').classList.remove('flipped');
+    document.getElementById('cardOverlay').classList.add('active');
+  }
+  function closeCard() {
+    document.getElementById('cardOverlay').classList.remove('active');
+  }
+
+  // ---------- Eventها ----------
+  function bindEvents() {
+    document.getElementById('bookSelect').addEventListener('change', function (e) {
+      state.activeBookId = e.target.value || null;
+      var b = currentBook();
+      state.activeLessonId = (b && b.lessons.length) ? b.lessons[0].id : null;
+      saveState(); renderLessons(); renderTable();
+    });
+    document.getElementById('toggleBookForm').addEventListener('click', function () {
+      document.getElementById('bookForm').classList.toggle('hidden');
+    });
+    document.getElementById('cancelBook').addEventListener('click', function () {
+      document.getElementById('bookForm').classList.add('hidden');
+    });
+    document.getElementById('saveBook').addEventListener('click', function () {
+      var name = document.getElementById('bookName').value.trim();
+      var level = document.getElementById('bookLevel').value;
+      if (!name) { alert('نام کتاب را وارد کنید.'); return; }
+      state.books.push({ id: uid(), name: name, level: level, lessons: [] });
+      state.activeBookId = state.books[state.books.length - 1].id;
+      state.activeLessonId = null;
+      saveState();
+      document.getElementById('bookName').value = '';
+      document.getElementById('bookForm').classList.add('hidden');
+      renderBooks(); renderLessons(); renderTable();
+    });
+    document.getElementById('deleteBook').addEventListener('click', function () {
+      var b = currentBook();
+      if (!b) return;
+      if (!confirm('حذف کتاب «' + b.name + '» و همه درس‌هایش؟')) return;
+      var newBooks = [];
+      for (var i = 0; i < state.books.length; i++) {
+        if (state.books[i].id !== b.id) newBooks.push(state.books[i]);
+      }
+      state.books = newBooks;
+      state.activeBookId = state.books.length ? state.books[0].id : null;
+      var nb = currentBook();
+      state.activeLessonId = (nb && nb.lessons.length) ? nb.lessons[0].id : null;
+      saveState(); renderBooks(); renderLessons(); renderTable();
+    });
+
+    document.getElementById('lessonSelect').addEventListener('change', function (e) {
+      state.activeLessonId = e.target.value || null;
+      saveState(); renderTable();
+    });
+    document.getElementById('toggleLessonForm').addEventListener('click', function () {
+      document.getElementById('lessonForm').classList.toggle('hidden');
+    });
+    document.getElementById('cancelLesson').addEventListener('click', function () {
+      document.getElementById('lessonForm').classList.add('hidden');
+    });
+    document.getElementById('saveLesson').addEventListener('click', function () {
+      var b = currentBook();
+      if (!b) { alert('ابتدا یک کتاب انتخاب یا ایجاد کنید.'); return; }
+      var title = document.getElementById('lessonTitle').value.trim();
+      if (!title) { alert('عنوان درس را وارد کنید.'); return; }
+      b.lessons.push({ id: uid(), title: title, words: [] });
+      state.activeLessonId = b.lessons[b.lessons.length - 1].id;
+      saveState();
+      document.getElementById('lessonTitle').value = '';
+      document.getElementById('lessonForm').classList.add('hidden');
+      renderLessons(); renderTable();
+    });
+    document.getElementById('deleteLesson').addEventListener('click', function () {
+      var b = currentBook();
+      var lesson = currentLesson();
+      if (!b || !lesson) return;
+      if (!confirm('حذف درس «' + lesson.title + '» و همه کلماتش؟')) return;
+      var newLessons = [];
+      for (var i = 0; i < b.lessons.length; i++) {
+        if (b.lessons[i].id !== lesson.id) newLessons.push(b.lessons[i]);
+      }
+      b.lessons = newLessons;
+      state.activeLessonId = b.lessons.length ? b.lessons[0].id : null;
+      saveState(); renderLessons(); renderTable();
+    });
+
+    document.getElementById('saveWord').addEventListener('click', function () {
+      var lesson = currentLesson();
+      if (!lesson) { alert('ابتدا یک درس انتخاب کنید.'); return; }
+      var de = document.getElementById('wDe').value.trim();
+      var fa = document.getElementById('wFa').value.trim();
+      if (!de || !fa) { alert('کلمه آلمانی و ترجمه فارسی الزامی است.'); return; }
+      lesson.words.push({
+        id: uid(),
+        de: de,
+        art: document.getElementById('wArt').value,
+        plural: document.getElementById('wPlural').value.trim() || '–',
+        fa: fa,
+        speak: document.getElementById('wSpeak').value.trim() || de,
+        note: document.getElementById('wNote').value.trim() || undefined
+      });
+      saveState();
+      ['wDe','wPlural','wFa','wSpeak','wNote'].forEach(function (id) {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('wDe').focus();
+      renderTable();
+    });
+
+    document.getElementById('flashcard').addEventListener('click', function () {
+      document.getElementById('flashcard').classList.toggle('flipped');
+    });
+    document.getElementById('closeCard').addEventListener('click', closeCard);
+    document.getElementById('cardOverlay').addEventListener('click', function (e) {
+      if (e.target.id === 'cardOverlay') closeCard();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeCard();
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', function () {
+      var blob = new Blob([JSON.stringify(state.books, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'german-vocab-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById('importBtn').addEventListener('click', function () {
+      document.getElementById('importFile').click();
+    });
+    document.getElementById('importFile').addEventListener('change', function (e) {
+      var file = e.target.files[0]; if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var books = JSON.parse(reader.result);
+          if (!Array.isArray(books)) throw new Error('ساختار فایل نامعتبر است');
+          if (!confirm('داده‌های فعلی جایگزین می‌شوند. ادامه؟')) return;
+          state.books = books;
+          state.activeBookId = books.length ? books[0].id : null;
+          state.activeLessonId = (books.length && books[0].lessons.length) ? books[0].lessons[0].id : null;
+          saveState(); renderBooks(); renderLessons(); renderTable();
+          alert('ورود با موفقیت انجام شد.');
+        } catch (err) { alert('خطا: ' + err.message); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+    document.getElementById('resetBtn').addEventListener('click', function () {
+      if (!confirm('همه داده‌ها به حالت اولیه برمی‌گردند. مطمئنید؟')) return;
+      state = { books: defaultBooks(), activeBookId: null, activeLessonId: null };
+      initState(); saveState(); renderBooks(); renderLessons(); renderTable();
+    });
+  }
+
+  // ---------- اجرا ----------
+  initState();
+  renderBooks();
+  renderLessons();
+  renderTable();
+  bindEvents();
+})();
+</script>
+</body>
+</html>
