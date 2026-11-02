@@ -487,6 +487,121 @@
     .table-container { box-shadow: none; border: 1px solid #ddd; }
     th { background: #2c3e50 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
+
+  /* ---------- داستان‌های هر درس ---------- */
+  .stories-panel {
+    max-width: 900px;
+    margin: 0 auto 18px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.05);
+  }
+  .stories-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .stories-header h2 { margin: 0; font-size: 17px; color: #2c3e50; }
+  .story-form {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .story-form input, .story-form textarea {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    margin: 7px 0;
+    padding: 10px;
+    border: 1px solid #ccd4df;
+    border-radius: 8px;
+    font: inherit;
+    direction: auto;
+  }
+  .story-form textarea { min-height: 130px; resize: vertical; line-height: 1.7; }
+  .story-help { color: #64748b; font-size: 12px; line-height: 1.8; margin: 6px 0; }
+  .story-card {
+    border: 1px solid #e5eaf1;
+    border-radius: 11px;
+    padding: 12px;
+    margin-top: 10px;
+    background: #fff;
+  }
+  .story-card h3 { margin: 0 0 9px; font-size: 16px; }
+  .story-card [data-delete-story] { position: relative; z-index: 2; cursor: pointer; }
+  .story-card .stories-header { align-items: center; }
+  .story-card audio { width: 100%; margin: 5px 0 10px; }
+  .story-sentence {
+    padding: 10px 0;
+    border-top: 1px solid #edf0f4;
+  }
+  .story-sentence-de { direction: ltr; text-align: left; font-weight: 700; color: #1a5276; }
+  .story-sentence-fa { color: #7d3c98; margin-top: 5px; }
+  .story-sentence audio { margin-top: 6px; }
+  .story-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+  @media (max-width: 640px) {
+    .stories-panel { padding: 11px; margin-bottom: 12px; }
+    .stories-header h2 { font-size: 15px; }
+    .story-form { padding: 9px; }
+    .story-card { padding: 10px; }
+  }
+
+
+  /* ---------- کتابخانه کارت‌های داستان ---------- */
+  .story-library-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin: 8px 0 12px; }
+  .story-slider-wrap { position:relative; }
+  .story-slider { display:grid; grid-auto-flow:column; grid-auto-columns:calc((100% - 28px) / 3); gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding:4px 2px 12px; scrollbar-width:thin; }
+  .story-cover-wrap { position:relative; min-width:0; }
+  .story-cover-delete { position:absolute; z-index:3; top:9px; left:9px; border:1px solid rgba(255,255,255,.65); border-radius:18px; padding:5px 8px; color:#fff; background:rgba(160,20,35,.82); cursor:pointer; font:inherit; font-size:11px; }
+  .story-cover-card { position:relative; width:100%; min-width:0; height:210px; border:0; padding:0; border-radius:16px; overflow:hidden; cursor:pointer; text-align:right; color:#fff; background:var(--cover-color,#536dfe); scroll-snap-align:start; box-shadow:0 5px 16px rgba(15,23,42,.14); isolation:isolate; }
+  .story-cover-card img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2; }
+  .story-cover-card::before { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.76)); z-index:-1; }
+  .story-cover-title { position:absolute; right:14px; left:12px; bottom:15px; font-size:17px; font-weight:800; line-height:1.6; text-shadow:0 2px 7px rgba(0,0,0,.35); }
+  .story-cover-open { position:absolute; top:12px; right:12px; background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.55); border-radius:20px; padding:5px 10px; font-size:11px; }
+  .story-slider-arrow { position:absolute; top:42%; z-index:2; border:0; border-radius:50%; width:34px; height:34px; background:#fff; box-shadow:0 2px 9px #0002; cursor:pointer; font-size:20px; }
+  .story-slider-arrow.prev { right:-7px; }
+  .story-slider-arrow.next { left:-7px; }
+  .story-slider.all-view { grid-auto-flow:row; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; }
+  .story-reader { display:none; margin-top:15px; border:1px solid #e2e8f0; border-radius:15px; overflow:hidden; background:#fff; }
+  .story-reader.active { display:grid; grid-template-columns:245px minmax(0,1fr); min-height:300px; }
+  .story-reader-sidebar { background:#f7f9fc; border-left:1px solid #e7ebf1; padding:12px; }
+  .story-reader-sidebar h3 { margin:4px 0 12px; font-size:14px; }
+  .story-nav-list { display:flex; flex-direction:column; gap:6px; }
+  .story-nav-item { text-align:right; white-space:normal; width:100%; border:1px solid transparent; border-radius:8px; padding:9px; background:transparent; cursor:pointer; font:inherit; }
+  .story-nav-item.active { background:#e7efff; border-color:#c9dafb; color:#174ea6; font-weight:700; }
+  .story-reader-main { min-width:0; padding:16px; }
+  .story-reader-top { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .story-reader-top h3 { margin:0; font-size:19px; }
+  .story-reader-main audio { width:100%; margin:8px 0 12px; }
+  .story-reader-sentences { max-height:58vh; overflow:auto; padding:0 3px; }
+  .story-reader-sentences .story-sentence { padding:13px 0; }
+  .story-menu-btn { display:none; }
+  .story-reader-back { margin-inline-start:auto; }
+  .story-cover-fields { display:grid; grid-template-columns:minmax(0,1fr) 65px; gap:8px; align-items:center; }
+  .story-cover-fields input[type="color"] { width:100%; height:40px; padding:3px; }
+  @media (max-width:700px) {
+    .story-slider { grid-auto-columns: minmax(0,1fr); grid-auto-columns: min(78%, 250px); gap:10px; }
+    .story-cover-card { height:185px; }
+    .story-slider.all-view { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .story-reader.active { display:block; position:relative; }
+    .story-reader-sidebar { display:none; position:absolute; z-index:5; top:0; right:0; bottom:0; width:min(82%,290px); overflow:auto; box-shadow:-8px 0 25px #0002; }
+    .story-reader.sidebar-open .story-reader-sidebar { display:block; }
+    .story-menu-btn { display:inline-flex; }
+    .story-reader-main { padding:12px; }
+    .story-reader-sentences { max-height:none; }
+  }
+  @media (max-width:420px) {
+    .story-slider.all-view { grid-template-columns:1fr 1fr; }
+    .story-cover-card { height:160px; }
+    .story-cover-title { font-size:14px; }
+  }
+
 </style>
 </head>
 <body>
@@ -549,6 +664,67 @@
   <button class="btn btn-primary" id="saveWord">ذخیره کلمه</button>
 </div>
 
+
+<div class="stories-panel" id="storiesPanel">
+  <div class="stories-header">
+    <h2>📖 داستان‌های این درس</h2>
+    <div class="story-actions">
+      <button class="btn" id="togglePersianBtn" type="button">مخفی‌کردن ترجمه‌ها</button>
+      <button class="btn btn-primary" id="toggleStoryForm" type="button">➕ داستان جدید</button>
+    </div>
+  </div>
+  <div class="story-form hidden" id="storyForm">
+    <input id="storyTitle" type="text" placeholder="عنوان داستان (مثلاً Meine Familie)">
+    <input id="storyFullAudio" type="text" placeholder="مسیر فایل صوتی کامل (مثلاً audio/lektion1-story1.mp3)">
+    <input id="storyCoverImage" type="text" placeholder="آدرس عکس جلد داستان (اختیاری؛ مثلاً images/familie.jpg)">
+    <div class="story-cover-fields">
+      <label for="storyCoverColor">رنگ جلد در صورت نداشتن عکس:</label>
+      <input id="storyCoverColor" type="color" value="#536dfe" title="رنگ جلد داستان">
+    </div>
+    <textarea id="storySentences" placeholder="هر خط یک جمله آلمانی و ترجمه فارسی آن:
+جمله آلمانی | ترجمه فارسی
+
+مثال:
+Das ist meine Familie. | این خانواده من است.
+Meine Mutter heißt Anna. | نام مادر من آنا است.
+Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
+    <p class="story-help">
+      فقط یک فایل صوتی برای کل داستان انتخاب/وارد کنید. ترجمه فارسی زیر هر جمله نمایش داده می‌شود
+      و با دکمه «نمایش/مخفی‌کردن ترجمه‌ها» می‌توانید همه زیرنویس‌ها را یکجا کنترل کنید.
+      مسیر فایل صوتی باید نسبت به محل فایل HTML باشد؛ مثلاً audio/familie.mp3
+    </p>
+    <div class="story-actions">
+      <button class="btn btn-primary" id="saveStory" type="button">ذخیره داستان</button>
+      <button class="btn" id="cancelStory" type="button">لغو</button>
+    </div>
+  </div>
+  <div class="story-library-toolbar">
+    <strong id="storyCountLabel">داستان‌های این درس</strong>
+    <div class="story-actions">
+      <button class="btn" id="toggleAllStories" type="button">نمایش همه داستان‌ها</button>
+      <button class="btn" id="storySliderPrev" type="button" aria-label="داستان‌های قبلی">❯</button>
+      <button class="btn" id="storySliderNext" type="button" aria-label="داستان‌های بعدی">❮</button>
+    </div>
+  </div>
+  <div class="story-slider-wrap">
+    <div id="storiesList" class="story-slider"></div>
+  </div>
+  <section id="storyReader" class="story-reader" aria-live="polite">
+    <aside class="story-reader-sidebar">
+      <h3>📚 فهرست داستان‌ها</h3>
+      <div id="storyNavList" class="story-nav-list"></div>
+    </aside>
+    <div class="story-reader-main">
+      <div class="story-reader-top">
+        <button class="btn story-menu-btn" id="storyMenuToggle" type="button" aria-label="باز کردن فهرست داستان‌ها">☰ فهرست</button>
+        <h3 id="storyReaderTitle"></h3>
+        <button class="btn story-reader-back" id="closeStoryReader" type="button">بازگشت به کارت‌ها</button>
+      </div>
+      <div id="storyReaderContent"></div>
+    </div>
+  </section>
+</div>
+
 <div class="io-panel">
   <button class="btn" id="exportBtn">📤 خروجی JSON</button>
   <button class="btn" id="importBtn">📥 ورود JSON</button>
@@ -575,6 +751,9 @@
 
   var STORAGE_KEY = 'german-vocab-v2';
   var uidCounter = 0;
+  var showPersianTranslations = true;
+  var activeStoryId = null;
+  var showAllStoryCards = false;
   function uid() {
     uidCounter++;
     return 'id' + Date.now().toString(36) + uidCounter.toString(36) + Math.random().toString(36).slice(2, 6);
@@ -712,6 +891,15 @@
       }
     }
     if (!found) state.activeLessonId = (b && b.lessons.length) ? b.lessons[0].id : null;
+
+    // افزودن آرایه stories به درس‌های قدیمی، بدون حذف اطلاعات قبلی
+    state.books.forEach(function (book) {
+      (book.lessons || []).forEach(function (lesson) {
+        if (!Array.isArray(lesson.stories)) lesson.stories = [];
+        if (!Array.isArray(lesson.words)) lesson.words = [];
+      });
+    });
+    saveState();
   }
 
   function renderBooks() {
@@ -759,11 +947,123 @@
     return (a === 'der' || a === 'die' || a === 'das') ? a : '';
   }
 
+
+  function safeAudioSrc(src) {
+    src = String(src || '').trim();
+    if (!src) return '';
+    // فقط آدرس وب یا مسیر نسبی/مطلق فایل؛ از اجرای schemeهای ناامن جلوگیری می‌شود.
+    if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src) &&
+        !/^(javascript|data|vbscript):/i.test(src)) return src;
+    return '';
+  }
+
+  function safeImageSrc(src) {
+    src = String(src || '').trim();
+    if (!src) return '';
+    if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src) &&
+        !/^(javascript|data|vbscript):/i.test(src)) return src;
+    return '';
+  }
+
+  function safeCoverColor(color) {
+    color = String(color || '').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#536dfe';
+  }
+
+  function renderStoryReader(lesson) {
+    var reader = document.getElementById('storyReader');
+    var content = document.getElementById('storyReaderContent');
+    var nav = document.getElementById('storyNavList');
+    if (!lesson || !activeStoryId) {
+      reader.classList.remove('active', 'sidebar-open');
+      content.innerHTML = '';
+      nav.innerHTML = '';
+      return;
+    }
+    var story = lesson.stories.find(function (item) { return String(item.id) === String(activeStoryId); });
+    if (!story) {
+      activeStoryId = null;
+      reader.classList.remove('active', 'sidebar-open');
+      return;
+    }
+
+    reader.classList.add('active');
+    document.getElementById('storyReaderTitle').textContent = story.title;
+    var navHtml = '';
+    lesson.stories.forEach(function (item) {
+      navHtml += '<button type="button" class="story-nav-item' +
+        (String(item.id) === String(activeStoryId) ? ' active' : '') +
+        '" data-open-story="' + escapeHtml(item.id) + '">' + escapeHtml(item.title) + '</button>';
+    });
+    nav.innerHTML = navHtml;
+
+    var audio = safeAudioSrc(story.audio);
+    var output = '';
+    if (audio) output += '<div><strong>🎧 فایل صوتی کامل داستان</strong><audio controls preload="metadata" src="' + escapeHtml(audio) + '"></audio></div>';
+    output += '<div class="story-reader-sentences">';
+    (story.sentences || []).forEach(function (sentence, index) {
+      output += '<div class="story-sentence">';
+      output += '<div class="story-sentence-de">' + (index + 1) + '. ' + escapeHtml(sentence.de) + '</div>';
+      output += '<div class="story-sentence-fa' + (showPersianTranslations ? '' : ' hidden') + '">' + escapeHtml(sentence.fa) + '</div>';
+      output += '</div>';
+    });
+    output += '</div>';
+    content.innerHTML = output;
+    reader.classList.remove('sidebar-open');
+  }
+
+  function renderStories() {
+    var panel = document.getElementById('storiesPanel');
+    var list = document.getElementById('storiesList');
+    var lesson = currentLesson();
+    var form = document.getElementById('storyForm');
+    if (!panel || !list) return;
+
+    panel.style.display = lesson ? '' : 'none';
+    if (!lesson) {
+      form.classList.add('hidden');
+      list.innerHTML = '';
+      renderStoryReader(null);
+      return;
+    }
+    if (!Array.isArray(lesson.stories)) lesson.stories = [];
+
+    document.getElementById('togglePersianBtn').textContent =
+      showPersianTranslations ? 'مخفی‌کردن ترجمه‌ها' : 'نمایش ترجمه‌ها';
+    document.getElementById('storyCountLabel').textContent = '📖 ' + lesson.stories.length + ' داستان در این درس';
+    document.getElementById('toggleAllStories').textContent =
+      showAllStoryCards ? 'نمایش اسلایدر' : 'نمایش همه داستان‌ها';
+
+    if (lesson.stories.length === 0) {
+      list.innerHTML = '<p class="hint">هنوز داستانی برای این درس ثبت نشده است.</p>';
+      renderStoryReader(null);
+      return;
+    }
+
+    list.classList.toggle('all-view', showAllStoryCards);
+    var output = '';
+    lesson.stories.forEach(function (story) {
+      var image = safeImageSrc(story.coverImage);
+      var color = safeCoverColor(story.coverColor);
+      output += '<div class="story-cover-wrap">';
+      output += '<button type="button" class="story-cover-card" style="--cover-color:' + color + '" data-open-story="' + escapeHtml(story.id) + '">';
+      if (image) output += '<img src="' + escapeHtml(image) + '" alt="" loading="lazy">';
+      output += '<span class="story-cover-open">▶ خواندن داستان</span>';
+      output += '<span class="story-cover-title">' + escapeHtml(story.title) + '</span>';
+      output += '</button>';
+      output += '<button type="button" class="story-cover-delete" data-delete-story="' + escapeHtml(story.id) + '">حذف</button>';
+      output += '</div>';
+    });
+    list.innerHTML = output;
+    renderStoryReader(lesson);
+  }
+
   function renderTable() {
     var wrap = document.getElementById('tableWrapper');
     var addPanel = document.getElementById('addWordPanel');
     var badge = document.getElementById('wordCount');
     var lesson = currentLesson();
+    renderStories();
 
     badge.textContent = (lesson ? lesson.words.length : 0) + ' کلمه';
 
@@ -959,7 +1259,7 @@
     if (!b) { alert('ابتدا یک کتاب انتخاب یا ایجاد کنید.'); return; }
     var title = document.getElementById('lessonTitle').value.trim();
     if (!title) { alert('عنوان درس را وارد کنید.'); return; }
-    b.lessons.push({ id: uid(), title: title, words: [] });
+    b.lessons.push({ id: uid(), title: title, words: [], stories: [] });
     state.activeLessonId = b.lessons[b.lessons.length - 1].id;
     saveState();
     document.getElementById('lessonTitle').value = '';
@@ -1003,6 +1303,131 @@
     renderTable();
   });
 
+
+  document.getElementById('toggleStoryForm').addEventListener('click', function () {
+    document.getElementById('storyForm').classList.toggle('hidden');
+  });
+  document.getElementById('cancelStory').addEventListener('click', function () {
+    document.getElementById('storyForm').classList.add('hidden');
+  });
+  document.getElementById('togglePersianBtn').addEventListener('click', function () {
+    showPersianTranslations = !showPersianTranslations;
+    renderStories();
+  });
+
+  // باز کردن داستان از روی کارت یا فهرست کناری
+  document.getElementById('storiesList').addEventListener('click', function (e) {
+    var deleteButton = e.target.closest('[data-delete-story]');
+    if (deleteButton) {
+      var lessonToEdit = currentLesson();
+      if (!lessonToEdit || !Array.isArray(lessonToEdit.stories)) return;
+      var deleteId = deleteButton.getAttribute('data-delete-story');
+      var storyToDelete = lessonToEdit.stories.find(function (item) { return String(item.id) === String(deleteId); });
+      if (!storyToDelete) return;
+      if (!confirm('داستان «' + storyToDelete.title + '» حذف شود؟')) return;
+      lessonToEdit.stories = lessonToEdit.stories.filter(function (item) { return String(item.id) !== String(deleteId); });
+      if (String(activeStoryId) === String(deleteId)) activeStoryId = null;
+      saveState();
+      renderStories();
+      return;
+    }
+    var card = e.target.closest('[data-open-story]');
+    if (!card) return;
+    activeStoryId = card.getAttribute('data-open-story');
+    renderStories();
+    document.getElementById('storyReader').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.getElementById('storyNavList').addEventListener('click', function (e) {
+    var item = e.target.closest('[data-open-story]');
+    if (!item) return;
+    activeStoryId = item.getAttribute('data-open-story');
+    renderStories();
+  });
+  document.getElementById('storyMenuToggle').addEventListener('click', function () {
+    document.getElementById('storyReader').classList.toggle('sidebar-open');
+  });
+  document.getElementById('closeStoryReader').addEventListener('click', function () {
+    activeStoryId = null;
+    renderStories();
+  });
+  document.getElementById('toggleAllStories').addEventListener('click', function () {
+    showAllStoryCards = !showAllStoryCards;
+    renderStories();
+  });
+  document.getElementById('storySliderPrev').addEventListener('click', function () {
+    document.getElementById('storiesList').scrollBy({ left: 320, behavior: 'smooth' });
+  });
+  document.getElementById('storySliderNext').addEventListener('click', function () {
+    document.getElementById('storiesList').scrollBy({ left: -320, behavior: 'smooth' });
+  });
+
+  document.getElementById('saveStory').addEventListener('click', function () {
+    var lesson = currentLesson();
+    if (!lesson) { alert('ابتدا یک درس انتخاب کنید.'); return; }
+
+    var title = document.getElementById('storyTitle').value.trim();
+    var fullAudio = document.getElementById('storyFullAudio').value.trim();
+    var coverImage = document.getElementById('storyCoverImage').value.trim();
+    var coverColor = safeCoverColor(document.getElementById('storyCoverColor').value);
+    var rawLines = document.getElementById('storySentences').value.split(/\r?\n/);
+    if (!title) { alert('عنوان داستان را وارد کنید.'); return; }
+    if (!fullAudio) { alert('مسیر فایل صوتی کامل داستان را وارد کنید.'); return; }
+    if (!safeAudioSrc(fullAudio)) {
+      alert('مسیر فایل صوتی معتبر نیست. از مسیر نسبی یا آدرس http/https استفاده کنید.');
+      return;
+    }
+    if (coverImage && !safeImageSrc(coverImage)) {
+      alert('آدرس عکس جلد معتبر نیست. از مسیر نسبی یا آدرس http/https استفاده کنید.');
+      return;
+    }
+
+    var sentences = [];
+    var invalidSentenceLine = false;
+    rawLines.forEach(function (line) {
+      if (!line.trim()) return;
+      var separator = line.indexOf('|');
+      if (separator < 1) {
+        invalidSentenceLine = true;
+        return;
+      }
+      var de = line.slice(0, separator).trim();
+      var fa = line.slice(separator + 1).trim();
+      if (!de || !fa) {
+        invalidSentenceLine = true;
+        return;
+      }
+      sentences.push({ de: de, fa: fa });
+    });
+
+    if (invalidSentenceLine) {
+      alert('فرمت یکی از خط‌ها اشتباه است. هر خط باید به شکل «جمله آلمانی | ترجمه فارسی» باشد.');
+      return;
+    }
+    if (sentences.length === 0) {
+      alert('حداقل یک جمله آلمانی و ترجمه فارسی وارد کنید.');
+      return;
+    }
+
+    if (!Array.isArray(lesson.stories)) lesson.stories = [];
+    lesson.stories.push({
+      id: uid(),
+      title: title,
+      audio: fullAudio,
+      coverImage: coverImage,
+      coverColor: coverColor,
+      sentences: sentences
+    });
+    saveState();
+
+    document.getElementById('storyTitle').value = '';
+    document.getElementById('storyFullAudio').value = '';
+    document.getElementById('storyCoverImage').value = '';
+    document.getElementById('storyCoverColor').value = '#536dfe';
+    document.getElementById('storySentences').value = '';
+    document.getElementById('storyForm').classList.add('hidden');
+    renderStories();
+  });
+
   document.getElementById('flashcard').addEventListener('click', function () {
     document.getElementById('flashcard').classList.toggle('flipped');
   });
@@ -1035,6 +1460,12 @@
         if (!Array.isArray(books)) throw new Error('ساختار فایل نامعتبر است');
         if (!confirm('داده‌های فعلی جایگزین می‌شوند. ادامه؟')) return;
         state.books = books;
+        state.books.forEach(function (book) {
+          (book.lessons || []).forEach(function (lesson) {
+            if (!Array.isArray(lesson.stories)) lesson.stories = [];
+            if (!Array.isArray(lesson.words)) lesson.words = [];
+          });
+        });
         state.activeBookId = books.length ? books[0].id : null;
         state.activeLessonId = (books.length && books[0].lessons.length) ? books[0].lessons[0].id : null;
         saveState(); renderBooks(); renderLessons(); renderTable();

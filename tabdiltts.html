@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fa">
+
+<head>
+    <meta charset="UTF-8">
+    <title>تست صدا</title>
+</head>
+
+<body style="font-family: Tahoma; padding: 20px; direction: rtl;">
+
+    <h1>تست صدا</h1>
+
+    <p>روی دکمه زیر بزن:</p>
+
+    <button onclick="speak('Buch')" style="padding: 15px 30px; font-size: 18px; cursor: pointer;">
+        🔊 Buch
+    </button>
+
+    <button onclick="speak('Der Tisch')" style="padding: 15px 30px; font-size: 18px; cursor: pointer;">
+        🔊 Der Tisch
+    </button>
+
+    <button onclick="speak('Ich heiße Ali')" style="padding: 15px 30px; font-size: 18px; cursor: pointer;">
+        🔊 Ich heiße Ali
+    </button>
+
+
+
+    <script>
+
+        function speak(text) {
+            // ۱. ساخت پیام
+            var u = new SpeechSynthesisUtterance(text);
+
+            // ۲. تنظیم زبان آلمانی
+            u.lang = 'de-DE';
+
+            // ۳. سرعت رو 0.9 (کمی کند)
+            u.rate = 0.9;
+
+            // ۴. بگو حالا بگو!
+            window.speechSynthesis.speak(u);
+
+        }
+
+
+
+
+
+
+
+        let uidCounter = 0;
+
+        function uid() {
+            uidCounter++;
+
+            return 'id' +
+                Date.now().toString(36) +
+                uidCounter.toString(36) +
+                Math.random().toString(36).slice(2, 6);
+        }
+
+        const user1 = {
+            id: uid(),
+            name: "Ali"
+        };
+
+        const user2 = {
+            id: uid(),
+            name: "Reza"
+        };
+
+        console.log(user1);
+        console.log(user2);
+    </script>
+
+</body>
+
+</html>
