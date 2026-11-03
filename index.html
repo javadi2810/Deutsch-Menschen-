@@ -559,6 +559,7 @@
   .story-slider { display:grid; grid-auto-flow:column; grid-auto-columns:calc((100% - 28px) / 3); gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding:4px 2px 12px; scrollbar-width:thin; }
   .story-cover-wrap { position:relative; min-width:0; }
   .story-cover-delete { position:absolute; z-index:3; top:9px; left:9px; border:1px solid rgba(255,255,255,.65); border-radius:18px; padding:5px 8px; color:#fff; background:rgba(160,20,35,.82); cursor:pointer; font:inherit; font-size:11px; }
+  .story-cover-edit { position:absolute; z-index:3; top:9px; left:64px; border:1px solid rgba(255,255,255,.65); border-radius:18px; padding:5px 8px; color:#fff; background:rgba(30,90,200,.85); cursor:pointer; font:inherit; font-size:11px; }
   .story-cover-card { position:relative; width:100%; min-width:0; height:210px; border:0; padding:0; border-radius:16px; overflow:hidden; cursor:pointer; text-align:right; color:#fff; background:var(--cover-color,#536dfe); scroll-snap-align:start; box-shadow:0 5px 16px rgba(15,23,42,.14); isolation:isolate; }
   .story-cover-card img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2; }
   .story-cover-card::before { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.76)); z-index:-1; }
@@ -674,27 +675,21 @@
     </div>
   </div>
   <div class="story-form hidden" id="storyForm">
+    <input type="hidden" id="storyEditId" value="">
     <input id="storyTitle" type="text" placeholder="عنوان داستان (مثلاً Meine Familie)">
-    <input id="storyFullAudio" type="text" placeholder="مسیر فایل صوتی کامل (مثلاً audio/lektion1-story1.mp3)">
-    <input id="storyCoverImage" type="text" placeholder="آدرس عکس جلد داستان (اختیاری؛ مثلاً images/familie.jpg)">
+    <input id="storyFullAudio" type="text" placeholder="لینک صوتی (Google Drive / Dropbox / مستقیم / مسیر نسبی)">
+    <input id="storyCoverImage" type="text" placeholder="آدرس عکس جلد (اختیاری)">
     <div class="story-cover-fields">
       <label for="storyCoverColor">رنگ جلد در صورت نداشتن عکس:</label>
       <input id="storyCoverColor" type="color" value="#536dfe" title="رنگ جلد داستان">
     </div>
-    <textarea id="storySentences" placeholder="هر خط یک جمله آلمانی و ترجمه فارسی آن:
-جمله آلمانی | ترجمه فارسی
-
-مثال:
-Das ist meine Familie. | این خانواده من است.
-Meine Mutter heißt Anna. | نام مادر من آنا است.
-Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
+    <textarea id="storySentences" placeholder="هر خط یک جمله آلمانی و ترجمه فارسی آن:&#10;جمله آلمانی | ترجمه فارسی&#10;&#10;مثال:&#10;Das ist meine Familie. | این خانواده من است.&#10;Meine Mutter heißt Anna. | نام مادر من آنا است."></textarea>
     <p class="story-help">
-      فقط یک فایل صوتی برای کل داستان انتخاب/وارد کنید. ترجمه فارسی زیر هر جمله نمایش داده می‌شود
-      و با دکمه «نمایش/مخفی‌کردن ترجمه‌ها» می‌توانید همه زیرنویس‌ها را یکجا کنترل کنید.
-      مسیر فایل صوتی باید نسبت به محل فایل HTML باشد؛ مثلاً audio/familie.mp3
+      لینک Google Drive و Dropbox به‌طور خودکار به لینک پخش مستقیم تبدیل می‌شوند.
+      برای فایل‌های بزرگ Drive بهتر است از لینک <b>uc?export=download&id=</b> یا میزبانی مثل GitHub Pages استفاده کنید.
     </p>
     <div class="story-actions">
-      <button class="btn btn-primary" id="saveStory" type="button">ذخیره داستان</button>
+      <button class="btn btn-primary" id="saveStory" type="button">💾 ذخیره داستان</button>
       <button class="btn" id="cancelStory" type="button">لغو</button>
     </div>
   </div>
@@ -777,70 +772,17 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
           { id: uid(), de: 'Frau',  art: 'die', plural: 'Frauen',  fa: 'زن',   speak: 'Frau' },
           { id: uid(), de: 'Mann',  art: 'der', plural: 'Männer',  fa: 'مرد',  speak: 'Mann' },
           { id: uid(), de: 'Land',  art: 'das', plural: 'Länder',  fa: 'کشور', speak: 'Land' }
-        ]},
+        ], stories: []},
         { id: uid(), title: 'Lektion 2', words: [
           { id: uid(), de: 'Buch',  art: 'das', plural: 'Bücher', fa: 'کتاب', speak: 'Buch' },
           { id: uid(), de: 'Tisch', art: 'der', plural: 'Tische', fa: 'میز',  speak: 'Tisch' },
           { id: uid(), de: 'Lampe', art: 'die', plural: 'Lampen', fa: 'لامپ', speak: 'Lampe' }
-        ]},
+        ], stories: []},
         { id: uid(), title: 'Lektion 3', words: [
           { id: uid(), de: 'Apfel',  art: 'der', plural: 'Äpfel', fa: 'سیب', speak: 'Apfel' },
           { id: uid(), de: 'Wasser', art: 'das', plural: '–',     fa: 'آب',  speak: 'Wasser' },
           { id: uid(), de: 'Milch',  art: 'die', plural: '–',     fa: 'شیر', speak: 'Milch' }
-        ]},
-        { id: uid(), title: 'Lektion 4 — رنگ‌ها، متریال‌ها و اشیا', words: [
-          { id: uid(), de: 'Farbe',       art: 'die', plural: 'Farben',        fa: 'رنگ',              speak: 'Farbe' },
-          { id: uid(), de: 'rot',         art: '–',   plural: '–',              fa: 'قرمز',             speak: 'rot' },
-          { id: uid(), de: 'blau',        art: '–',   plural: '–',              fa: 'آبی',              speak: 'blau' },
-          { id: uid(), de: 'grün',        art: '–',   plural: '–',              fa: 'سبز',              speak: 'grün' },
-          { id: uid(), de: 'gelb',        art: '–',   plural: '–',              fa: 'زرد',              speak: 'gelb' },
-          { id: uid(), de: 'schwarz',     art: '–',   plural: '–',              fa: 'مشکی',             speak: 'schwarz' },
-          { id: uid(), de: 'weiß',        art: '–',   plural: '–',              fa: 'سفید',             speak: 'weiß' },
-          { id: uid(), de: 'grau',        art: '–',   plural: '–',              fa: 'خاکستری',          speak: 'grau' },
-          { id: uid(), de: 'braun',       art: '–',   plural: '–',              fa: 'قهوه‌ای',           speak: 'braun' },
-          { id: uid(), de: 'orange',      art: '–',   plural: '–',              fa: 'نارنجی',           speak: 'orange' },
-          { id: uid(), de: 'rosa / pink', art: '–',   plural: '–',              fa: 'صورتی',            speak: 'rosa' },
-          { id: uid(), de: 'lila',        art: '–',   plural: '–',              fa: 'بنفش',             speak: 'lila' },
-          { id: uid(), de: 'Kunststoff',  art: 'der', plural: 'Kunststoffe',    fa: 'پلاستیک',          speak: 'Kunststoff' },
-          { id: uid(), de: 'Glas',        art: 'das', plural: 'Gläser',         fa: 'شیشه',             speak: 'Glas' },
-          { id: uid(), de: 'Metall',      art: 'das', plural: 'Metalle',        fa: 'فلز',              speak: 'Metall' },
-          { id: uid(), de: 'Holz',        art: 'das', plural: 'Hölzer',         fa: 'چوب',              speak: 'Holz' },
-          { id: uid(), de: 'Eisen',       art: 'das', plural: '–',              fa: 'آهن',              speak: 'Eisen' },
-          { id: uid(), de: 'Gummi',       art: 'das', plural: '–',              fa: 'لاستیک',           speak: 'Gummi' },
-          { id: uid(), de: 'Papier',      art: 'das', plural: 'Papiere',        fa: 'کاغذ',             speak: 'Papier' },
-          { id: uid(), de: 'Leder',       art: 'das', plural: '–',              fa: 'چرم',              speak: 'Leder' },
-          { id: uid(), de: 'Wolle',       art: 'die', plural: 'Wollen',         fa: 'پشم',              speak: 'Wolle' },
-          { id: uid(), de: 'Baumwolle',   art: 'die', plural: '–',              fa: 'پنبه',             speak: 'Baumwolle' },
-          { id: uid(), de: 'Bleistift',      art: 'der', plural: 'Bleistifte',     fa: 'مداد',                speak: 'Bleistift' },
-          { id: uid(), de: 'Brille',         art: 'die', plural: 'Brillen',        fa: 'عینک',                speak: 'Brille' },
-          { id: uid(), de: 'Buch',           art: 'das', plural: 'Bücher',         fa: 'کتاب',                speak: 'Buch' },
-          { id: uid(), de: 'Flasche',        art: 'die', plural: 'Flaschen',       fa: 'بطری',                speak: 'Flasche' },
-          { id: uid(), de: 'Feuerzeug',      art: 'das', plural: 'Feuerzeuge',     fa: 'فندک',                speak: 'Feuerzeug' },
-          { id: uid(), de: 'Kamera',         art: 'die', plural: 'Kameras',        fa: 'دوربین',              speak: 'Kamera' },
-          { id: uid(), de: 'Halskette',      art: 'die', plural: 'Halsketten',     fa: 'زنجیر گردن‌بند',     speak: 'Halskette' },
-          { id: uid(), de: 'Kugelschreiber', art: 'der', plural: 'Kugelschreiber', fa: 'خودکار',              speak: 'Kugelschreiber' },
-          { id: uid(), de: 'Schlüssel',      art: 'der', plural: 'Schlüssel',      fa: 'کلید',                speak: 'Schlüssel' },
-          { id: uid(), de: 'Tasche',         art: 'die', plural: 'Taschen',        fa: 'کیف',                 speak: 'Tasche' },
-          { id: uid(), de: 'Uhr',            art: 'die', plural: 'Uhren',          fa: 'ساعت',                speak: 'Uhr' },
-          { id: uid(), de: 'Regenschirm',    art: 'der', plural: 'Regenschirme',   fa: 'چتر',                 speak: 'Regenschirm' },
-          { id: uid(), de: 'Streichholz',    art: 'das', plural: 'Streichhölzer',  fa: 'کبریت',               speak: 'Streichholz' },
-          { id: uid(), de: 'Geldbörse',      art: 'die', plural: 'Geldbörsen',     fa: 'کیف پول',             speak: 'Geldbörse' },
-          { id: uid(), de: 'Seife',          art: 'die', plural: 'Seifen',         fa: 'صابون',               speak: 'Seife' },
-          { id: uid(), de: 'Laptop',         art: 'der', plural: 'Laptops',        fa: 'لپ‌تاپ',              speak: 'Laptop' },
-          { id: uid(), de: 'E-Mail',         art: 'die', plural: 'E-Mails',        fa: 'ایمیل',               speak: 'E-Mail' },
-          { id: uid(), de: 'Telefon',        art: 'das', plural: 'Telefone',       fa: 'تلفن',                speak: 'Telefon' },
-          { id: uid(), de: 'SMS',            art: 'die', plural: 'SMS',            fa: 'اس ام اس',            speak: 'SMS' },
-          { id: uid(), de: 'Briefmarke',     art: 'die', plural: 'Briefmarken',    fa: 'تمبر',                speak: 'Briefmarke' },
-          { id: uid(), de: 'Rechnung',       art: 'die', plural: 'Rechnungen',     fa: 'صورت‌حساب / فاکتور', speak: 'Rechnung' },
-          { id: uid(), de: 'Formular',       art: 'das', plural: 'Formulare',      fa: 'فرم / پرسشنامه',      speak: 'Formular' },
-          { id: uid(), de: 'Drucker',        art: 'der', plural: 'Drucker',        fa: 'پرینتر',              speak: 'Drucker' },
-          { id: uid(), de: 'Maus',           art: 'die', plural: 'Mäuse',          fa: 'موس',                 speak: 'Maus' },
-          { id: uid(), de: 'Computer',       art: 'der', plural: 'Computer',       fa: 'کامپیوتر',            speak: 'Computer' },
-          { id: uid(), de: 'Stift',          art: 'der', plural: 'Stifte',         fa: 'خودکار / مداد',       speak: 'Stift' },
-          { id: uid(), de: 'Notizbuch',      art: 'das', plural: 'Notizbücher',    fa: 'دفتر',                speak: 'Notizbuch' },
-          { id: uid(), de: 'Kalender',       art: 'der', plural: 'Kalender',       fa: 'تقویم',               speak: 'Kalender' },
-          { id: uid(), de: 'Monitor',        art: 'der', plural: 'Monitore',       fa: 'مانیتور',             speak: 'Monitor' }
-        ]}
+        ], stories: []}
       ]
     }];
   }
@@ -892,7 +834,6 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
     }
     if (!found) state.activeLessonId = (b && b.lessons.length) ? b.lessons[0].id : null;
 
-    // افزودن آرایه stories به درس‌های قدیمی، بدون حذف اطلاعات قبلی
     state.books.forEach(function (book) {
       (book.lessons || []).forEach(function (lesson) {
         if (!Array.isArray(lesson.stories)) lesson.stories = [];
@@ -947,15 +888,35 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
     return (a === 'der' || a === 'die' || a === 'das') ? a : '';
   }
 
-
-  function safeAudioSrc(src) {
+  // تبدیل لینک‌های اشتراک‌گذاری به لینک مستقیم قابل پخش
+  function toDirectAudioUrl(src) {
     src = String(src || '').trim();
     if (!src) return '';
-    // فقط آدرس وب یا مسیر نسبی/مطلق فایل؛ از اجرای schemeهای ناامن جلوگیری می‌شود.
-    if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src) &&
-        !/^(javascript|data|vbscript):/i.test(src)) return src;
+    if (/^(javascript|data|vbscript):/i.test(src)) return '';
+
+    // Google Drive
+    var gd = src.match(/drive\.google\.com\/file\/d\/([^/?#]+)/i);
+    if (gd) return 'https://drive.google.com/uc?export=download&id=' + gd[1];
+    var gd2 = src.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([^&#]+)/i);
+    if (gd2) return 'https://drive.google.com/uc?export=download&id=' + gd2[1];
+    // لینک docs.google.com
+    var gd3 = src.match(/docs\.google\.com\/[^/]+\/d\/([^/?#]+)/i);
+    if (gd3) return 'https://drive.google.com/uc?export=download&id=' + gd3[1];
+
+    // Dropbox
+    if (/dropbox\.com/i.test(src)) {
+      return src.replace(/([?&])dl=0/i, '$1raw=1').replace(/([?&])dl=1/i, '$1raw=1');
+    }
+    // OneDrive
+    if (/1drv\.ms|onedrive\.live\.com/i.test(src)) {
+      return src.replace(/\?.*$/, '') + '?download=1';
+    }
+
+    if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src)) return src;
     return '';
   }
+  // برای سازگاری با کدهای قبلی
+  function safeAudioSrc(src) { return toDirectAudioUrl(src); }
 
   function safeImageSrc(src) {
     src = String(src || '').trim();
@@ -997,9 +958,14 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
     });
     nav.innerHTML = navHtml;
 
-    var audio = safeAudioSrc(story.audio);
+    var audio = toDirectAudioUrl(story.audio);
     var output = '';
-    if (audio) output += '<div><strong>🎧 فایل صوتی کامل داستان</strong><audio controls preload="metadata" src="' + escapeHtml(audio) + '"></audio></div>';
+    if (audio) {
+      output += '<div><strong>🎧 فایل صوتی کامل داستان</strong>' +
+        '<audio controls preload="metadata" src="' + escapeHtml(audio) + '"></audio>' +
+        '<div style="font-size:11px;color:#888;word-break:break-all;margin-top:4px;">' + escapeHtml(audio) + '</div>' +
+        '</div>';
+    }
     output += '<div class="story-reader-sentences">';
     (story.sentences || []).forEach(function (sentence, index) {
       output += '<div class="story-sentence">';
@@ -1051,7 +1017,8 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
       output += '<span class="story-cover-open">▶ خواندن داستان</span>';
       output += '<span class="story-cover-title">' + escapeHtml(story.title) + '</span>';
       output += '</button>';
-      output += '<button type="button" class="story-cover-delete" data-delete-story="' + escapeHtml(story.id) + '">حذف</button>';
+      output += '<button type="button" class="story-cover-edit" data-edit-story="' + escapeHtml(story.id) + '">✏️ ویرایش</button>';
+      output += '<button type="button" class="story-cover-delete" data-delete-story="' + escapeHtml(story.id) + '">🗑 حذف</button>';
       output += '</div>';
     });
     list.innerHTML = output;
@@ -1135,7 +1102,6 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
     var trs = wrap.querySelectorAll('tbody tr');
     for (var t = 0; t < trs.length; t++) {
       (function (tr) {
-        // ✅ لمس طولانی برای حذف در موبایل
         var pressTimer = null;
         var longPressFired = false;
 
@@ -1157,7 +1123,7 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
               saveState();
               renderTable();
             }
-          }, 600); // 0.6 ثانیه
+          }, 600);
         }
         function cancelPress() {
           if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
@@ -1303,9 +1269,18 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
     renderTable();
   });
 
-
+  // ---------- داستان‌ها ----------
   document.getElementById('toggleStoryForm').addEventListener('click', function () {
-    document.getElementById('storyForm').classList.toggle('hidden');
+    var form = document.getElementById('storyForm');
+    if (form.classList.contains('hidden')) {
+      document.getElementById('storyEditId').value = '';
+      document.getElementById('storyTitle').value = '';
+      document.getElementById('storyFullAudio').value = '';
+      document.getElementById('storyCoverImage').value = '';
+      document.getElementById('storyCoverColor').value = '#536dfe';
+      document.getElementById('storySentences').value = '';
+    }
+    form.classList.toggle('hidden');
   });
   document.getElementById('cancelStory').addEventListener('click', function () {
     document.getElementById('storyForm').classList.add('hidden');
@@ -1315,28 +1290,52 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
     renderStories();
   });
 
-  // باز کردن داستان از روی کارت یا فهرست کناری
   document.getElementById('storiesList').addEventListener('click', function (e) {
-    var deleteButton = e.target.closest('[data-delete-story]');
-    if (deleteButton) {
-      var lessonToEdit = currentLesson();
-      if (!lessonToEdit || !Array.isArray(lessonToEdit.stories)) return;
-      var deleteId = deleteButton.getAttribute('data-delete-story');
-      var storyToDelete = lessonToEdit.stories.find(function (item) { return String(item.id) === String(deleteId); });
-      if (!storyToDelete) return;
-      if (!confirm('داستان «' + storyToDelete.title + '» حذف شود؟')) return;
-      lessonToEdit.stories = lessonToEdit.stories.filter(function (item) { return String(item.id) !== String(deleteId); });
-      if (String(activeStoryId) === String(deleteId)) activeStoryId = null;
+    // حذف
+    var delBtn = e.target.closest('[data-delete-story]');
+    if (delBtn) {
+      var lessonD = currentLesson();
+      if (!lessonD) return;
+      var delId = delBtn.getAttribute('data-delete-story');
+      var sD = lessonD.stories.find(function (x) { return String(x.id) === String(delId); });
+      if (!sD) return;
+      if (!confirm('داستان «' + sD.title + '» حذف شود؟')) return;
+      lessonD.stories = lessonD.stories.filter(function (x) { return String(x.id) !== String(delId); });
+      if (String(activeStoryId) === String(delId)) activeStoryId = null;
       saveState();
       renderStories();
       return;
     }
+
+    // ویرایش
+    var editBtn = e.target.closest('[data-edit-story]');
+    if (editBtn) {
+      var lessonE = currentLesson();
+      if (!lessonE) return;
+      var editId = editBtn.getAttribute('data-edit-story');
+      var story = lessonE.stories.find(function (x) { return String(x.id) === String(editId); });
+      if (!story) return;
+      document.getElementById('storyEditId').value = story.id;
+      document.getElementById('storyTitle').value = story.title || '';
+      document.getElementById('storyFullAudio').value = story.audio || '';
+      document.getElementById('storyCoverImage').value = story.coverImage || '';
+      document.getElementById('storyCoverColor').value = safeCoverColor(story.coverColor);
+      document.getElementById('storySentences').value = (story.sentences || [])
+        .map(function (s) { return s.de + ' | ' + s.fa; }).join('\n');
+      var form = document.getElementById('storyForm');
+      form.classList.remove('hidden');
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    // باز کردن
     var card = e.target.closest('[data-open-story]');
     if (!card) return;
     activeStoryId = card.getAttribute('data-open-story');
     renderStories();
     document.getElementById('storyReader').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
+
   document.getElementById('storyNavList').addEventListener('click', function (e) {
     var item = e.target.closest('[data-open-story]');
     if (!item) return;
@@ -1365,60 +1364,58 @@ Mein Vater ist Lehrer. | پدر من معلم است."></textarea>
     var lesson = currentLesson();
     if (!lesson) { alert('ابتدا یک درس انتخاب کنید.'); return; }
 
+    var editId = document.getElementById('storyEditId').value || '';
     var title = document.getElementById('storyTitle').value.trim();
-    var fullAudio = document.getElementById('storyFullAudio').value.trim();
-    var coverImage = document.getElementById('storyCoverImage').value.trim();
+    var fullAudioRaw = document.getElementById('storyFullAudio').value.trim();
+    var coverImageRaw = document.getElementById('storyCoverImage').value.trim();
     var coverColor = safeCoverColor(document.getElementById('storyCoverColor').value);
     var rawLines = document.getElementById('storySentences').value.split(/\r?\n/);
+
     if (!title) { alert('عنوان داستان را وارد کنید.'); return; }
-    if (!fullAudio) { alert('مسیر فایل صوتی کامل داستان را وارد کنید.'); return; }
-    if (!safeAudioSrc(fullAudio)) {
-      alert('مسیر فایل صوتی معتبر نیست. از مسیر نسبی یا آدرس http/https استفاده کنید.');
-      return;
-    }
-    if (coverImage && !safeImageSrc(coverImage)) {
-      alert('آدرس عکس جلد معتبر نیست. از مسیر نسبی یا آدرس http/https استفاده کنید.');
-      return;
+    if (!fullAudioRaw) { alert('لینک فایل صوتی را وارد کنید.'); return; }
+
+    var fullAudio = toDirectAudioUrl(fullAudioRaw);
+    if (!fullAudio) { alert('لینک صوتی معتبر نیست. از لینک Google Drive، Dropbox یا آدرس http/https استفاده کنید.'); return; }
+
+    var coverImage = '';
+    if (coverImageRaw) {
+      coverImage = safeImageSrc(coverImageRaw);
+      if (!coverImage) { alert('آدرس عکس جلد معتبر نیست.'); return; }
     }
 
     var sentences = [];
-    var invalidSentenceLine = false;
+    var bad = false;
     rawLines.forEach(function (line) {
       if (!line.trim()) return;
-      var separator = line.indexOf('|');
-      if (separator < 1) {
-        invalidSentenceLine = true;
-        return;
-      }
-      var de = line.slice(0, separator).trim();
-      var fa = line.slice(separator + 1).trim();
-      if (!de || !fa) {
-        invalidSentenceLine = true;
-        return;
-      }
+      var sep = line.indexOf('|');
+      if (sep < 1) { bad = true; return; }
+      var de = line.slice(0, sep).trim();
+      var fa = line.slice(sep + 1).trim();
+      if (!de || !fa) { bad = true; return; }
       sentences.push({ de: de, fa: fa });
     });
-
-    if (invalidSentenceLine) {
-      alert('فرمت یکی از خط‌ها اشتباه است. هر خط باید به شکل «جمله آلمانی | ترجمه فارسی» باشد.');
-      return;
-    }
-    if (sentences.length === 0) {
-      alert('حداقل یک جمله آلمانی و ترجمه فارسی وارد کنید.');
-      return;
-    }
+    if (bad) { alert('فرمت خطوط جمله اشتباه است. باید «جمله آلمانی | ترجمه فارسی» باشد.'); return; }
+    if (sentences.length === 0) { alert('حداقل یک جمله آلمانی و ترجمه فارسی وارد کنید.'); return; }
 
     if (!Array.isArray(lesson.stories)) lesson.stories = [];
-    lesson.stories.push({
-      id: uid(),
-      title: title,
-      audio: fullAudio,
-      coverImage: coverImage,
-      coverColor: coverColor,
-      sentences: sentences
-    });
-    saveState();
 
+    if (editId) {
+      var target = lesson.stories.find(function (s) { return String(s.id) === String(editId); });
+      if (!target) { alert('داستان برای ویرایش پیدا نشد.'); return; }
+      target.title = title;
+      target.audio = fullAudio;
+      target.coverImage = coverImage;
+      target.coverColor = coverColor;
+      target.sentences = sentences;
+    } else {
+      lesson.stories.push({
+        id: uid(), title: title, audio: fullAudio,
+        coverImage: coverImage, coverColor: coverColor, sentences: sentences
+      });
+    }
+
+    saveState();
+    document.getElementById('storyEditId').value = '';
     document.getElementById('storyTitle').value = '';
     document.getElementById('storyFullAudio').value = '';
     document.getElementById('storyCoverImage').value = '';
