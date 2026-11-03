@@ -586,6 +586,14 @@
   .story-reader-back { margin-inline-start:auto; }
   .story-cover-fields { display:grid; grid-template-columns:minmax(0,1fr) 65px; gap:8px; align-items:center; }
   .story-cover-fields input[type="color"] { width:100%; height:40px; padding:3px; }
+
+  /* دکمه مخفی‌کردن ترجمه داخل کادر خواننده */
+  .story-reader-top #togglePersianBtn {
+    flex-shrink: 0;
+    font-size: 12px;
+    padding: 7px 10px;
+  }
+
   @media (max-width:700px) {
     .story-slider { grid-auto-columns: minmax(0,1fr); grid-auto-columns: min(78%, 250px); gap:10px; }
     .story-cover-card { height:185px; }
@@ -596,6 +604,21 @@
     .story-menu-btn { display:inline-flex; }
     .story-reader-main { padding:12px; }
     .story-reader-sentences { max-height:none; }
+
+    /* در موبایل: همبرگری + مخفی‌کردن ترجمه کنار هم در سمت راست */
+    .story-reader-top { justify-content: flex-start; }
+    .story-reader-top .story-menu-btn { order: 1; }
+    .story-reader-top #togglePersianBtn { order: 2; }
+    .story-reader-top #storyReaderTitle {
+      order: 3;
+      flex: 1 1 100%;
+      margin-top: 6px;
+    }
+    .story-reader-top .story-reader-back { order: 4; margin-inline-start: 0; }
+    .story-reader-top #togglePersianBtn {
+      font-size: 11px;
+      padding: 6px 8px;
+    }
   }
   @media (max-width:420px) {
     .story-slider.all-view { grid-template-columns:1fr 1fr; }
@@ -670,7 +693,6 @@
   <div class="stories-header">
     <h2>📖 داستان‌های این درس</h2>
     <div class="story-actions">
-      <button class="btn" id="togglePersianBtn" type="button">مخفی‌کردن ترجمه‌ها</button>
       <button class="btn btn-primary" id="toggleStoryForm" type="button">➕ داستان جدید</button>
     </div>
   </div>
@@ -712,6 +734,7 @@
     <div class="story-reader-main">
       <div class="story-reader-top">
         <button class="btn story-menu-btn" id="storyMenuToggle" type="button" aria-label="باز کردن فهرست داستان‌ها">☰ فهرست</button>
+        <button class="btn" id="togglePersianBtn" type="button">مخفی‌کردن ترجمه‌ها</button>
         <h3 id="storyReaderTitle"></h3>
         <button class="btn story-reader-back" id="closeStoryReader" type="button">بازگشت به کارت‌ها</button>
       </div>
@@ -915,7 +938,6 @@
     if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src)) return src;
     return '';
   }
-  // برای سازگاری با کدهای قبلی
   function safeAudioSrc(src) { return toDirectAudioUrl(src); }
 
   function safeImageSrc(src) {
