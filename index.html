@@ -314,7 +314,7 @@
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.6);
-      z-index: 1000;
+      z-index: 3000;
       justify-content: center;
       align-items: center;
       direction: ltr;
@@ -771,6 +771,8 @@
     }
 
     .story-sentence-fa {
+      direction: rtl;
+      text-align: right;
       color: #7d3c98;
       margin-top: 5px;
     }
@@ -941,6 +943,7 @@
       overflow: visible;
     }
 
+    /* ---------- خواننده داستان ---------- */
     .story-reader {
       display: none;
       margin-top: 15px;
@@ -954,12 +957,14 @@
       display: grid;
       grid-template-columns: 245px minmax(0, 1fr);
       min-height: 300px;
+      max-height: 85vh;
     }
 
     .story-reader-sidebar {
       background: #f7f9fc;
       border-left: 1px solid #e7ebf1;
       padding: 12px;
+      overflow-y: auto;
     }
 
     .story-reader-sidebar h3 {
@@ -995,6 +1000,10 @@
     .story-reader-main {
       min-width: 0;
       padding: 16px;
+      display: flex;
+      flex-direction: column;
+      max-height: 85vh;
+      overflow: hidden;
     }
 
     .story-reader-top {
@@ -1004,6 +1013,7 @@
       gap: 8px;
       flex-wrap: wrap;
       margin-bottom: 12px;
+      flex-shrink: 0;
     }
 
     .story-reader-top h3 {
@@ -1011,13 +1021,24 @@
       font-size: 19px;
     }
 
-    .story-reader-sentences {
-      max-height: 58vh;
-      overflow: auto;
-      padding: 0 3px;
+    /* ✅ #storyReaderContent باید خودش flex column باشد */
+    #storyReaderContent {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
     }
 
-    .story-reader-sentences .story-sentence {
+    .story-reader-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 3px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .story-reader-scroll .story-sentence {
       padding: 13px 0;
     }
 
@@ -1042,13 +1063,14 @@
       padding: 3px;
     }
 
-    .story-reader-top #togglePersianBtn {
+    .story-reader-top #togglePersianBtn,
+    .story-reader-top #storyFullscreenBtn {
       flex-shrink: 0;
       font-size: 12px;
       padding: 7px 10px;
     }
 
-    /* ---------- پخش‌کننده صوتی باریک با لایه رنگی ثابت ---------- */
+    /* ---------- پخش‌کننده صوتی ---------- */
     .audio-player {
       border-radius: 10px;
       padding: 8px 10px;
@@ -1059,9 +1081,9 @@
       overflow: hidden;
       isolation: isolate;
       background: #1a1a2e;
+      flex-shrink: 0;
     }
 
-    /* لایه رنگی پایه - گرادیانت آبی-بنفش با اوپسیتی 55% */
     .audio-player::before {
       content: "";
       position: absolute;
@@ -1071,7 +1093,6 @@
       pointer-events: none;
     }
 
-    /* لایه پس‌زمینه (رنگ/عکس کارت) با اوپسیتی کم */
     .audio-player::after {
       content: "";
       position: absolute;
@@ -1083,13 +1104,11 @@
       opacity: 0.55;
     }
 
-    /* اگر عکس جلد داره: پس‌زمینه بلور عکس */
     .audio-player.has-bg-image::after {
       filter: blur(14px) brightness(0.7);
       transform: scale(1.15);
     }
 
-    /* اگر فقط رنگ داره: همون رنگ با اوپسیتی کم */
     .audio-player.has-bg-color::after {
       background-color: var(--player-cover-color, #536dfe);
       opacity: 0.6;
@@ -1150,7 +1169,6 @@
       gap: 4px;
       display: flex;
       flex-direction: column;
-
     }
 
     .audio-progress {
@@ -1270,6 +1288,37 @@
       transform: scale(0.95);
     }
 
+    .audio-download-btn {
+      height: 32px;
+      margin-bottom: 3px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: #fff;
+      border-radius: 5px;
+      padding: 3px 7px;
+      font: inherit;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+      direction: ltr;
+      line-height: 1;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    .audio-download-btn:active {
+      transform: scale(0.95);
+    }
+
+    .audio-download-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
     @media (max-width: 640px) {
       .audio-player {
         padding: 7px 9px;
@@ -1303,8 +1352,11 @@
       }
 
       .story-reader.active {
-        display: block;
+        display: flex;
+        flex-direction: column;
         position: relative;
+        max-height: 85vh;
+        overflow: hidden;
       }
 
       .story-reader-sidebar {
@@ -1317,6 +1369,7 @@
         width: min(82%, 290px);
         overflow: auto;
         box-shadow: -8px 0 25px #0002;
+        background: #f7f9fc;
       }
 
       .story-reader.sidebar-open .story-reader-sidebar {
@@ -1329,9 +1382,16 @@
 
       .story-reader-main {
         padding: 12px;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        max-height: 85vh;
+        overflow: hidden;
       }
 
-      .story-reader-sentences {
+      .story-reader-scroll {
+        overflow-y: auto;
         max-height: none;
       }
 
@@ -1347,18 +1407,23 @@
         order: 2;
       }
 
-      .story-reader-top #storyReaderTitle {
+      .story-reader-top #storyFullscreenBtn {
         order: 3;
+      }
+
+      .story-reader-top #storyReaderTitle {
+        order: 4;
         flex: 1 1 100%;
         margin-top: 6px;
       }
 
       .story-reader-top .story-reader-back {
-        order: 4;
+        order: 5;
         margin-inline-start: 0;
       }
 
-      .story-reader-top #togglePersianBtn {
+      .story-reader-top #togglePersianBtn,
+      .story-reader-top #storyFullscreenBtn {
         font-size: 11px;
         padding: 6px 8px;
       }
@@ -1375,6 +1440,91 @@
 
       .story-cover-title {
         font-size: 14px;
+      }
+    }
+
+    /* ============================================ */
+    /* ✅ فول‌اسکرین — پلیر پایین ثابت، متن اسکرول، سایدبار قابل باز/بسته */
+    /* ============================================ */
+    .story-reader.fullscreen {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      margin: 0;
+      border-radius: 0;
+      border: none;
+      max-height: none;
+      height: 100vh;
+      width: 100vw;
+      background: #fff;
+      display: flex !important;
+      flex-direction: row;
+      overflow: hidden;
+    }
+
+    .story-reader.fullscreen .story-reader-sidebar {
+      display: block;
+      width: 245px;
+      flex-shrink: 0;
+      max-height: 100vh;
+      border-left: 1px solid #e7ebf1;
+    }
+
+    .story-reader.fullscreen .story-reader-main {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    .story-reader.fullscreen #storyReaderContent {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .story-reader.fullscreen .story-reader-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      max-height: none;
+    }
+
+    .story-reader.fullscreen .audio-player {
+      flex-shrink: 0;
+    }
+
+    /* در موبایل: سایدبار کشویی */
+    @media (max-width: 700px) {
+      .story-reader.fullscreen {
+        flex-direction: column;
+      }
+
+      .story-reader.fullscreen .story-reader-sidebar {
+        display: none;
+        position: absolute;
+        z-index: 10;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(82%, 290px);
+        height: 100vh;
+        overflow: auto;
+        box-shadow: -8px 0 25px #0002;
+      }
+
+      .story-reader.fullscreen.sidebar-open .story-reader-sidebar {
+        display: block;
+      }
+
+      .story-reader.fullscreen .story-reader-main {
+        padding: 10px;
       }
     }
   </style>
@@ -1493,6 +1643,7 @@
           <button class="btn story-menu-btn" id="storyMenuToggle" type="button" aria-label="باز کردن فهرست داستان‌ها">☰
             فهرست</button>
           <button class="btn" id="togglePersianBtn" type="button">مخفی‌کردن ترجمه‌ها</button>
+          <button class="btn" id="storyFullscreenBtn" type="button" title="تمام‌صفحه">⛶</button>
           <h3 id="storyReaderTitle"></h3>
           <button class="btn story-reader-back" id="closeStoryReader" type="button">بازگشت به کارت‌ها</button>
         </div>
@@ -1704,15 +1855,17 @@
         var content = document.getElementById('storyReaderContent');
         var nav = document.getElementById('storyNavList');
         if (!lesson || !activeStoryId) {
-          reader.classList.remove('active', 'sidebar-open');
+          reader.classList.remove('active', 'sidebar-open', 'fullscreen');
           content.innerHTML = '';
           nav.innerHTML = '';
+          var fsBtn0 = document.getElementById('storyFullscreenBtn');
+          if (fsBtn0) { fsBtn0.textContent = '⛶'; fsBtn0.title = 'تمام‌صفحه'; }
           return;
         }
         var story = lesson.stories.find(function (item) { return String(item.id) === String(activeStoryId); });
         if (!story) {
           activeStoryId = null;
-          reader.classList.remove('active', 'sidebar-open');
+          reader.classList.remove('active', 'sidebar-open', 'fullscreen');
           return;
         }
         reader.classList.add('active');
@@ -1729,7 +1882,7 @@
         var coverColor = safeCoverColor(story.coverColor);
 
         var output = '';
-        output += '<div class="story-reader-sentences">';
+        output += '<div class="story-reader-scroll">';
         (story.sentences || []).forEach(function (sentence, index) {
           output += '<div class="story-sentence">';
           output += '<div class="story-sentence-de">' + (index + 1) + '. ' + escapeHtml(sentence.de) + '</div>';
@@ -1748,6 +1901,7 @@
             playerClass += ' has-bg-color';
             playerStyle = ' style="--player-cover-color:' + coverColor + '"';
           }
+          var downloadName = (story.title || 'audio').replace(/[\\/:*?"<>|]/g, '_') + '.mp3';
           output +=
             '<div class="' + playerClass + '" data-audio-player' + playerStyle + '>' +
             '<div class="audio-player-label">🎧 ' + escapeHtml(story.title) + '</div>' +
@@ -1758,6 +1912,7 @@
             '<input type="range" class="audio-progress" data-progress min="0" max="100" value="0" step="0.1">' +
             '</div>' +
             '<button type="button" class="audio-speed-btn" data-speed-btn>1×</button>' +
+            '<a class="audio-download-btn" href="' + escapeHtml(audio) + '" download="' + escapeHtml(downloadName) + '" target="_blank" rel="noopener" title="دانلود">⬇</a>' +
             '</div>' +
             '<div class="audio-volume-wrap">' +
             '<span class="vol-icon" data-vol-icon>🔊</span>' +
@@ -1774,7 +1929,6 @@
           var playerEl = content.querySelector('[data-audio-player]');
           if (playerEl) {
             if (coverImage) {
-              // تزریق استایل اختصاصی برای ::after با عکس
               var styleId = 'style_' + story.id.replace(/[^a-zA-Z0-9]/g, '');
               var oldStyle = document.getElementById(styleId);
               if (oldStyle) oldStyle.remove();
@@ -2144,6 +2298,47 @@
         showPersianTranslations = !showPersianTranslations;
         renderStories();
       });
+
+      // ✅ دکمه فول‌اسکرین
+      document.getElementById('storyFullscreenBtn').addEventListener('click', function () {
+        var reader = document.getElementById('storyReader');
+        if (!reader.classList.contains('active')) return;
+        reader.classList.toggle('fullscreen');
+        var btn = document.getElementById('storyFullscreenBtn');
+        if (reader.classList.contains('fullscreen')) {
+          btn.textContent = '✕';
+          btn.title = 'خروج از تمام‌صفحه';
+        } else {
+          btn.textContent = '⛶';
+          btn.title = 'تمام‌صفحه';
+        }
+      });
+
+      // سوییچ بین داستان‌ها در حالت فول‌اسکرین هم کار می‌کند
+      document.getElementById('storyNavList').addEventListener('click', function (e) {
+        var item = e.target.closest('[data-open-story]');
+        if (!item) return;
+        activeStoryId = item.getAttribute('data-open-story');
+        renderStories();
+      });
+
+      document.getElementById('storyMenuToggle').addEventListener('click', function () {
+        document.getElementById('storyReader').classList.toggle('sidebar-open');
+      });
+      document.getElementById('closeStoryReader').addEventListener('click', function () {
+        activeStoryId = null;
+        renderStories();
+      });
+      document.getElementById('toggleAllStories').addEventListener('click', function () {
+        showAllStoryCards = !showAllStoryCards;
+        renderStories();
+      });
+      document.getElementById('storySliderPrev').addEventListener('click', function () {
+        document.getElementById('storiesList').scrollBy({ left: 320, behavior: 'smooth' });
+      });
+      document.getElementById('storySliderNext').addEventListener('click', function () {
+        document.getElementById('storiesList').scrollBy({ left: -320, behavior: 'smooth' });
+      });
       document.getElementById('storiesList').addEventListener('click', function (e) {
         var delBtn = e.target.closest('[data-delete-story]');
         if (delBtn) {
@@ -2182,29 +2377,6 @@
         activeStoryId = card.getAttribute('data-open-story');
         renderStories();
         document.getElementById('storyReader').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-      document.getElementById('storyNavList').addEventListener('click', function (e) {
-        var item = e.target.closest('[data-open-story]');
-        if (!item) return;
-        activeStoryId = item.getAttribute('data-open-story');
-        renderStories();
-      });
-      document.getElementById('storyMenuToggle').addEventListener('click', function () {
-        document.getElementById('storyReader').classList.toggle('sidebar-open');
-      });
-      document.getElementById('closeStoryReader').addEventListener('click', function () {
-        activeStoryId = null;
-        renderStories();
-      });
-      document.getElementById('toggleAllStories').addEventListener('click', function () {
-        showAllStoryCards = !showAllStoryCards;
-        renderStories();
-      });
-      document.getElementById('storySliderPrev').addEventListener('click', function () {
-        document.getElementById('storiesList').scrollBy({ left: 320, behavior: 'smooth' });
-      });
-      document.getElementById('storySliderNext').addEventListener('click', function () {
-        document.getElementById('storiesList').scrollBy({ left: -320, behavior: 'smooth' });
       });
       document.getElementById('saveStory').addEventListener('click', function () {
         var lesson = currentLesson();
@@ -2270,7 +2442,17 @@
         if (e.target.id === 'cardOverlay') closeCard();
       });
       document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closeCard();
+        if (e.key === 'Escape') {
+          var reader = document.getElementById('storyReader');
+          if (reader.classList.contains('fullscreen')) {
+            reader.classList.remove('fullscreen');
+            var btn = document.getElementById('storyFullscreenBtn');
+            btn.textContent = '⛶';
+            btn.title = 'تمام‌صفحه';
+          } else {
+            closeCard();
+          }
+        }
       });
       document.getElementById('exportBtn').addEventListener('click', function () {
         var blob = new Blob([JSON.stringify(state.books, null, 2)], { type: 'application/json' });
