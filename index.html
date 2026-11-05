@@ -1,1137 +1,1961 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#2c3e50">
-<title>واژگان Menschen - کارت و جدول</title>
-<style>
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-  html, body { margin: 0; padding: 0; overflow-x: hidden; }
-
-  body {
-    font-family: 'Tahoma', 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #f0f2f5;
-    padding: 16px;
-    direction: rtl;
-    font-size: 15px;
-    line-height: 1.4;
-    color: #2c3e50;
-    min-height: 100vh;
-    padding-bottom: env(safe-area-inset-bottom, 20px);
-  }
-
-  h1 {
-    text-align: center;
-    color: #2c3e50;
-    font-size: clamp(18px, 5vw, 26px);
-    margin: 0 0 14px;
-  }
-
-  .selector-panel {
-    background: white;
-    border-radius: 12px;
-    padding: 10px 12px;
-    max-width: 900px;
-    margin: 0 auto 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  }
-
-  .selector-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .selector-row label {
-    font-weight: 600;
-    color: #2c3e50;
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  .selector-row select,
-  .selector-row input {
-    padding: 8px 12px;
-    font-size: 14px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-family: inherit;
-    background: white;
-    min-width: 0;
-    flex: 1 1 160px;
-    max-width: 100%;
-  }
-
-  .btn {
-    padding: 8px 13px;
-    border-radius: 8px;
-    border: 1px solid #d0dcf0;
-    background: #f5f8ff;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 14px;
-    transition: all 0.15s;
-    white-space: nowrap;
-    flex-shrink: 0;
-    touch-action: manipulation;
-  }
-  .btn:active { transform: scale(0.97); }
-  .btn:hover { background: #e5efff; }
-
-  .btn-primary { background: #1f6feb; color: white; border-color: #1f6feb; }
-  .btn-primary:hover { background: #145bb8; }
-  .btn-danger { background: #fee; color: #b00020; border-color: #f5c2c7; }
-  .btn-danger:hover { background: #fdd; }
-
-  .hidden { display: none !important; }
-  .inline-form { margin-top: 8px; }
-
-  .count-badge {
-    background: #eef3fb;
-    color: #1f6feb;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .hint {
-    text-align: center;
-    color: #888;
-    padding: 16px;
-    font-size: 14px;
-    max-width: 900px;
-    margin: 0 auto 20px;
-  }
-
-  /* ---------- جدول ---------- */
-  .table-container {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    overflow-x: auto;
-    max-width: 900px;
-    margin: 0 auto 20px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  table { width: 100%; border-collapse: collapse; direction: ltr; table-layout: auto; }
-
-  th {
-    background: #2c3e50;
-    color: white;
-    padding: 10px 6px;
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-    text-align: center;
-  }
-
-  td {
-    padding: 9px 6px;
-    border-bottom: 1px solid #eee;
-    text-align: center;
-    font-size: 14px;
-    vertical-align: middle;
-    word-break: break-word;
-  }
-
-  tr:hover td { background: #f8faff; cursor: pointer; }
-  tr:last-child td { border-bottom: none; }
-
-  .de { font-weight: bold; color: #1a5276; }
-  .fa { color: #7d3c98; font-weight: 600; }
-  .art { font-weight: bold; }
-  .art.der { color: #1f6feb; }
-  .art.die { color: #e63946; }
-  .art.das { color: #2a9d3f; }
-
-  .note-cell {
-    color: #666;
-    font-size: 12px;
-    font-style: italic;
-    max-width: 120px;
-  }
-  .action-cell { width: 40px; }
-  .sound-cell { width: 42px; padding: 3px !important; }
-
-  .speak-btn {
-    background: #eef3fb;
-    border: 1px solid #d0dcf0;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 15px;
-    padding: 5px 7px;
-    transition: all 0.2s;
-    touch-action: manipulation;
-    line-height: 1;
-  }
-  .speak-btn:active { transform: scale(0.9); }
-  .speak-btn:hover { background: #dbe7fa; transform: scale(1.06); }
-
-  .icon-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 15px;
-    padding: 4px;
-    border-radius: 6px;
-    touch-action: manipulation;
-    line-height: 1;
-  }
-  .icon-btn.delete:hover { background: #fdd; }
-
-  /* ---------- فرم ---------- */
-  .add-word-form {
-    background: white;
-    border-radius: 12px;
-    padding: 14px;
-    max-width: 900px;
-    margin: 0 auto 16px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  }
-  .add-word-form h3 { margin: 0 0 10px; color: #2c3e50; font-size: 14px; }
-
-  .form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .form-grid input,
-  .form-grid select {
-    padding: 9px 11px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-family: inherit;
-    font-size: 14px;
-    background: white;
-    min-width: 0;
-    width: 100%;
-  }
-
-  /* ---------- IO ---------- */
-  .io-panel {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    max-width: 900px;
-    margin: 14px auto;
-    flex-wrap: wrap;
-  }
-
-  /* ---------- فلش‌کارت ---------- */
-  .card-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    z-index: 1000;
-    justify-content: center;
-    align-items: center;
-    direction: ltr;
-    padding: 16px;
-  }
-  .card-overlay.active { display: flex; }
-
-  .flashcard {
-    width: min(300px, 88vw);
-    height: min(200px, 58vw);
-    min-height: 160px;
-    perspective: 1000px;
-    cursor: pointer;
-  }
-  .flashcard-inner {
-    position: relative;
-    width: 100%; height: 100%;
-    transition: transform 0.6s;
-    transform-style: preserve-3d;
-  }
-  .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
-
-  .flashcard-front, .flashcard-back {
-    position: absolute;
-    width: 100%; height: 100%;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    border-radius: 16px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-    padding: 18px;
-    text-align: center;
-  }
-  .flashcard-front { background: #ffffff; color: #2c3e50; }
-  .flashcard-front .art { font-size: clamp(14px, 4vw, 18px); margin-bottom: 4px; }
-  .flashcard-front .de { font-size: clamp(20px, 6vw, 28px); word-break: break-word; }
-  .flashcard-back {
-    background: #7d3c98;
-    color: white;
-    transform: rotateY(180deg);
-    font-size: clamp(18px, 5vw, 26px);
-    word-break: break-word;
-  }
-  .card-note { font-size: clamp(12px, 3vw, 14px); opacity: 0.85; margin-top: 10px; font-weight: normal; }
-  .close-card {
-    position: absolute;
-    top: 10px; right: 10px;
-    font-size: 30px;
-    color: white;
-    cursor: pointer;
-    background: none;
-    border: none;
-    width: 44px; height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    touch-action: manipulation;
-  }
-  .close-card:active { background: rgba(255,255,255,0.1); }
-
-  /* ============================================ */
-  /* 📱 موبایل — همان جدول، فقط جمع‌وجورتر        */
-  /* ============================================ */
-  @media (max-width: 640px) {
-    body {
-      padding: 8px;
-      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-      font-size: 13px;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2c3e50">
+  <title>واژگان Menschen - کارت و جدول</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    h1 { font-size: 17px; margin: 0 0 10px; }
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: 'Tahoma', 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f0f2f5;
+      padding: 16px;
+      direction: rtl;
+      font-size: 15px;
+      line-height: 1.4;
+      color: #2c3e50;
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      font-size: clamp(18px, 5vw, 26px);
+      margin: 0 0 14px;
+    }
 
     .selector-panel {
-      padding: 8px 10px;
-      margin-bottom: 8px;
-      border-radius: 10px;
+      background: white;
+      border-radius: 12px;
+      padding: 10px 12px;
+      max-width: 900px;
+      margin: 0 auto 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
 
-    .selector-row { gap: 6px; }
+    .selector-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
 
     .selector-row label {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .selector-row select,
+    .selector-row input {
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-family: inherit;
+      background: white;
+      min-width: 0;
+      flex: 1 1 160px;
+      max-width: 100%;
+    }
+
+    .btn {
+      padding: 8px 13px;
+      border-radius: 8px;
+      border: 1px solid #d0dcf0;
+      background: #f5f8ff;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      transition: all 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+      touch-action: manipulation;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn:hover {
+      background: #e5efff;
+    }
+
+    .btn-primary {
+      background: #1f6feb;
+      color: white;
+      border-color: #1f6feb;
+    }
+
+    .btn-primary:hover {
+      background: #145bb8;
+    }
+
+    .btn-danger {
+      background: #fee;
+      color: #b00020;
+      border-color: #f5c2c7;
+    }
+
+    .btn-danger:hover {
+      background: #fdd;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .inline-form {
+      margin-top: 8px;
+    }
+
+    .count-badge {
+      background: #eef3fb;
+      color: #1f6feb;
+      padding: 3px 10px;
+      border-radius: 20px;
       font-size: 12px;
-      width: 100%;
-      margin-bottom: 0;
+      font-weight: 600;
+      flex-shrink: 0;
     }
 
-    .selector-row select {
-      flex: 1 1 100%;
-      font-size: 13px;
-      padding: 8px 10px;
+    .hint {
+      text-align: center;
+      color: #888;
+      padding: 16px;
+      font-size: 14px;
+      max-width: 900px;
+      margin: 0 auto 20px;
     }
 
-    .selector-row .btn {
-      flex: 0 0 auto;
-      padding: 7px 10px;
-      font-size: 12px;
-    }
-    .selector-row .btn-primary { flex: 1 1 auto; }
-    .selector-row .btn-danger { flex: 0 0 40px; padding: 7px; }
-
-    .count-badge { font-size: 11px; padding: 2px 8px; }
-
-    /* ---------- جدول فشرده ---------- */
     .table-container {
-      border-radius: 10px;
-      margin-bottom: 12px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      overflow-x: auto;
+      max-width: 900px;
+      margin: 0 auto 20px;
+      -webkit-overflow-scrolling: touch;
     }
 
-    table { font-size: 12px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      direction: ltr;
+      table-layout: auto;
+    }
 
     th {
-      padding: 8px 3px;
-      font-size: 11px;
+      background: #2c3e50;
+      color: white;
+      padding: 10px 6px;
+      font-size: 13px;
       font-weight: 600;
+      white-space: nowrap;
+      text-align: center;
     }
 
     td {
-      padding: 8px 3px;
-      font-size: 12px;
+      padding: 9px 6px;
+      border-bottom: 1px solid #eee;
+      text-align: center;
+      font-size: 14px;
+      vertical-align: middle;
+      word-break: break-word;
     }
 
-    /* ✅ کلمه آلمانی: چپ‌چین با فونت کمی بزرگ‌تر و فضای بیشتر */
+    tr:hover td {
+      background: #f8faff;
+      cursor: pointer;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
     .de {
-      font-size: 13px;
-      text-align: left !important;
-      padding-left: 8px !important;
-      max-width: 130px;
-      word-break: break-word;
-      line-height: 1.3;
+      font-weight: bold;
+      color: #1a5276;
     }
 
-    .fa { font-size: 12px; }
+    .fa {
+      color: #7d3c98;
+      font-weight: 600;
+    }
 
-    /* ✅ ستون سطل زباله در موبایل مخفی */
-    .action-cell { display: none !important; }
-    thead th:last-child { display: none !important; }
+    .art {
+      font-weight: bold;
+    }
 
-    /* ستون یادداشت هم مخفی */
-    .note-cell { display: none; }
-    thead th:nth-child(6) { display: none; }
+    .art.der {
+      color: #1f6feb;
+    }
 
-    /* ستون صدا کوچک‌تر */
-    .sound-cell { width: 34px; padding: 2px !important; }
+    .art.die {
+      color: #e63946;
+    }
+
+    .art.das {
+      color: #2a9d3f;
+    }
+
+    .note-cell {
+      color: #666;
+      font-size: 12px;
+      font-style: italic;
+      max-width: 120px;
+    }
+
+    .action-cell {
+      width: 40px;
+    }
+
+    .sound-cell {
+      width: 42px;
+      padding: 3px !important;
+    }
+
     .speak-btn {
-      font-size: 13px;
-      padding: 4px 5px;
-      border-radius: 5px;
+      background: #eef3fb;
+      border: 1px solid #d0dcf0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      padding: 5px 7px;
+      transition: all 0.2s;
+      touch-action: manipulation;
+      line-height: 1;
     }
 
-    td.art { font-size: 12px; }
-    td.plural-cell { font-size: 11px; }
-
-    td.fa {
-      max-width: 90px;
-      word-break: break-word;
-      line-height: 1.3;
+    .speak-btn:active {
+      transform: scale(0.9);
     }
 
-    /* حذف با لمس طولانی — راهنما */
-    tbody tr:active {
-      background: #f0f4ff;
+    .speak-btn:hover {
+      background: #dbe7fa;
+      transform: scale(1.06);
     }
 
-    /* ---------- فرم ---------- */
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      padding: 4px;
+      border-radius: 6px;
+      touch-action: manipulation;
+      line-height: 1;
+    }
+
+    .icon-btn.delete:hover {
+      background: #fdd;
+    }
+
     .add-word-form {
-      padding: 12px;
-      border-radius: 10px;
-      margin-bottom: 12px;
-    }
-    .add-word-form h3 { font-size: 13px; margin-bottom: 8px; }
-
-    .form-grid {
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    .form-grid input,
-    .form-grid select {
-      padding: 9px 10px;
-      font-size: 13px;
-      border-radius: 7px;
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      max-width: 900px;
+      margin: 0 auto 16px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
     }
 
-    #wDe, #wFa { grid-column: 1 / -1; }
-
-    .add-word-form > .btn-primary {
-      width: 100%;
-      padding: 11px;
+    .add-word-form h3 {
+      margin: 0 0 10px;
+      color: #2c3e50;
       font-size: 14px;
     }
 
-    .io-panel {
-      gap: 6px;
-      margin: 10px auto;
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
     }
-    .io-panel .btn {
-      flex: 1 1 calc(50% - 3px);
-      padding: 10px;
-      font-size: 12px;
+
+    .form-grid input,
+    .form-grid select {
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-family: inherit;
+      font-size: 14px;
+      background: white;
+      min-width: 0;
+      width: 100%;
+    }
+
+    .io-panel {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      max-width: 900px;
+      margin: 14px auto;
+      flex-wrap: wrap;
+    }
+
+    .card-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      direction: ltr;
+      padding: 16px;
+    }
+
+    .card-overlay.active {
+      display: flex;
     }
 
     .flashcard {
-      width: 88vw;
-      height: 56vw;
-      min-height: 170px;
+      width: min(300px, 88vw);
+      height: min(200px, 58vw);
+      min-height: 160px;
+      perspective: 1000px;
+      cursor: pointer;
     }
-    .close-card { font-size: 34px; top: 6px; right: 6px; }
-    .card-overlay { padding: 10px; }
-  }
 
-  /* ============================================ */
-  /* 📱 موبایل خیلی کوچک                          */
-  /* ============================================ */
-  @media (max-width: 380px) {
-    body { padding: 6px; font-size: 12px; }
-    h1 { font-size: 16px; }
+    .flashcard-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
 
-    .selector-row .btn { font-size: 11px; padding: 6px 8px; }
-    .count-badge { display: none; }
+    .flashcard.flipped .flashcard-inner {
+      transform: rotateY(180deg);
+    }
 
-    th { font-size: 10px; padding: 7px 2px; }
-    td { font-size: 11px; padding: 7px 2px; }
+    .flashcard-front,
+    .flashcard-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      padding: 18px;
+      text-align: center;
+    }
 
-    .de { font-size: 12px; max-width: 100px; padding-left: 6px !important; }
-    .fa { font-size: 11px; max-width: 75px; }
+    .flashcard-front {
+      background: #ffffff;
+      color: #2c3e50;
+    }
 
-    .form-grid { grid-template-columns: 1fr; }
+    .flashcard-front .art {
+      font-size: clamp(14px, 4vw, 18px);
+      margin-bottom: 4px;
+    }
 
-    .io-panel .btn {
-      flex: 1 1 100%;
+    .flashcard-front .de {
+      font-size: clamp(20px, 6vw, 28px);
+      word-break: break-word;
+    }
+
+    .flashcard-back {
+      background: #7d3c98;
+      color: white;
+      transform: rotateY(180deg);
+      font-size: clamp(18px, 5vw, 26px);
+      word-break: break-word;
+    }
+
+    .card-note {
+      font-size: clamp(12px, 3vw, 14px);
+      opacity: 0.85;
+      margin-top: 10px;
+      font-weight: normal;
+    }
+
+    .close-card {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 30px;
+      color: white;
+      cursor: pointer;
+      background: none;
+      border: none;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      touch-action: manipulation;
+    }
+
+    .close-card:active {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 8px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        font-size: 13px;
+      }
+
+      h1 {
+        font-size: 17px;
+        margin: 0 0 10px;
+      }
+
+      .selector-panel {
+        padding: 8px 10px;
+        margin-bottom: 8px;
+        border-radius: 10px;
+      }
+
+      .selector-row {
+        gap: 6px;
+      }
+
+      .selector-row label {
+        font-size: 12px;
+        width: 100%;
+        margin-bottom: 0;
+      }
+
+      .selector-row select {
+        flex: 1 1 100%;
+        font-size: 13px;
+        padding: 8px 10px;
+      }
+
+      .selector-row .btn {
+        flex: 0 0 auto;
+        padding: 7px 10px;
+        font-size: 12px;
+      }
+
+      .selector-row .btn-primary {
+        flex: 1 1 auto;
+      }
+
+      .selector-row .btn-danger {
+        flex: 0 0 40px;
+        padding: 7px;
+      }
+
+      .count-badge {
+        font-size: 11px;
+        padding: 2px 8px;
+      }
+
+      .table-container {
+        border-radius: 10px;
+        margin-bottom: 12px;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th {
+        padding: 8px 3px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      td {
+        padding: 8px 3px;
+        font-size: 12px;
+      }
+
+      .de {
+        font-size: 13px;
+        text-align: left !important;
+        padding-left: 8px !important;
+        max-width: 130px;
+        word-break: break-word;
+        line-height: 1.3;
+      }
+
+      .fa {
+        font-size: 12px;
+      }
+
+      .action-cell {
+        display: none !important;
+      }
+
+      thead th:last-child {
+        display: none !important;
+      }
+
+      .note-cell {
+        display: none;
+      }
+
+      thead th:nth-child(6) {
+        display: none;
+      }
+
+      .sound-cell {
+        width: 34px;
+        padding: 2px !important;
+      }
+
+      .speak-btn {
+        font-size: 13px;
+        padding: 4px 5px;
+        border-radius: 5px;
+      }
+
+      td.art {
+        font-size: 12px;
+      }
+
+      td.plural-cell {
+        font-size: 11px;
+      }
+
+      td.fa {
+        max-width: 90px;
+        word-break: break-word;
+        line-height: 1.3;
+      }
+
+      tbody tr:active {
+        background: #f0f4ff;
+      }
+
+      .add-word-form {
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+      }
+
+      .add-word-form h3 {
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+
+      .form-grid input,
+      .form-grid select {
+        padding: 9px 10px;
+        font-size: 13px;
+        border-radius: 7px;
+      }
+
+      #wDe,
+      #wFa {
+        grid-column: 1 / -1;
+      }
+
+      .add-word-form>.btn-primary {
+        width: 100%;
+        padding: 11px;
+        font-size: 14px;
+      }
+
+      .io-panel {
+        gap: 6px;
+        margin: 10px auto;
+      }
+
+      .io-panel .btn {
+        flex: 1 1 calc(50% - 3px);
+        padding: 10px;
+        font-size: 12px;
+      }
+
+      .flashcard {
+        width: 88vw;
+        height: 56vw;
+        min-height: 170px;
+      }
+
+      .close-card {
+        font-size: 34px;
+        top: 6px;
+        right: 6px;
+      }
+
+      .card-overlay {
+        padding: 10px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      body {
+        padding: 6px;
+        font-size: 12px;
+      }
+
+      h1 {
+        font-size: 16px;
+      }
+
+      .selector-row .btn {
+        font-size: 11px;
+        padding: 6px 8px;
+      }
+
+      .count-badge {
+        display: none;
+      }
+
+      th {
+        font-size: 10px;
+        padding: 7px 2px;
+      }
+
+      td {
+        font-size: 11px;
+        padding: 7px 2px;
+      }
+
+      .de {
+        font-size: 12px;
+        max-width: 100px;
+        padding-left: 6px !important;
+      }
+
+      .fa {
+        font-size: 11px;
+        max-width: 75px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .io-panel .btn {
+        flex: 1 1 100%;
+        font-size: 12px;
+      }
+    }
+
+    @media (min-width: 641px) and (max-width: 1024px) {
+      body {
+        padding: 18px;
+      }
+
+      .form-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      #wDe,
+      #wFa {
+        grid-column: auto;
+      }
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .selector-panel,
+      .add-word-form,
+      .io-panel,
+      .action-cell,
+      .sound-cell {
+        display: none !important;
+      }
+
+      .table-container {
+        box-shadow: none;
+        border: 1px solid #ddd;
+      }
+
+      th {
+        background: #2c3e50 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
+    .stories-panel {
+      max-width: 900px;
+      margin: 0 auto 18px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .05);
+    }
+
+    .stories-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .stories-header h2 {
+      margin: 0;
+      font-size: 17px;
+      color: #2c3e50;
+    }
+
+    .story-form {
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+
+    .story-form input,
+    .story-form textarea {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      margin: 7px 0;
+      padding: 10px;
+      border: 1px solid #ccd4df;
+      border-radius: 8px;
+      font: inherit;
+      direction: auto;
+    }
+
+    .story-form textarea {
+      min-height: 130px;
+      resize: vertical;
+      line-height: 1.7;
+    }
+
+    .story-help {
+      color: #64748b;
       font-size: 12px;
+      line-height: 1.8;
+      margin: 6px 0;
     }
-  }
 
-  /* ============================================ */
-  /* 📱 تبلت                                      */
-  /* ============================================ */
-  @media (min-width: 641px) and (max-width: 1024px) {
-    body { padding: 18px; }
-    .form-grid { grid-template-columns: repeat(2, 1fr); }
-    #wDe, #wFa { grid-column: auto; }
-  }
-
-  /* ============================================ */
-  /* 🖨 چاپ                                       */
-  /* ============================================ */
-  @media print {
-    body { background: white; padding: 0; }
-    .selector-panel, .add-word-form, .io-panel, .action-cell, .sound-cell { display: none !important; }
-    .table-container { box-shadow: none; border: 1px solid #ddd; }
-    th { background: #2c3e50 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  }
-
-  /* ---------- داستان‌های هر درس ---------- */
-  .stories-panel {
-    max-width: 900px;
-    margin: 0 auto 18px;
-    background: #fff;
-    border-radius: 12px;
-    padding: 14px;
-    box-shadow: 0 2px 6px rgba(0,0,0,.05);
-  }
-  .stories-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-  }
-  .stories-header h2 { margin: 0; font-size: 17px; color: #2c3e50; }
-  .story-form {
-    border: 1px solid #e2e8f0;
-    background: #f8fafc;
-    border-radius: 10px;
-    padding: 12px;
-    margin: 10px 0;
-  }
-  .story-form input, .story-form textarea {
-    display: block;
-    width: 100%;
-    min-width: 0;
-    margin: 7px 0;
-    padding: 10px;
-    border: 1px solid #ccd4df;
-    border-radius: 8px;
-    font: inherit;
-    direction: auto;
-  }
-  .story-form textarea { min-height: 130px; resize: vertical; line-height: 1.7; }
-  .story-help { color: #64748b; font-size: 12px; line-height: 1.8; margin: 6px 0; }
-  .story-card {
-    border: 1px solid #e5eaf1;
-    border-radius: 11px;
-    padding: 12px;
-    margin-top: 10px;
-    background: #fff;
-  }
-  .story-card h3 { margin: 0 0 9px; font-size: 16px; }
-  .story-card [data-delete-story] { position: relative; z-index: 2; cursor: pointer; }
-  .story-card .stories-header { align-items: center; }
-  .story-card audio { width: 100%; margin: 5px 0 10px; }
-  .story-sentence {
-    padding: 10px 0;
-    border-top: 1px solid #edf0f4;
-  }
-  .story-sentence-de { direction: ltr; text-align: left; font-weight: 700; color: #1a5276; }
-  .story-sentence-fa { color: #7d3c98; margin-top: 5px; }
-  .story-sentence audio { margin-top: 6px; }
-  .story-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
-  @media (max-width: 640px) {
-    .stories-panel { padding: 11px; margin-bottom: 12px; }
-    .stories-header h2 { font-size: 15px; }
-    .story-form { padding: 9px; }
-    .story-card { padding: 10px; }
-  }
-
-
-  /* ---------- کتابخانه کارت‌های داستان ---------- */
-  .story-library-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin: 8px 0 12px; }
-  .story-slider-wrap { position:relative; }
-  .story-slider { display:grid; grid-auto-flow:column; grid-auto-columns:calc((100% - 28px) / 3); gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding:4px 2px 12px; scrollbar-width:thin; }
-  .story-cover-wrap { position:relative; min-width:0; }
-  .story-cover-delete { position:absolute; z-index:3; top:9px; left:9px; border:1px solid rgba(255,255,255,.65); border-radius:18px; padding:5px 8px; color:#fff; background:rgba(160,20,35,.82); cursor:pointer; font:inherit; font-size:11px; }
-  .story-cover-edit { position:absolute; z-index:3; top:9px; left:64px; border:1px solid rgba(255,255,255,.65); border-radius:18px; padding:5px 8px; color:#fff; background:rgba(30,90,200,.85); cursor:pointer; font:inherit; font-size:11px; }
-  .story-cover-card { position:relative; width:100%; min-width:0; height:210px; border:0; padding:0; border-radius:16px; overflow:hidden; cursor:pointer; text-align:right; color:#fff; background:var(--cover-color,#536dfe); scroll-snap-align:start; box-shadow:0 5px 16px rgba(15,23,42,.14); isolation:isolate; }
-  .story-cover-card img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2; }
-  .story-cover-card::before { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.76)); z-index:-1; }
-  .story-cover-title { position:absolute; right:14px; left:12px; bottom:15px; font-size:17px; font-weight:800; line-height:1.6; text-shadow:0 2px 7px rgba(0,0,0,.35); }
-  .story-cover-open { position:absolute; top:12px; right:12px; background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.55); border-radius:20px; padding:5px 10px; font-size:11px; }
-  .story-slider-arrow { position:absolute; top:42%; z-index:2; border:0; border-radius:50%; width:34px; height:34px; background:#fff; box-shadow:0 2px 9px #0002; cursor:pointer; font-size:20px; }
-  .story-slider-arrow.prev { right:-7px; }
-  .story-slider-arrow.next { left:-7px; }
-  .story-slider.all-view { grid-auto-flow:row; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; }
-  .story-reader { display:none; margin-top:15px; border:1px solid #e2e8f0; border-radius:15px; overflow:hidden; background:#fff; }
-  .story-reader.active { display:grid; grid-template-columns:245px minmax(0,1fr); min-height:300px; }
-  .story-reader-sidebar { background:#f7f9fc; border-left:1px solid #e7ebf1; padding:12px; }
-  .story-reader-sidebar h3 { margin:4px 0 12px; font-size:14px; }
-  .story-nav-list { display:flex; flex-direction:column; gap:6px; }
-  .story-nav-item { text-align:right; white-space:normal; width:100%; border:1px solid transparent; border-radius:8px; padding:9px; background:transparent; cursor:pointer; font:inherit; }
-  .story-nav-item.active { background:#e7efff; border-color:#c9dafb; color:#174ea6; font-weight:700; }
-  .story-reader-main { min-width:0; padding:16px; }
-  .story-reader-top { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-  .story-reader-top h3 { margin:0; font-size:19px; }
-  .story-reader-main audio { width:100%; margin:8px 0 12px; }
-  .story-reader-sentences { max-height:58vh; overflow:auto; padding:0 3px; }
-  .story-reader-sentences .story-sentence { padding:13px 0; }
-  .story-menu-btn { display:none; }
-  .story-reader-back { margin-inline-start:auto; }
-  .story-cover-fields { display:grid; grid-template-columns:minmax(0,1fr) 65px; gap:8px; align-items:center; }
-  .story-cover-fields input[type="color"] { width:100%; height:40px; padding:3px; }
-
-  /* دکمه مخفی‌کردن ترجمه داخل کادر خواننده */
-  .story-reader-top #togglePersianBtn {
-    flex-shrink: 0;
-    font-size: 12px;
-    padding: 7px 10px;
-  }
-
-  @media (max-width:700px) {
-    .story-slider { grid-auto-columns: minmax(0,1fr); grid-auto-columns: min(78%, 250px); gap:10px; }
-    .story-cover-card { height:185px; }
-    .story-slider.all-view { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    .story-reader.active { display:block; position:relative; }
-    .story-reader-sidebar { display:none; position:absolute; z-index:5; top:0; right:0; bottom:0; width:min(82%,290px); overflow:auto; box-shadow:-8px 0 25px #0002; }
-    .story-reader.sidebar-open .story-reader-sidebar { display:block; }
-    .story-menu-btn { display:inline-flex; }
-    .story-reader-main { padding:12px; }
-    .story-reader-sentences { max-height:none; }
-
-    /* در موبایل: همبرگری + مخفی‌کردن ترجمه کنار هم در سمت راست */
-    .story-reader-top { justify-content: flex-start; }
-    .story-reader-top .story-menu-btn { order: 1; }
-    .story-reader-top #togglePersianBtn { order: 2; }
-    .story-reader-top #storyReaderTitle {
-      order: 3;
-      flex: 1 1 100%;
-      margin-top: 6px;
+    .story-sentence {
+      padding: 10px 0;
+      border-top: 1px solid #edf0f4;
     }
-    .story-reader-top .story-reader-back { order: 4; margin-inline-start: 0; }
-    .story-reader-top #togglePersianBtn {
+
+    .story-sentence-de {
+      direction: ltr;
+      text-align: left;
+      font-weight: 700;
+      color: #1a5276;
+    }
+
+    .story-sentence-fa {
+      color: #7d3c98;
+      margin-top: 5px;
+    }
+
+    .story-actions {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    @media (max-width: 640px) {
+      .stories-panel {
+        padding: 11px;
+        margin-bottom: 12px;
+      }
+
+      .stories-header h2 {
+        font-size: 15px;
+      }
+
+      .story-form {
+        padding: 9px;
+      }
+    }
+
+    .story-library-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 8px 0 12px;
+    }
+
+    .story-slider-wrap {
+      position: relative;
+    }
+
+    .story-slider {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: calc((100% - 28px) / 3);
+      gap: 14px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      padding: 4px 2px 12px;
+      scrollbar-width: thin;
+    }
+
+    .story-cover-wrap {
+      position: relative;
+      min-width: 0;
+    }
+
+    .story-cover-delete {
+      position: absolute;
+      z-index: 3;
+      top: 9px;
+      left: 9px;
+      border: 1px solid rgba(255, 255, 255, .65);
+      border-radius: 18px;
+      padding: 5px 8px;
+      color: #fff;
+      background: rgba(160, 20, 35, .82);
+      cursor: pointer;
+      font: inherit;
       font-size: 11px;
-      padding: 6px 8px;
     }
-  }
-  @media (max-width:420px) {
-    .story-slider.all-view { grid-template-columns:1fr 1fr; }
-    .story-cover-card { height:160px; }
-    .story-cover-title { font-size:14px; }
-  }
 
-</style>
+    .story-cover-edit {
+      position: absolute;
+      z-index: 3;
+      top: 9px;
+      left: 64px;
+      border: 1px solid rgba(255, 255, 255, .65);
+      border-radius: 18px;
+      padding: 5px 8px;
+      color: #fff;
+      background: rgba(30, 90, 200, .85);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+    }
+
+    .story-cover-card {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      height: 210px;
+      border: 0;
+      padding: 0;
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      text-align: right;
+      color: #fff;
+      background: var(--cover-color, #536dfe);
+      scroll-snap-align: start;
+      box-shadow: 0 5px 16px rgba(15, 23, 42, .14);
+      isolation: isolate;
+    }
+
+    .story-cover-card img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -2;
+    }
+
+    .story-cover-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0, 0, 0, .04), rgba(0, 0, 0, .76));
+      z-index: -1;
+    }
+
+    .story-cover-title {
+      position: absolute;
+      right: 14px;
+      left: 12px;
+      bottom: 15px;
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.6;
+      text-shadow: 0 2px 7px rgba(0, 0, 0, .35);
+    }
+
+    .story-cover-open {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(255, 255, 255, .2);
+      border: 1px solid rgba(255, 255, 255, .55);
+      border-radius: 20px;
+      padding: 5px 10px;
+      font-size: 11px;
+    }
+
+    .story-slider-arrow {
+      position: absolute;
+      top: 42%;
+      z-index: 2;
+      border: 0;
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      background: #fff;
+      box-shadow: 0 2px 9px #0002;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .story-slider-arrow.prev {
+      right: -7px;
+    }
+
+    .story-slider-arrow.next {
+      left: -7px;
+    }
+
+    .story-slider.all-view {
+      grid-auto-flow: row;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      overflow: visible;
+    }
+
+    .story-reader {
+      display: none;
+      margin-top: 15px;
+      border: 1px solid #e2e8f0;
+      border-radius: 15px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .story-reader.active {
+      display: grid;
+      grid-template-columns: 245px minmax(0, 1fr);
+      min-height: 300px;
+    }
+
+    .story-reader-sidebar {
+      background: #f7f9fc;
+      border-left: 1px solid #e7ebf1;
+      padding: 12px;
+    }
+
+    .story-reader-sidebar h3 {
+      margin: 4px 0 12px;
+      font-size: 14px;
+    }
+
+    .story-nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .story-nav-item {
+      text-align: right;
+      white-space: normal;
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 9px;
+      background: transparent;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .story-nav-item.active {
+      background: #e7efff;
+      border-color: #c9dafb;
+      color: #174ea6;
+      font-weight: 700;
+    }
+
+    .story-reader-main {
+      min-width: 0;
+      padding: 16px;
+    }
+
+    .story-reader-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .story-reader-top h3 {
+      margin: 0;
+      font-size: 19px;
+    }
+
+    .story-reader-sentences {
+      max-height: 58vh;
+      overflow: auto;
+      padding: 0 3px;
+    }
+
+    .story-reader-sentences .story-sentence {
+      padding: 13px 0;
+    }
+
+    .story-menu-btn {
+      display: none;
+    }
+
+    .story-reader-back {
+      margin-inline-start: auto;
+    }
+
+    .story-cover-fields {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 65px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .story-cover-fields input[type="color"] {
+      width: 100%;
+      height: 40px;
+      padding: 3px;
+    }
+
+    .story-reader-top #togglePersianBtn {
+      flex-shrink: 0;
+      font-size: 12px;
+      padding: 7px 10px;
+    }
+
+    /* ---------- پخش‌کننده صوتی باریک با لایه رنگی ثابت ---------- */
+    .audio-player {
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-top: 14px;
+      box-shadow: 0 3px 10px rgba(31, 111, 235, 0.2);
+      direction: ltr;
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      background: #1a1a2e;
+    }
+
+    /* لایه رنگی پایه - گرادیانت آبی-بنفش با اوپسیتی 55% */
+    .audio-player::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(31, 111, 235, 0.55) 0%, rgba(125, 60, 152, 0.55) 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* لایه پس‌زمینه (رنگ/عکس کارت) با اوپسیتی کم */
+    .audio-player::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background-size: cover;
+      background-position: center;
+      opacity: 0.55;
+    }
+
+    /* اگر عکس جلد داره: پس‌زمینه بلور عکس */
+    .audio-player.has-bg-image::after {
+      filter: blur(14px) brightness(0.7);
+      transform: scale(1.15);
+    }
+
+    /* اگر فقط رنگ داره: همون رنگ با اوپسیتی کم */
+    .audio-player.has-bg-color::after {
+      background-color: var(--player-cover-color, #536dfe);
+      opacity: 0.6;
+    }
+
+    .audio-player-label {
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      position: relative;
+      z-index: 2;
+    }
+
+    .audio-player-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .audio-play-btn {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: #ffffff;
+      color: #1f6feb;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      transition: transform 0.15s;
+      touch-action: manipulation;
+    }
+
+    .audio-play-btn:active {
+      transform: scale(0.92);
+    }
+
+    .audio-play-btn.playing {
+      background: #ffd166;
+      color: #b8860b;
+    }
+
+    .audio-progress-wrap {
+      flex: 1;
+      min-width: 0;
+      margin-bottom: 12px;
+      gap: 4px;
+      display: flex;
+      flex-direction: column;
+
+    }
+
+    .audio-progress {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+      direction: ltr;
+      display: block;
+    }
+
+    .audio-progress::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .audio-progress::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .audio-time {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 9px;
+      margin-top: 3px;
+      direction: ltr;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .audio-volume-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 3px 6px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .audio-volume-wrap .vol-icon {
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .audio-volume {
+      width: 50px;
+      height: 3px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+      direction: ltr;
+    }
+
+    .audio-volume::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    .audio-volume::-moz-range-thumb {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .audio-speed-btn {
+      height: 32px;
+      margin-bottom: 3px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: #fff;
+      border-radius: 5px;
+      padding: 3px 6px;
+      font: inherit;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+      direction: ltr;
+      line-height: 1;
+    }
+
+    .audio-speed-btn:active {
+      transform: scale(0.95);
+    }
+
+    @media (max-width: 640px) {
+      .audio-player {
+        padding: 7px 9px;
+        margin-top: 12px;
+      }
+
+      .audio-play-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+      }
+
+      .audio-volume {
+        width: 40px;
+      }
+    }
+
+    @media (max-width:700px) {
+      .story-slider {
+        grid-auto-columns: minmax(0, 1fr);
+        grid-auto-columns: min(78%, 250px);
+        gap: 10px;
+      }
+
+      .story-cover-card {
+        height: 185px;
+      }
+
+      .story-slider.all-view {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .story-reader.active {
+        display: block;
+        position: relative;
+      }
+
+      .story-reader-sidebar {
+        display: none;
+        position: absolute;
+        z-index: 5;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(82%, 290px);
+        overflow: auto;
+        box-shadow: -8px 0 25px #0002;
+      }
+
+      .story-reader.sidebar-open .story-reader-sidebar {
+        display: block;
+      }
+
+      .story-menu-btn {
+        display: inline-flex;
+      }
+
+      .story-reader-main {
+        padding: 12px;
+      }
+
+      .story-reader-sentences {
+        max-height: none;
+      }
+
+      .story-reader-top {
+        justify-content: flex-start;
+      }
+
+      .story-reader-top .story-menu-btn {
+        order: 1;
+      }
+
+      .story-reader-top #togglePersianBtn {
+        order: 2;
+      }
+
+      .story-reader-top #storyReaderTitle {
+        order: 3;
+        flex: 1 1 100%;
+        margin-top: 6px;
+      }
+
+      .story-reader-top .story-reader-back {
+        order: 4;
+        margin-inline-start: 0;
+      }
+
+      .story-reader-top #togglePersianBtn {
+        font-size: 11px;
+        padding: 6px 8px;
+      }
+    }
+
+    @media (max-width:420px) {
+      .story-slider.all-view {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .story-cover-card {
+        height: 160px;
+      }
+
+      .story-cover-title {
+        font-size: 14px;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<h1>📚 واژگان Menschen</h1>
+  <h1>📚 واژگان Menschen</h1>
 
-<div class="selector-panel">
-  <div class="selector-row">
-    <label>📖 کتاب:</label>
-    <select id="bookSelect"></select>
-    <button class="btn btn-primary" id="toggleBookForm">➕ کتاب جدید</button>
-    <button class="btn btn-danger" id="deleteBook">🗑</button>
-  </div>
-  <div class="selector-row inline-form hidden" id="bookForm">
-    <input id="bookName" placeholder="نام کتاب (مثلاً Menschen)">
-    <select id="bookLevel">
-      <option>A1.1</option><option>A1.2</option>
-      <option>A2.1</option><option>A2.2</option>
-      <option>B1.1</option><option>B1.2</option>
-      <option>B2.1</option><option>B2.2</option>
-      <option>C1</option>
-    </select>
-    <button class="btn btn-primary" id="saveBook">ذخیره</button>
-    <button class="btn" id="cancelBook">لغو</button>
-  </div>
-</div>
-
-<div class="selector-panel">
-  <div class="selector-row">
-    <label>📚 درس:</label>
-    <select id="lessonSelect"></select>
-    <span class="count-badge" id="wordCount">0 کلمه</span>
-    <button class="btn btn-primary" id="toggleLessonForm">➕ درس جدید</button>
-    <button class="btn btn-danger" id="deleteLesson">🗑</button>
-  </div>
-  <div class="selector-row inline-form hidden" id="lessonForm">
-    <input id="lessonTitle" placeholder="عنوان درس (مثلاً Lektion 3)">
-    <button class="btn btn-primary" id="saveLesson">ذخیره</button>
-    <button class="btn" id="cancelLesson">لغو</button>
-  </div>
-</div>
-
-<div id="tableWrapper"></div>
-
-<div class="add-word-form hidden" id="addWordPanel">
-  <h3>➕ افزودن کلمه به درس جاری</h3>
-  <div class="form-grid">
-    <input id="wDe" placeholder="کلمه آلمانی *">
-    <select id="wArt">
-      <option value="der">der</option>
-      <option value="die">die</option>
-      <option value="das">das</option>
-      <option value="–">–</option>
-    </select>
-    <input id="wPlural" placeholder="جمع (Plural)">
-    <input id="wFa" placeholder="ترجمه فارسی *">
-    <input id="wSpeak" placeholder="تلفظ (اختیاری)">
-    <input id="wNote" placeholder="یادداشت / مثال">
-  </div>
-  <button class="btn btn-primary" id="saveWord">ذخیره کلمه</button>
-</div>
-
-
-<div class="stories-panel" id="storiesPanel">
-  <div class="stories-header">
-    <h2>📖 داستان‌های این درس</h2>
-    <div class="story-actions">
-      <button class="btn btn-primary" id="toggleStoryForm" type="button">➕ داستان جدید</button>
+  <div class="selector-panel">
+    <div class="selector-row">
+      <label>📖 کتاب:</label>
+      <select id="bookSelect"></select>
+      <button class="btn btn-primary" id="toggleBookForm">➕ کتاب جدید</button>
+      <button class="btn btn-danger" id="deleteBook">🗑</button>
+    </div>
+    <div class="selector-row inline-form hidden" id="bookForm">
+      <input id="bookName" placeholder="نام کتاب (مثلاً Menschen)">
+      <select id="bookLevel">
+        <option>A1.1</option>
+        <option>A1.2</option>
+        <option>A2.1</option>
+        <option>A2.2</option>
+        <option>B1.1</option>
+        <option>B1.2</option>
+        <option>B2.1</option>
+        <option>B2.2</option>
+        <option>C1</option>
+      </select>
+      <button class="btn btn-primary" id="saveBook">ذخیره</button>
+      <button class="btn" id="cancelBook">لغو</button>
     </div>
   </div>
-  <div class="story-form hidden" id="storyForm">
-    <input type="hidden" id="storyEditId" value="">
-    <input id="storyTitle" type="text" placeholder="عنوان داستان (مثلاً Meine Familie)">
-    <input id="storyFullAudio" type="text" placeholder="لینک صوتی (Google Drive / Dropbox / مستقیم / مسیر نسبی)">
-    <input id="storyCoverImage" type="text" placeholder="آدرس عکس جلد (اختیاری)">
-    <div class="story-cover-fields">
-      <label for="storyCoverColor">رنگ جلد در صورت نداشتن عکس:</label>
-      <input id="storyCoverColor" type="color" value="#536dfe" title="رنگ جلد داستان">
+
+  <div class="selector-panel">
+    <div class="selector-row">
+      <label>📚 درس:</label>
+      <select id="lessonSelect"></select>
+      <span class="count-badge" id="wordCount">0 کلمه</span>
+      <button class="btn btn-primary" id="toggleLessonForm">➕ درس جدید</button>
+      <button class="btn btn-danger" id="deleteLesson">🗑</button>
     </div>
-    <textarea id="storySentences" placeholder="هر خط یک جمله آلمانی و ترجمه فارسی آن:&#10;جمله آلمانی | ترجمه فارسی&#10;&#10;مثال:&#10;Das ist meine Familie. | این خانواده من است.&#10;Meine Mutter heißt Anna. | نام مادر من آنا است."></textarea>
-    <p class="story-help">
-      لینک Google Drive و Dropbox به‌طور خودکار به لینک پخش مستقیم تبدیل می‌شوند.
-      برای فایل‌های بزرگ Drive بهتر است از لینک <b>uc?export=download&id=</b> یا میزبانی مثل GitHub Pages استفاده کنید.
-    </p>
-    <div class="story-actions">
-      <button class="btn btn-primary" id="saveStory" type="button">💾 ذخیره داستان</button>
-      <button class="btn" id="cancelStory" type="button">لغو</button>
+    <div class="selector-row inline-form hidden" id="lessonForm">
+      <input id="lessonTitle" placeholder="عنوان درس (مثلاً Lektion 3)">
+      <button class="btn btn-primary" id="saveLesson">ذخیره</button>
+      <button class="btn" id="cancelLesson">لغو</button>
     </div>
   </div>
-  <div class="story-library-toolbar">
-    <strong id="storyCountLabel">داستان‌های این درس</strong>
-    <div class="story-actions">
-      <button class="btn" id="toggleAllStories" type="button">نمایش همه داستان‌ها</button>
-      <button class="btn" id="storySliderPrev" type="button" aria-label="داستان‌های قبلی">❯</button>
-      <button class="btn" id="storySliderNext" type="button" aria-label="داستان‌های بعدی">❮</button>
+
+  <div id="tableWrapper"></div>
+
+  <div class="add-word-form hidden" id="addWordPanel">
+    <h3>➕ افزودن کلمه به درس جاری</h3>
+    <div class="form-grid">
+      <input id="wDe" placeholder="کلمه آلمانی *">
+      <select id="wArt">
+        <option value="der">der</option>
+        <option value="die">die</option>
+        <option value="das">das</option>
+        <option value="–">–</option>
+      </select>
+      <input id="wPlural" placeholder="جمع (Plural)">
+      <input id="wFa" placeholder="ترجمه فارسی *">
+      <input id="wSpeak" placeholder="تلفظ (اختیاری)">
+      <input id="wNote" placeholder="یادداشت / مثال">
     </div>
+    <button class="btn btn-primary" id="saveWord">ذخیره کلمه</button>
   </div>
-  <div class="story-slider-wrap">
-    <div id="storiesList" class="story-slider"></div>
-  </div>
-  <section id="storyReader" class="story-reader" aria-live="polite">
-    <aside class="story-reader-sidebar">
-      <h3>📚 فهرست داستان‌ها</h3>
-      <div id="storyNavList" class="story-nav-list"></div>
-    </aside>
-    <div class="story-reader-main">
-      <div class="story-reader-top">
-        <button class="btn story-menu-btn" id="storyMenuToggle" type="button" aria-label="باز کردن فهرست داستان‌ها">☰ فهرست</button>
-        <button class="btn" id="togglePersianBtn" type="button">مخفی‌کردن ترجمه‌ها</button>
-        <h3 id="storyReaderTitle"></h3>
-        <button class="btn story-reader-back" id="closeStoryReader" type="button">بازگشت به کارت‌ها</button>
+
+  <div class="stories-panel" id="storiesPanel">
+    <div class="stories-header">
+      <h2>📖 داستان‌های این درس</h2>
+      <div class="story-actions">
+        <button class="btn btn-primary" id="toggleStoryForm" type="button">➕ داستان جدید</button>
       </div>
-      <div id="storyReaderContent"></div>
     </div>
-  </section>
-</div>
-
-<div class="io-panel">
-  <button class="btn" id="exportBtn">📤 خروجی JSON</button>
-  <button class="btn" id="importBtn">📥 ورود JSON</button>
-  <input type="file" id="importFile" accept=".json" hidden>
-  <button class="btn btn-danger" id="resetBtn">↺ ریست کامل</button>
-</div>
-
-<div class="card-overlay" id="cardOverlay">
-  <button class="close-card" id="closeCard">&times;</button>
-  <div class="flashcard" id="flashcard">
-    <div class="flashcard-inner">
-      <div class="flashcard-front">
-        <span class="art" id="cardArt"></span>
-        <span class="de" id="cardDe"></span>
+    <div class="story-form hidden" id="storyForm">
+      <input type="hidden" id="storyEditId" value="">
+      <input id="storyTitle" type="text" placeholder="عنوان داستان (مثلاً Meine Familie)">
+      <input id="storyFullAudio" type="text" placeholder="لینک صوتی (Google Drive / Dropbox / مستقیم / مسیر نسبی)">
+      <input id="storyCoverImage" type="text" placeholder="آدرس عکس جلد (اختیاری)">
+      <div class="story-cover-fields">
+        <label for="storyCoverColor">رنگ جلد در صورت نداشتن عکس:</label>
+        <input id="storyCoverColor" type="color" value="#536dfe" title="رنگ جلد داستان">
       </div>
-      <div class="flashcard-back" id="cardBack"></div>
+      <textarea id="storySentences"
+        placeholder="هر خط یک جمله آلمانی و ترجمه فارسی آن:&#10;جمله آلمانی | ترجمه فارسی&#10;&#10;مثال:&#10;Das ist meine Familie. | این خانواده من است.&#10;Meine Mutter heißt Anna. | نام مادر من آنا است."></textarea>
+      <p class="story-help">
+        لینک Google Drive و Dropbox به‌طور خودکار به لینک پخش مستقیم تبدیل می‌شوند.
+        برای فایل‌های بزرگ Drive بهتر است از لینک <b>uc?export=download&id=</b> یا میزبانی مثل GitHub Pages استفاده
+        کنید.
+      </p>
+      <div class="story-actions">
+        <button class="btn btn-primary" id="saveStory" type="button">💾 ذخیره داستان</button>
+        <button class="btn" id="cancelStory" type="button">لغو</button>
+      </div>
+    </div>
+    <div class="story-library-toolbar">
+      <strong id="storyCountLabel">داستان‌های این درس</strong>
+      <div class="story-actions">
+        <button class="btn" id="toggleAllStories" type="button">نمایش همه داستان‌ها</button>
+        <button class="btn" id="storySliderPrev" type="button" aria-label="داستان‌های قبلی">❯</button>
+        <button class="btn" id="storySliderNext" type="button" aria-label="داستان‌های بعدی">❮</button>
+      </div>
+    </div>
+    <div class="story-slider-wrap">
+      <div id="storiesList" class="story-slider"></div>
+    </div>
+    <section id="storyReader" class="story-reader" aria-live="polite">
+      <aside class="story-reader-sidebar">
+        <h3>📚 فهرست داستان‌ها</h3>
+        <div id="storyNavList" class="story-nav-list"></div>
+      </aside>
+      <div class="story-reader-main">
+        <div class="story-reader-top">
+          <button class="btn story-menu-btn" id="storyMenuToggle" type="button" aria-label="باز کردن فهرست داستان‌ها">☰
+            فهرست</button>
+          <button class="btn" id="togglePersianBtn" type="button">مخفی‌کردن ترجمه‌ها</button>
+          <h3 id="storyReaderTitle"></h3>
+          <button class="btn story-reader-back" id="closeStoryReader" type="button">بازگشت به کارت‌ها</button>
+        </div>
+        <div id="storyReaderContent"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="io-panel">
+    <button class="btn" id="exportBtn">📤 خروجی JSON</button>
+    <button class="btn" id="importBtn">📥 ورود JSON</button>
+    <input type="file" id="importFile" accept=".json" hidden>
+    <button class="btn btn-danger" id="resetBtn">↺ ریست کامل</button>
+  </div>
+
+  <div class="card-overlay" id="cardOverlay">
+    <button class="close-card" id="closeCard">&times;</button>
+    <div class="flashcard" id="flashcard">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <span class="art" id="cardArt"></span>
+          <span class="de" id="cardDe"></span>
+        </div>
+        <div class="flashcard-back" id="cardBack"></div>
+      </div>
     </div>
   </div>
-</div>
 
-<script>
-(function () {
-  'use strict';
-
-  var STORAGE_KEY = 'german-vocab-v2';
-  var uidCounter = 0;
-  var showPersianTranslations = true;
-  var activeStoryId = null;
-  var showAllStoryCards = false;
-  function uid() {
-    uidCounter++;
-    return 'id' + Date.now().toString(36) + uidCounter.toString(36) + Math.random().toString(36).slice(2, 6);
-  }
-
-  function escapeHtml(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
-    });
-  }
-
-  function defaultBooks() {
-    return [{
-      id: 'menschen-a1-1',
-      name: 'Menschen',
-      level: 'A1.1',
-      lessons: [
-        { id: uid(), title: 'Lektion 1', words: [
-          { id: uid(), de: 'Name',  art: 'der', plural: 'Namen',   fa: 'نام',  speak: 'Name' },
-          { id: uid(), de: 'Hallo', art: '–',   plural: '–',       fa: 'سلام', speak: 'Hallo' },
-          { id: uid(), de: 'Frau',  art: 'die', plural: 'Frauen',  fa: 'زن',   speak: 'Frau' },
-          { id: uid(), de: 'Mann',  art: 'der', plural: 'Männer',  fa: 'مرد',  speak: 'Mann' },
-          { id: uid(), de: 'Land',  art: 'das', plural: 'Länder',  fa: 'کشور', speak: 'Land' }
-        ], stories: []},
-        { id: uid(), title: 'Lektion 2', words: [
-          { id: uid(), de: 'Buch',  art: 'das', plural: 'Bücher', fa: 'کتاب', speak: 'Buch' },
-          { id: uid(), de: 'Tisch', art: 'der', plural: 'Tische', fa: 'میز',  speak: 'Tisch' },
-          { id: uid(), de: 'Lampe', art: 'die', plural: 'Lampen', fa: 'لامپ', speak: 'Lampe' }
-        ], stories: []},
-        { id: uid(), title: 'Lektion 3', words: [
-          { id: uid(), de: 'Apfel',  art: 'der', plural: 'Äpfel', fa: 'سیب', speak: 'Apfel' },
-          { id: uid(), de: 'Wasser', art: 'das', plural: '–',     fa: 'آب',  speak: 'Wasser' },
-          { id: uid(), de: 'Milch',  art: 'die', plural: '–',     fa: 'شیر', speak: 'Milch' }
-        ], stories: []}
-      ]
-    }];
-  }
-
-  var state;
-
-  function loadState() {
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      var p = JSON.parse(raw);
-      if (!p || !Array.isArray(p.books) || p.books.length === 0) return null;
-      return p;
-    } catch (e) { return null; }
-  }
-  function saveState() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    catch (e) { console.error(e); }
-  }
-  function currentBook() {
-    if (!state) return null;
-    for (var i = 0; i < state.books.length; i++) {
-      if (state.books[i].id === state.activeBookId) return state.books[i];
-    }
-    return null;
-  }
-  function currentLesson() {
-    var b = currentBook();
-    if (!b) return null;
-    for (var i = 0; i < b.lessons.length; i++) {
-      if (b.lessons[i].id === state.activeLessonId) return b.lessons[i];
-    }
-    return null;
-  }
-  function initState() {
-    var loaded = loadState();
-    state = loaded || { books: defaultBooks(), activeBookId: null, activeLessonId: null };
-    var found = false;
-    for (var i = 0; i < state.books.length; i++) {
-      if (state.books[i].id === state.activeBookId) { found = true; break; }
-    }
-    if (!found) state.activeBookId = state.books.length ? state.books[0].id : null;
-    var b = currentBook();
-    found = false;
-    if (b) {
-      for (var j = 0; j < b.lessons.length; j++) {
-        if (b.lessons[j].id === state.activeLessonId) { found = true; break; }
+  <script>
+    (function () {
+      'use strict';
+      var STORAGE_KEY = 'german-vocab-v2';
+      var uidCounter = 0;
+      var showPersianTranslations = true;
+      var activeStoryId = null;
+      var showAllStoryCards = false;
+      function uid() {
+        uidCounter++;
+        return 'id' + Date.now().toString(36) + uidCounter.toString(36) + Math.random().toString(36).slice(2, 6);
       }
-    }
-    if (!found) state.activeLessonId = (b && b.lessons.length) ? b.lessons[0].id : null;
-
-    state.books.forEach(function (book) {
-      (book.lessons || []).forEach(function (lesson) {
-        if (!Array.isArray(lesson.stories)) lesson.stories = [];
-        if (!Array.isArray(lesson.words)) lesson.words = [];
-      });
-    });
-    saveState();
-  }
-
-  function renderBooks() {
-    var sel = document.getElementById('bookSelect');
-    sel.innerHTML = '';
-    if (state.books.length === 0) {
-      var o = document.createElement('option');
-      o.value = ''; o.textContent = '— بدون کتاب —';
-      sel.appendChild(o);
-    } else {
-      for (var i = 0; i < state.books.length; i++) {
-        var b = state.books[i];
-        var opt = document.createElement('option');
-        opt.value = b.id;
-        opt.textContent = b.name + ' — ' + b.level;
-        if (b.id === state.activeBookId) opt.selected = true;
-        sel.appendChild(opt);
+      function escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+        });
       }
-    }
-    document.getElementById('deleteBook').style.display = state.books.length > 1 ? '' : 'none';
-  }
-
-  function renderLessons() {
-    var sel = document.getElementById('lessonSelect');
-    sel.innerHTML = '';
-    var b = currentBook();
-    if (!b || b.lessons.length === 0) {
-      var o = document.createElement('option');
-      o.value = ''; o.textContent = '— بدون درس —';
-      sel.appendChild(o);
-      document.getElementById('deleteLesson').style.display = 'none';
-      return;
-    }
-    for (var i = 0; i < b.lessons.length; i++) {
-      var l = b.lessons[i];
-      var opt = document.createElement('option');
-      opt.value = l.id; opt.textContent = l.title;
-      if (l.id === state.activeLessonId) opt.selected = true;
-      sel.appendChild(opt);
-    }
-    document.getElementById('deleteLesson').style.display = '';
-  }
-
-  function articleClass(a) {
-    return (a === 'der' || a === 'die' || a === 'das') ? a : '';
-  }
-
-  // تبدیل لینک‌های اشتراک‌گذاری به لینک مستقیم قابل پخش
-  function toDirectAudioUrl(src) {
-    src = String(src || '').trim();
-    if (!src) return '';
-    if (/^(javascript|data|vbscript):/i.test(src)) return '';
-
-    // Google Drive
-    var gd = src.match(/drive\.google\.com\/file\/d\/([^/?#]+)/i);
-    if (gd) return 'https://drive.google.com/uc?export=download&id=' + gd[1];
-    var gd2 = src.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([^&#]+)/i);
-    if (gd2) return 'https://drive.google.com/uc?export=download&id=' + gd2[1];
-    // لینک docs.google.com
-    var gd3 = src.match(/docs\.google\.com\/[^/]+\/d\/([^/?#]+)/i);
-    if (gd3) return 'https://drive.google.com/uc?export=download&id=' + gd3[1];
-
-    // Dropbox
-    if (/dropbox\.com/i.test(src)) {
-      return src.replace(/([?&])dl=0/i, '$1raw=1').replace(/([?&])dl=1/i, '$1raw=1');
-    }
-    // OneDrive
-    if (/1drv\.ms|onedrive\.live\.com/i.test(src)) {
-      return src.replace(/\?.*$/, '') + '?download=1';
-    }
-
-    if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src)) return src;
-    return '';
-  }
-  function safeAudioSrc(src) { return toDirectAudioUrl(src); }
-
-  function safeImageSrc(src) {
-    src = String(src || '').trim();
-    if (!src) return '';
-    if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src) &&
-        !/^(javascript|data|vbscript):/i.test(src)) return src;
-    return '';
-  }
-
-  function safeCoverColor(color) {
-    color = String(color || '').trim();
-    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#536dfe';
-  }
-
-  function renderStoryReader(lesson) {
-    var reader = document.getElementById('storyReader');
-    var content = document.getElementById('storyReaderContent');
-    var nav = document.getElementById('storyNavList');
-    if (!lesson || !activeStoryId) {
-      reader.classList.remove('active', 'sidebar-open');
-      content.innerHTML = '';
-      nav.innerHTML = '';
-      return;
-    }
-    var story = lesson.stories.find(function (item) { return String(item.id) === String(activeStoryId); });
-    if (!story) {
-      activeStoryId = null;
-      reader.classList.remove('active', 'sidebar-open');
-      return;
-    }
-
-    reader.classList.add('active');
-    document.getElementById('storyReaderTitle').textContent = story.title;
-    var navHtml = '';
-    lesson.stories.forEach(function (item) {
-      navHtml += '<button type="button" class="story-nav-item' +
-        (String(item.id) === String(activeStoryId) ? ' active' : '') +
-        '" data-open-story="' + escapeHtml(item.id) + '">' + escapeHtml(item.title) + '</button>';
-    });
-    nav.innerHTML = navHtml;
-
-    var audio = toDirectAudioUrl(story.audio);
-    var output = '';
-    if (audio) {
-      output += '<div><strong>🎧 فایل صوتی کامل داستان</strong>' +
-        '<audio controls preload="metadata" src="' + escapeHtml(audio) + '"></audio>' +
-        '<div style="font-size:11px;color:#888;word-break:break-all;margin-top:4px;">' + escapeHtml(audio) + '</div>' +
-        '</div>';
-    }
-    output += '<div class="story-reader-sentences">';
-    (story.sentences || []).forEach(function (sentence, index) {
-      output += '<div class="story-sentence">';
-      output += '<div class="story-sentence-de">' + (index + 1) + '. ' + escapeHtml(sentence.de) + '</div>';
-      output += '<div class="story-sentence-fa' + (showPersianTranslations ? '' : ' hidden') + '">' + escapeHtml(sentence.fa) + '</div>';
-      output += '</div>';
-    });
-    output += '</div>';
-    content.innerHTML = output;
-    reader.classList.remove('sidebar-open');
-  }
-
-  function renderStories() {
-    var panel = document.getElementById('storiesPanel');
-    var list = document.getElementById('storiesList');
-    var lesson = currentLesson();
-    var form = document.getElementById('storyForm');
-    if (!panel || !list) return;
-
-    panel.style.display = lesson ? '' : 'none';
-    if (!lesson) {
-      form.classList.add('hidden');
-      list.innerHTML = '';
-      renderStoryReader(null);
-      return;
-    }
-    if (!Array.isArray(lesson.stories)) lesson.stories = [];
-
-    document.getElementById('togglePersianBtn').textContent =
-      showPersianTranslations ? 'مخفی‌کردن ترجمه‌ها' : 'نمایش ترجمه‌ها';
-    document.getElementById('storyCountLabel').textContent = '📖 ' + lesson.stories.length + ' داستان در این درس';
-    document.getElementById('toggleAllStories').textContent =
-      showAllStoryCards ? 'نمایش اسلایدر' : 'نمایش همه داستان‌ها';
-
-    if (lesson.stories.length === 0) {
-      list.innerHTML = '<p class="hint">هنوز داستانی برای این درس ثبت نشده است.</p>';
-      renderStoryReader(null);
-      return;
-    }
-
-    list.classList.toggle('all-view', showAllStoryCards);
-    var output = '';
-    lesson.stories.forEach(function (story) {
-      var image = safeImageSrc(story.coverImage);
-      var color = safeCoverColor(story.coverColor);
-      output += '<div class="story-cover-wrap">';
-      output += '<button type="button" class="story-cover-card" style="--cover-color:' + color + '" data-open-story="' + escapeHtml(story.id) + '">';
-      if (image) output += '<img src="' + escapeHtml(image) + '" alt="" loading="lazy">';
-      output += '<span class="story-cover-open">▶ خواندن داستان</span>';
-      output += '<span class="story-cover-title">' + escapeHtml(story.title) + '</span>';
-      output += '</button>';
-      output += '<button type="button" class="story-cover-edit" data-edit-story="' + escapeHtml(story.id) + '">✏️ ویرایش</button>';
-      output += '<button type="button" class="story-cover-delete" data-delete-story="' + escapeHtml(story.id) + '">🗑 حذف</button>';
-      output += '</div>';
-    });
-    list.innerHTML = output;
-    renderStoryReader(lesson);
-  }
-
-  function renderTable() {
-    var wrap = document.getElementById('tableWrapper');
-    var addPanel = document.getElementById('addWordPanel');
-    var badge = document.getElementById('wordCount');
-    var lesson = currentLesson();
-    renderStories();
-
-    badge.textContent = (lesson ? lesson.words.length : 0) + ' کلمه';
-
-    if (!lesson) {
-      wrap.innerHTML = '<p class="hint">برای دیدن کلمات، ابتدا یک درس انتخاب یا ایجاد کنید.</p>';
-      addPanel.classList.add('hidden');
-      return;
-    }
-    addPanel.classList.remove('hidden');
-
-    if (lesson.words.length === 0) {
-      wrap.innerHTML = '<p class="hint">هنوز کلمه‌ای در این درس نیست. از فرم پایین اضافه کنید. ⬇</p>';
-      return;
-    }
-
-    var rows = '';
-    for (var i = 0; i < lesson.words.length; i++) {
-      var w = lesson.words[i];
-      rows +=
-        '<tr data-id="' + escapeHtml(w.id) + '">' +
-          '<td class="de">' + escapeHtml(w.de) + '</td>' +
-          '<td class="sound-cell"><button class="speak-btn" data-speak="' + escapeHtml(w.speak) + '">🔊</button></td>' +
-          '<td class="art ' + articleClass(w.art) + '">' + escapeHtml(w.art) + '</td>' +
-          '<td class="plural-cell">' + escapeHtml(w.plural) + '</td>' +
-          '<td class="fa">' + escapeHtml(w.fa) + '</td>' +
-          '<td class="note-cell">' + escapeHtml(w.note || '') + '</td>' +
-          '<td class="action-cell"><button class="icon-btn delete" data-del="' + escapeHtml(w.id) + '">🗑</button></td>' +
-        '</tr>';
-    }
-
-    wrap.innerHTML =
-      '<div class="table-container">' +
-        '<table>' +
-          '<thead><tr>' +
-            '<th>Deutsch</th><th>🔊</th><th>Artikel</th><th>Plural</th>' +
-            '<th>فارسی</th><th>یادداشت</th><th></th>' +
-          '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table>' +
-      '</div>';
-
-    var speakBtns = wrap.querySelectorAll('.speak-btn');
-    for (var s = 0; s < speakBtns.length; s++) {
-      speakBtns[s].addEventListener('click', function (e) {
-        e.stopPropagation();
-        speakGerman(this.getAttribute('data-speak'));
-      });
-    }
-    var delBtns = wrap.querySelectorAll('[data-del]');
-    for (var d = 0; d < delBtns.length; d++) {
-      delBtns[d].addEventListener('click', function (e) {
-        e.stopPropagation();
-        var id = this.getAttribute('data-del');
-        var target = null;
-        for (var k = 0; k < lesson.words.length; k++) {
-          if (lesson.words[k].id === id) { target = lesson.words[k]; break; }
+      function defaultBooks() {
+        return [{
+          id: 'menschen-a1-1', name: 'Menschen', level: 'A1.1',
+          lessons: [
+            {
+              id: uid(), title: 'Lektion 1', words: [
+                { id: uid(), de: 'Name', art: 'der', plural: 'Namen', fa: 'نام', speak: 'Name' },
+                { id: uid(), de: 'Hallo', art: '–', plural: '–', fa: 'سلام', speak: 'Hallo' },
+                { id: uid(), de: 'Frau', art: 'die', plural: 'Frauen', fa: 'زن', speak: 'Frau' },
+                { id: uid(), de: 'Mann', art: 'der', plural: 'Männer', fa: 'مرد', speak: 'Mann' },
+                { id: uid(), de: 'Land', art: 'das', plural: 'Länder', fa: 'کشور', speak: 'Land' }
+              ], stories: []
+            },
+            {
+              id: uid(), title: 'Lektion 2', words: [
+                { id: uid(), de: 'Buch', art: 'das', plural: 'Bücher', fa: 'کتاب', speak: 'Buch' },
+                { id: uid(), de: 'Tisch', art: 'der', plural: 'Tische', fa: 'میز', speak: 'Tisch' },
+                { id: uid(), de: 'Lampe', art: 'die', plural: 'Lampen', fa: 'لامپ', speak: 'Lampe' }
+              ], stories: []
+            },
+            {
+              id: uid(), title: 'Lektion 3', words: [
+                { id: uid(), de: 'Apfel', art: 'der', plural: 'Äpfel', fa: 'سیب', speak: 'Apfel' },
+                { id: uid(), de: 'Wasser', art: 'das', plural: '–', fa: 'آب', speak: 'Wasser' },
+                { id: uid(), de: 'Milch', art: 'die', plural: '–', fa: 'شیر', speak: 'Milch' }
+              ], stories: []
+            }
+          ]
+        }];
+      }
+      var state;
+      function loadState() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          var p = JSON.parse(raw);
+          if (!p || !Array.isArray(p.books) || p.books.length === 0) return null;
+          return p;
+        } catch (e) { return null; }
+      }
+      function saveState() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+        catch (e) { console.error(e); }
+      }
+      function currentBook() {
+        if (!state) return null;
+        for (var i = 0; i < state.books.length; i++) {
+          if (state.books[i].id === state.activeBookId) return state.books[i];
         }
-        if (target && confirm('حذف «' + target.de + '»؟')) {
-          var newWords = [];
-          for (var m = 0; m < lesson.words.length; m++) {
-            if (lesson.words[m].id !== id) newWords.push(lesson.words[m]);
+        return null;
+      }
+      function currentLesson() {
+        var b = currentBook();
+        if (!b) return null;
+        for (var i = 0; i < b.lessons.length; i++) {
+          if (b.lessons[i].id === state.activeLessonId) return b.lessons[i];
+        }
+        return null;
+      }
+      function initState() {
+        var loaded = loadState();
+        state = loaded || { books: defaultBooks(), activeBookId: null, activeLessonId: null };
+        var found = false;
+        for (var i = 0; i < state.books.length; i++) {
+          if (state.books[i].id === state.activeBookId) { found = true; break; }
+        }
+        if (!found) state.activeBookId = state.books.length ? state.books[0].id : null;
+        var b = currentBook();
+        found = false;
+        if (b) {
+          for (var j = 0; j < b.lessons.length; j++) {
+            if (b.lessons[j].id === state.activeLessonId) { found = true; break; }
           }
-          lesson.words = newWords;
-          saveState();
-          renderTable();
         }
-      });
-    }
-    var trs = wrap.querySelectorAll('tbody tr');
-    for (var t = 0; t < trs.length; t++) {
-      (function (tr) {
-        var pressTimer = null;
-        var longPressFired = false;
+        if (!found) state.activeLessonId = (b && b.lessons.length) ? b.lessons[0].id : null;
+        state.books.forEach(function (book) {
+          (book.lessons || []).forEach(function (lesson) {
+            if (!Array.isArray(lesson.stories)) lesson.stories = [];
+            if (!Array.isArray(lesson.words)) lesson.words = [];
+          });
+        });
+        saveState();
+      }
+      function renderBooks() {
+        var sel = document.getElementById('bookSelect');
+        sel.innerHTML = '';
+        if (state.books.length === 0) {
+          var o = document.createElement('option');
+          o.value = ''; o.textContent = '— بدون کتاب —';
+          sel.appendChild(o);
+        } else {
+          for (var i = 0; i < state.books.length; i++) {
+            var b = state.books[i];
+            var opt = document.createElement('option');
+            opt.value = b.id;
+            opt.textContent = b.name + ' — ' + b.level;
+            if (b.id === state.activeBookId) opt.selected = true;
+            sel.appendChild(opt);
+          }
+        }
+        document.getElementById('deleteBook').style.display = state.books.length > 1 ? '' : 'none';
+      }
+      function renderLessons() {
+        var sel = document.getElementById('lessonSelect');
+        sel.innerHTML = '';
+        var b = currentBook();
+        if (!b || b.lessons.length === 0) {
+          var o = document.createElement('option');
+          o.value = ''; o.textContent = '— بدون درس —';
+          sel.appendChild(o);
+          document.getElementById('deleteLesson').style.display = 'none';
+          return;
+        }
+        for (var i = 0; i < b.lessons.length; i++) {
+          var l = b.lessons[i];
+          var opt = document.createElement('option');
+          opt.value = l.id; opt.textContent = l.title;
+          if (l.id === state.activeLessonId) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        document.getElementById('deleteLesson').style.display = '';
+      }
+      function articleClass(a) {
+        return (a === 'der' || a === 'die' || a === 'das') ? a : '';
+      }
+      function toDirectAudioUrl(src) {
+        src = String(src || '').trim();
+        if (!src) return '';
+        if (/^(javascript|data|vbscript):/i.test(src)) return '';
+        var gd = src.match(/drive\.google\.com\/file\/d\/([^/?#]+)/i);
+        if (gd) return 'https://drive.google.com/uc?export=download&id=' + gd[1];
+        var gd2 = src.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([^&#]+)/i);
+        if (gd2) return 'https://drive.google.com/uc?export=download&id=' + gd2[1];
+        var gd3 = src.match(/docs\.google\.com\/[^/]+\/d\/([^/?#]+)/i);
+        if (gd3) return 'https://drive.google.com/uc?export=download&id=' + gd3[1];
+        if (/dropbox\.com/i.test(src)) {
+          return src.replace(/([?&])dl=0/i, '$1raw=1').replace(/([?&])dl=1/i, '$1raw=1');
+        }
+        if (/1drv\.ms|onedrive\.live\.com/i.test(src)) {
+          return src.replace(/\?.*$/, '') + '?download=1';
+        }
+        if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src)) return src;
+        return '';
+      }
+      function safeImageSrc(src) {
+        src = String(src || '').trim();
+        if (!src) return '';
+        if (/^(https?:\/\/|\/|\.\/|\.\.\/|[a-zA-Z0-9_\u0600-\u06FF.-])/.test(src) &&
+          !/^(javascript|data|vbscript):/i.test(src)) return src;
+        return '';
+      }
+      function safeCoverColor(color) {
+        color = String(color || '').trim();
+        return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#536dfe';
+      }
+      function fmtTime(sec) {
+        if (!isFinite(sec) || sec < 0) return '0:00';
+        var m = Math.floor(sec / 60);
+        var s = Math.floor(sec % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+      }
+      function renderStoryReader(lesson) {
+        var reader = document.getElementById('storyReader');
+        var content = document.getElementById('storyReaderContent');
+        var nav = document.getElementById('storyNavList');
+        if (!lesson || !activeStoryId) {
+          reader.classList.remove('active', 'sidebar-open');
+          content.innerHTML = '';
+          nav.innerHTML = '';
+          return;
+        }
+        var story = lesson.stories.find(function (item) { return String(item.id) === String(activeStoryId); });
+        if (!story) {
+          activeStoryId = null;
+          reader.classList.remove('active', 'sidebar-open');
+          return;
+        }
+        reader.classList.add('active');
+        document.getElementById('storyReaderTitle').textContent = story.title;
+        var navHtml = '';
+        lesson.stories.forEach(function (item) {
+          navHtml += '<button type="button" class="story-nav-item' +
+            (String(item.id) === String(activeStoryId) ? ' active' : '') +
+            '" data-open-story="' + escapeHtml(item.id) + '">' + escapeHtml(item.title) + '</button>';
+        });
+        nav.innerHTML = navHtml;
+        var audio = toDirectAudioUrl(story.audio);
+        var coverImage = safeImageSrc(story.coverImage);
+        var coverColor = safeCoverColor(story.coverColor);
 
-        function startPress() {
-          longPressFired = false;
-          pressTimer = setTimeout(function () {
-            longPressFired = true;
-            var id = tr.getAttribute('data-id');
+        var output = '';
+        output += '<div class="story-reader-sentences">';
+        (story.sentences || []).forEach(function (sentence, index) {
+          output += '<div class="story-sentence">';
+          output += '<div class="story-sentence-de">' + (index + 1) + '. ' + escapeHtml(sentence.de) + '</div>';
+          output += '<div class="story-sentence-fa' + (showPersianTranslations ? '' : ' hidden') + '">' + escapeHtml(sentence.fa) + '</div>';
+          output += '</div>';
+        });
+        output += '</div>';
+
+        if (audio) {
+          var playerClass = 'audio-player';
+          var playerStyle = '';
+          if (coverImage) {
+            playerClass += ' has-bg-image';
+            playerStyle = ' style="--player-cover-image:url(\'' + escapeHtml(coverImage) + '\')"';
+          } else {
+            playerClass += ' has-bg-color';
+            playerStyle = ' style="--player-cover-color:' + coverColor + '"';
+          }
+          output +=
+            '<div class="' + playerClass + '" data-audio-player' + playerStyle + '>' +
+            '<div class="audio-player-label">🎧 ' + escapeHtml(story.title) + '</div>' +
+            '<div class="audio-player-row">' +
+            '<button type="button" class="audio-play-btn" data-play-btn>▶</button>' +
+            '<div class="audio-progress-wrap">' +
+            '<div class="audio-time"><span data-current>0:00</span><span data-duration>0:00</span></div>' +
+            '<input type="range" class="audio-progress" data-progress min="0" max="100" value="0" step="0.1">' +
+            '</div>' +
+            '<button type="button" class="audio-speed-btn" data-speed-btn>1×</button>' +
+            '</div>' +
+            '<div class="audio-volume-wrap">' +
+            '<span class="vol-icon" data-vol-icon>🔊</span>' +
+            '<input type="range" class="audio-volume" data-volume min="0" max="100" value="100" step="1">' +
+            '</div>' +
+            '<audio preload="metadata" data-audio src="' + escapeHtml(audio) + '"></audio>' +
+            '</div>';
+        }
+
+        content.innerHTML = output;
+        reader.classList.remove('sidebar-open');
+
+        if (audio) {
+          var playerEl = content.querySelector('[data-audio-player]');
+          if (playerEl) {
+            if (coverImage) {
+              // تزریق استایل اختصاصی برای ::after با عکس
+              var styleId = 'style_' + story.id.replace(/[^a-zA-Z0-9]/g, '');
+              var oldStyle = document.getElementById(styleId);
+              if (oldStyle) oldStyle.remove();
+              var st = document.createElement('style');
+              st.id = styleId;
+              st.textContent = '[data-audio-player].has-bg-image::after { background-image: url("' + coverImage + '") !important; }';
+              document.head.appendChild(st);
+            }
+            setupCustomAudioPlayer(playerEl);
+          }
+        }
+      }
+      function setupCustomAudioPlayer(root) {
+        var audioEl = root.querySelector('[data-audio]');
+        var playBtn = root.querySelector('[data-play-btn]');
+        var progress = root.querySelector('[data-progress]');
+        var currentEl = root.querySelector('[data-current]');
+        var durationEl = root.querySelector('[data-duration]');
+        var volume = root.querySelector('[data-volume]');
+        var volIcon = root.querySelector('[data-vol-icon]');
+        var speedBtn = root.querySelector('[data-speed-btn]');
+        if (!audioEl || !playBtn || !progress) return;
+        var isSeeking = false;
+        var speeds = [1, 1.25, 1.5, 0.75, 0.5];
+        var speedIdx = 0;
+        function updatePlayState() {
+          if (audioEl.paused) {
+            playBtn.textContent = '▶';
+            playBtn.classList.remove('playing');
+          } else {
+            playBtn.textContent = '❚❚';
+            playBtn.classList.add('playing');
+          }
+        }
+        playBtn.addEventListener('click', function () {
+          if (audioEl.paused) { audioEl.play().catch(function () { }); }
+          else { audioEl.pause(); }
+        });
+        audioEl.addEventListener('play', updatePlayState);
+        audioEl.addEventListener('pause', updatePlayState);
+        audioEl.addEventListener('ended', updatePlayState);
+        audioEl.addEventListener('loadedmetadata', function () {
+          durationEl.textContent = fmtTime(audioEl.duration);
+          progress.max = audioEl.duration || 0;
+        });
+        audioEl.addEventListener('durationchange', function () {
+          durationEl.textContent = fmtTime(audioEl.duration);
+          progress.max = audioEl.duration || 0;
+        });
+        audioEl.addEventListener('timeupdate', function () {
+          if (!isSeeking) { progress.value = audioEl.currentTime || 0; }
+          currentEl.textContent = fmtTime(audioEl.currentTime);
+        });
+        progress.addEventListener('input', function () {
+          isSeeking = true;
+          currentEl.textContent = fmtTime(parseFloat(progress.value) || 0);
+        });
+        progress.addEventListener('change', function () {
+          audioEl.currentTime = parseFloat(progress.value) || 0;
+          isSeeking = false;
+        });
+        volume.addEventListener('input', function () {
+          var v = parseInt(volume.value, 10) / 100;
+          audioEl.volume = v;
+          updateVolIcon(v);
+        });
+        function updateVolIcon(v) {
+          if (v === 0) volIcon.textContent = '🔇';
+          else if (v < 0.5) volIcon.textContent = '🔉';
+          else volIcon.textContent = '🔊';
+        }
+        volIcon.addEventListener('click', function () {
+          if (audioEl.volume > 0) {
+            audioEl.dataset.prevVol = audioEl.volume;
+            audioEl.volume = 0;
+            volume.value = 0;
+          } else {
+            var prev = parseFloat(audioEl.dataset.prevVol) || 1;
+            audioEl.volume = prev;
+            volume.value = Math.round(prev * 100);
+          }
+          updateVolIcon(audioEl.volume);
+        });
+        speedBtn.addEventListener('click', function () {
+          speedIdx = (speedIdx + 1) % speeds.length;
+          var s = speeds[speedIdx];
+          audioEl.playbackRate = s;
+          speedBtn.textContent = s + '×';
+        });
+        audioEl.volume = 1;
+      }
+      function renderStories() {
+        var panel = document.getElementById('storiesPanel');
+        var list = document.getElementById('storiesList');
+        var lesson = currentLesson();
+        var form = document.getElementById('storyForm');
+        if (!panel || !list) return;
+        panel.style.display = lesson ? '' : 'none';
+        if (!lesson) {
+          form.classList.add('hidden');
+          list.innerHTML = '';
+          renderStoryReader(null);
+          return;
+        }
+        if (!Array.isArray(lesson.stories)) lesson.stories = [];
+        document.getElementById('togglePersianBtn').textContent =
+          showPersianTranslations ? 'مخفی‌کردن ترجمه‌ها' : 'نمایش ترجمه‌ها';
+        document.getElementById('storyCountLabel').textContent = '📖 ' + lesson.stories.length + ' داستان در این درس';
+        document.getElementById('toggleAllStories').textContent =
+          showAllStoryCards ? 'نمایش اسلایدر' : 'نمایش همه داستان‌ها';
+        if (lesson.stories.length === 0) {
+          list.innerHTML = '<p class="hint">هنوز داستانی برای این درس ثبت نشده است.</p>';
+          renderStoryReader(null);
+          return;
+        }
+        list.classList.toggle('all-view', showAllStoryCards);
+        var output = '';
+        lesson.stories.forEach(function (story) {
+          var image = safeImageSrc(story.coverImage);
+          var color = safeCoverColor(story.coverColor);
+          output += '<div class="story-cover-wrap">';
+          output += '<button type="button" class="story-cover-card" style="--cover-color:' + color + '" data-open-story="' + escapeHtml(story.id) + '">';
+          if (image) output += '<img src="' + escapeHtml(image) + '" alt="" loading="lazy">';
+          output += '<span class="story-cover-open">▶ خواندن داستان</span>';
+          output += '<span class="story-cover-title">' + escapeHtml(story.title) + '</span>';
+          output += '</button>';
+          output += '<button type="button" class="story-cover-edit" data-edit-story="' + escapeHtml(story.id) + '">✏️ ویرایش</button>';
+          output += '<button type="button" class="story-cover-delete" data-delete-story="' + escapeHtml(story.id) + '">🗑 حذف</button>';
+          output += '</div>';
+        });
+        list.innerHTML = output;
+        renderStoryReader(lesson);
+      }
+      function renderTable() {
+        var wrap = document.getElementById('tableWrapper');
+        var addPanel = document.getElementById('addWordPanel');
+        var badge = document.getElementById('wordCount');
+        var lesson = currentLesson();
+        renderStories();
+        badge.textContent = (lesson ? lesson.words.length : 0) + ' کلمه';
+        if (!lesson) {
+          wrap.innerHTML = '<p class="hint">برای دیدن کلمات، ابتدا یک درس انتخاب یا ایجاد کنید.</p>';
+          addPanel.classList.add('hidden');
+          return;
+        }
+        addPanel.classList.remove('hidden');
+        if (lesson.words.length === 0) {
+          wrap.innerHTML = '<p class="hint">هنوز کلمه‌ای در این درس نیست. از فرم پایین اضافه کنید. ⬇</p>';
+          return;
+        }
+        var rows = '';
+        for (var i = 0; i < lesson.words.length; i++) {
+          var w = lesson.words[i];
+          rows +=
+            '<tr data-id="' + escapeHtml(w.id) + '">' +
+            '<td class="de">' + escapeHtml(w.de) + '</td>' +
+            '<td class="sound-cell"><button class="speak-btn" data-speak="' + escapeHtml(w.speak) + '">🔊</button></td>' +
+            '<td class="art ' + articleClass(w.art) + '">' + escapeHtml(w.art) + '</td>' +
+            '<td class="plural-cell">' + escapeHtml(w.plural) + '</td>' +
+            '<td class="fa">' + escapeHtml(w.fa) + '</td>' +
+            '<td class="note-cell">' + escapeHtml(w.note || '') + '</td>' +
+            '<td class="action-cell"><button class="icon-btn delete" data-del="' + escapeHtml(w.id) + '">🗑</button></td>' +
+            '</tr>';
+        }
+        wrap.innerHTML =
+          '<div class="table-container"><table><thead><tr>' +
+          '<th>Deutsch</th><th>🔊</th><th>Artikel</th><th>Plural</th>' +
+          '<th>فارسی</th><th>یادداشت</th><th></th>' +
+          '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+        var speakBtns = wrap.querySelectorAll('.speak-btn');
+        for (var s = 0; s < speakBtns.length; s++) {
+          speakBtns[s].addEventListener('click', function (e) {
+            e.stopPropagation();
+            speakGerman(this.getAttribute('data-speak'));
+          });
+        }
+        var delBtns = wrap.querySelectorAll('[data-del]');
+        for (var d = 0; d < delBtns.length; d++) {
+          delBtns[d].addEventListener('click', function (e) {
+            e.stopPropagation();
+            var id = this.getAttribute('data-del');
             var target = null;
             for (var k = 0; k < lesson.words.length; k++) {
               if (lesson.words[k].id === id) { target = lesson.words[k]; break; }
@@ -1145,366 +1969,356 @@
               saveState();
               renderTable();
             }
-          }, 600);
-        }
-        function cancelPress() {
-          if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-        }
-
-        tr.addEventListener('touchstart', startPress, { passive: true });
-        tr.addEventListener('touchend', cancelPress);
-        tr.addEventListener('touchcancel', cancelPress);
-        tr.addEventListener('touchmove', cancelPress);
-
-        tr.addEventListener('click', function () {
-          if (longPressFired) { longPressFired = false; return; }
-          var id = tr.getAttribute('data-id');
-          for (var k = 0; k < lesson.words.length; k++) {
-            if (lesson.words[k].id === id) { openCard(lesson.words[k]); return; }
-          }
-        });
-      })(trs[t]);
-    }
-  }
-
-  function speakGerman(text) {
-    if (!('speechSynthesis' in window)) {
-      alert('مرورگر شما از تلفظ صوتی پشتیبانی نمی‌کند.');
-      return;
-    }
-    window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(text);
-    u.lang = 'de-DE';
-    u.rate = 0.9;
-    window.speechSynthesis.speak(u);
-  }
-
-  function openCard(word) {
-    var art = document.getElementById('cardArt');
-    art.textContent = word.art !== '–' ? word.art : '';
-    art.className = 'art ' + articleClass(word.art);
-    document.getElementById('cardDe').textContent = word.de;
-    document.getElementById('cardBack').innerHTML =
-      escapeHtml(word.fa) + (word.note ? '<div class="card-note">' + escapeHtml(word.note) + '</div>' : '');
-    document.getElementById('flashcard').classList.remove('flipped');
-    document.getElementById('cardOverlay').classList.add('active');
-  }
-  function closeCard() {
-    document.getElementById('cardOverlay').classList.remove('active');
-  }
-
-  document.getElementById('bookSelect').addEventListener('change', function (e) {
-    state.activeBookId = e.target.value || null;
-    var b = currentBook();
-    state.activeLessonId = (b && b.lessons.length) ? b.lessons[0].id : null;
-    saveState(); renderLessons(); renderTable();
-  });
-  document.getElementById('toggleBookForm').addEventListener('click', function () {
-    document.getElementById('bookForm').classList.toggle('hidden');
-  });
-  document.getElementById('cancelBook').addEventListener('click', function () {
-    document.getElementById('bookForm').classList.add('hidden');
-  });
-  document.getElementById('saveBook').addEventListener('click', function () {
-    var name = document.getElementById('bookName').value.trim();
-    var level = document.getElementById('bookLevel').value;
-    if (!name) { alert('نام کتاب را وارد کنید.'); return; }
-    state.books.push({ id: uid(), name: name, level: level, lessons: [] });
-    state.activeBookId = state.books[state.books.length - 1].id;
-    state.activeLessonId = null;
-    saveState();
-    document.getElementById('bookName').value = '';
-    document.getElementById('bookForm').classList.add('hidden');
-    renderBooks(); renderLessons(); renderTable();
-  });
-  document.getElementById('deleteBook').addEventListener('click', function () {
-    var b = currentBook();
-    if (!b) return;
-    if (!confirm('حذف کتاب «' + b.name + '» و همه درس‌هایش؟')) return;
-    var newBooks = [];
-    for (var i = 0; i < state.books.length; i++) {
-      if (state.books[i].id !== b.id) newBooks.push(state.books[i]);
-    }
-    state.books = newBooks;
-    state.activeBookId = state.books.length ? state.books[0].id : null;
-    var nb = currentBook();
-    state.activeLessonId = (nb && nb.lessons.length) ? nb.lessons[0].id : null;
-    saveState(); renderBooks(); renderLessons(); renderTable();
-  });
-
-  document.getElementById('lessonSelect').addEventListener('change', function (e) {
-    state.activeLessonId = e.target.value || null;
-    saveState(); renderTable();
-  });
-  document.getElementById('toggleLessonForm').addEventListener('click', function () {
-    document.getElementById('lessonForm').classList.toggle('hidden');
-  });
-  document.getElementById('cancelLesson').addEventListener('click', function () {
-    document.getElementById('lessonForm').classList.add('hidden');
-  });
-  document.getElementById('saveLesson').addEventListener('click', function () {
-    var b = currentBook();
-    if (!b) { alert('ابتدا یک کتاب انتخاب یا ایجاد کنید.'); return; }
-    var title = document.getElementById('lessonTitle').value.trim();
-    if (!title) { alert('عنوان درس را وارد کنید.'); return; }
-    b.lessons.push({ id: uid(), title: title, words: [], stories: [] });
-    state.activeLessonId = b.lessons[b.lessons.length - 1].id;
-    saveState();
-    document.getElementById('lessonTitle').value = '';
-    document.getElementById('lessonForm').classList.add('hidden');
-    renderLessons(); renderTable();
-  });
-  document.getElementById('deleteLesson').addEventListener('click', function () {
-    var b = currentBook();
-    var lesson = currentLesson();
-    if (!b || !lesson) return;
-    if (!confirm('حذف درس «' + lesson.title + '» و همه کلماتش؟')) return;
-    var newLessons = [];
-    for (var i = 0; i < b.lessons.length; i++) {
-      if (b.lessons[i].id !== lesson.id) newLessons.push(b.lessons[i]);
-    }
-    b.lessons = newLessons;
-    state.activeLessonId = b.lessons.length ? b.lessons[0].id : null;
-    saveState(); renderLessons(); renderTable();
-  });
-
-  document.getElementById('saveWord').addEventListener('click', function () {
-    var lesson = currentLesson();
-    if (!lesson) { alert('ابتدا یک درس انتخاب کنید.'); return; }
-    var de = document.getElementById('wDe').value.trim();
-    var fa = document.getElementById('wFa').value.trim();
-    if (!de || !fa) { alert('کلمه آلمانی و ترجمه فارسی الزامی است.'); return; }
-    lesson.words.push({
-      id: uid(),
-      de: de,
-      art: document.getElementById('wArt').value,
-      plural: document.getElementById('wPlural').value.trim() || '–',
-      fa: fa,
-      speak: document.getElementById('wSpeak').value.trim() || de,
-      note: document.getElementById('wNote').value.trim() || undefined
-    });
-    saveState();
-    ['wDe','wPlural','wFa','wSpeak','wNote'].forEach(function (id) {
-      document.getElementById(id).value = '';
-    });
-    document.getElementById('wDe').focus();
-    renderTable();
-  });
-
-  // ---------- داستان‌ها ----------
-  document.getElementById('toggleStoryForm').addEventListener('click', function () {
-    var form = document.getElementById('storyForm');
-    if (form.classList.contains('hidden')) {
-      document.getElementById('storyEditId').value = '';
-      document.getElementById('storyTitle').value = '';
-      document.getElementById('storyFullAudio').value = '';
-      document.getElementById('storyCoverImage').value = '';
-      document.getElementById('storyCoverColor').value = '#536dfe';
-      document.getElementById('storySentences').value = '';
-    }
-    form.classList.toggle('hidden');
-  });
-  document.getElementById('cancelStory').addEventListener('click', function () {
-    document.getElementById('storyForm').classList.add('hidden');
-  });
-  document.getElementById('togglePersianBtn').addEventListener('click', function () {
-    showPersianTranslations = !showPersianTranslations;
-    renderStories();
-  });
-
-  document.getElementById('storiesList').addEventListener('click', function (e) {
-    // حذف
-    var delBtn = e.target.closest('[data-delete-story]');
-    if (delBtn) {
-      var lessonD = currentLesson();
-      if (!lessonD) return;
-      var delId = delBtn.getAttribute('data-delete-story');
-      var sD = lessonD.stories.find(function (x) { return String(x.id) === String(delId); });
-      if (!sD) return;
-      if (!confirm('داستان «' + sD.title + '» حذف شود؟')) return;
-      lessonD.stories = lessonD.stories.filter(function (x) { return String(x.id) !== String(delId); });
-      if (String(activeStoryId) === String(delId)) activeStoryId = null;
-      saveState();
-      renderStories();
-      return;
-    }
-
-    // ویرایش
-    var editBtn = e.target.closest('[data-edit-story]');
-    if (editBtn) {
-      var lessonE = currentLesson();
-      if (!lessonE) return;
-      var editId = editBtn.getAttribute('data-edit-story');
-      var story = lessonE.stories.find(function (x) { return String(x.id) === String(editId); });
-      if (!story) return;
-      document.getElementById('storyEditId').value = story.id;
-      document.getElementById('storyTitle').value = story.title || '';
-      document.getElementById('storyFullAudio').value = story.audio || '';
-      document.getElementById('storyCoverImage').value = story.coverImage || '';
-      document.getElementById('storyCoverColor').value = safeCoverColor(story.coverColor);
-      document.getElementById('storySentences').value = (story.sentences || [])
-        .map(function (s) { return s.de + ' | ' + s.fa; }).join('\n');
-      var form = document.getElementById('storyForm');
-      form.classList.remove('hidden');
-      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-
-    // باز کردن
-    var card = e.target.closest('[data-open-story]');
-    if (!card) return;
-    activeStoryId = card.getAttribute('data-open-story');
-    renderStories();
-    document.getElementById('storyReader').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-
-  document.getElementById('storyNavList').addEventListener('click', function (e) {
-    var item = e.target.closest('[data-open-story]');
-    if (!item) return;
-    activeStoryId = item.getAttribute('data-open-story');
-    renderStories();
-  });
-  document.getElementById('storyMenuToggle').addEventListener('click', function () {
-    document.getElementById('storyReader').classList.toggle('sidebar-open');
-  });
-  document.getElementById('closeStoryReader').addEventListener('click', function () {
-    activeStoryId = null;
-    renderStories();
-  });
-  document.getElementById('toggleAllStories').addEventListener('click', function () {
-    showAllStoryCards = !showAllStoryCards;
-    renderStories();
-  });
-  document.getElementById('storySliderPrev').addEventListener('click', function () {
-    document.getElementById('storiesList').scrollBy({ left: 320, behavior: 'smooth' });
-  });
-  document.getElementById('storySliderNext').addEventListener('click', function () {
-    document.getElementById('storiesList').scrollBy({ left: -320, behavior: 'smooth' });
-  });
-
-  document.getElementById('saveStory').addEventListener('click', function () {
-    var lesson = currentLesson();
-    if (!lesson) { alert('ابتدا یک درس انتخاب کنید.'); return; }
-
-    var editId = document.getElementById('storyEditId').value || '';
-    var title = document.getElementById('storyTitle').value.trim();
-    var fullAudioRaw = document.getElementById('storyFullAudio').value.trim();
-    var coverImageRaw = document.getElementById('storyCoverImage').value.trim();
-    var coverColor = safeCoverColor(document.getElementById('storyCoverColor').value);
-    var rawLines = document.getElementById('storySentences').value.split(/\r?\n/);
-
-    if (!title) { alert('عنوان داستان را وارد کنید.'); return; }
-    if (!fullAudioRaw) { alert('لینک فایل صوتی را وارد کنید.'); return; }
-
-    var fullAudio = toDirectAudioUrl(fullAudioRaw);
-    if (!fullAudio) { alert('لینک صوتی معتبر نیست. از لینک Google Drive، Dropbox یا آدرس http/https استفاده کنید.'); return; }
-
-    var coverImage = '';
-    if (coverImageRaw) {
-      coverImage = safeImageSrc(coverImageRaw);
-      if (!coverImage) { alert('آدرس عکس جلد معتبر نیست.'); return; }
-    }
-
-    var sentences = [];
-    var bad = false;
-    rawLines.forEach(function (line) {
-      if (!line.trim()) return;
-      var sep = line.indexOf('|');
-      if (sep < 1) { bad = true; return; }
-      var de = line.slice(0, sep).trim();
-      var fa = line.slice(sep + 1).trim();
-      if (!de || !fa) { bad = true; return; }
-      sentences.push({ de: de, fa: fa });
-    });
-    if (bad) { alert('فرمت خطوط جمله اشتباه است. باید «جمله آلمانی | ترجمه فارسی» باشد.'); return; }
-    if (sentences.length === 0) { alert('حداقل یک جمله آلمانی و ترجمه فارسی وارد کنید.'); return; }
-
-    if (!Array.isArray(lesson.stories)) lesson.stories = [];
-
-    if (editId) {
-      var target = lesson.stories.find(function (s) { return String(s.id) === String(editId); });
-      if (!target) { alert('داستان برای ویرایش پیدا نشد.'); return; }
-      target.title = title;
-      target.audio = fullAudio;
-      target.coverImage = coverImage;
-      target.coverColor = coverColor;
-      target.sentences = sentences;
-    } else {
-      lesson.stories.push({
-        id: uid(), title: title, audio: fullAudio,
-        coverImage: coverImage, coverColor: coverColor, sentences: sentences
-      });
-    }
-
-    saveState();
-    document.getElementById('storyEditId').value = '';
-    document.getElementById('storyTitle').value = '';
-    document.getElementById('storyFullAudio').value = '';
-    document.getElementById('storyCoverImage').value = '';
-    document.getElementById('storyCoverColor').value = '#536dfe';
-    document.getElementById('storySentences').value = '';
-    document.getElementById('storyForm').classList.add('hidden');
-    renderStories();
-  });
-
-  document.getElementById('flashcard').addEventListener('click', function () {
-    document.getElementById('flashcard').classList.toggle('flipped');
-  });
-  document.getElementById('closeCard').addEventListener('click', closeCard);
-  document.getElementById('cardOverlay').addEventListener('click', function (e) {
-    if (e.target.id === 'cardOverlay') closeCard();
-  });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') closeCard();
-  });
-
-  document.getElementById('exportBtn').addEventListener('click', function () {
-    var blob = new Blob([JSON.stringify(state.books, null, 2)], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'german-vocab-' + new Date().toISOString().slice(0, 10) + '.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-  document.getElementById('importBtn').addEventListener('click', function () {
-    document.getElementById('importFile').click();
-  });
-  document.getElementById('importFile').addEventListener('change', function (e) {
-    var file = e.target.files[0]; if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var books = JSON.parse(reader.result);
-        if (!Array.isArray(books)) throw new Error('ساختار فایل نامعتبر است');
-        if (!confirm('داده‌های فعلی جایگزین می‌شوند. ادامه؟')) return;
-        state.books = books;
-        state.books.forEach(function (book) {
-          (book.lessons || []).forEach(function (lesson) {
-            if (!Array.isArray(lesson.stories)) lesson.stories = [];
-            if (!Array.isArray(lesson.words)) lesson.words = [];
           });
-        });
-        state.activeBookId = books.length ? books[0].id : null;
-        state.activeLessonId = (books.length && books[0].lessons.length) ? books[0].lessons[0].id : null;
+        }
+        var trs = wrap.querySelectorAll('tbody tr');
+        for (var t = 0; t < trs.length; t++) {
+          (function (tr) {
+            var pressTimer = null;
+            var longPressFired = false;
+            function startPress() {
+              longPressFired = false;
+              pressTimer = setTimeout(function () {
+                longPressFired = true;
+                var id = tr.getAttribute('data-id');
+                var target = null;
+                for (var k = 0; k < lesson.words.length; k++) {
+                  if (lesson.words[k].id === id) { target = lesson.words[k]; break; }
+                }
+                if (target && confirm('حذف «' + target.de + '»؟')) {
+                  var newWords = [];
+                  for (var m = 0; m < lesson.words.length; m++) {
+                    if (lesson.words[m].id !== id) newWords.push(lesson.words[m]);
+                  }
+                  lesson.words = newWords;
+                  saveState();
+                  renderTable();
+                }
+              }, 600);
+            }
+            function cancelPress() {
+              if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+            }
+            tr.addEventListener('touchstart', startPress, { passive: true });
+            tr.addEventListener('touchend', cancelPress);
+            tr.addEventListener('touchcancel', cancelPress);
+            tr.addEventListener('touchmove', cancelPress);
+            tr.addEventListener('click', function () {
+              if (longPressFired) { longPressFired = false; return; }
+              var id = tr.getAttribute('data-id');
+              for (var k = 0; k < lesson.words.length; k++) {
+                if (lesson.words[k].id === id) { openCard(lesson.words[k]); return; }
+              }
+            });
+          })(trs[t]);
+        }
+      }
+      function speakGerman(text) {
+        if (!('speechSynthesis' in window)) { alert('مرورگر شما از تلفظ صوتی پشتیبانی نمی‌کند.'); return; }
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = 'de-DE'; u.rate = 0.9;
+        window.speechSynthesis.speak(u);
+      }
+      function openCard(word) {
+        var art = document.getElementById('cardArt');
+        art.textContent = word.art !== '–' ? word.art : '';
+        art.className = 'art ' + articleClass(word.art);
+        document.getElementById('cardDe').textContent = word.de;
+        document.getElementById('cardBack').innerHTML =
+          escapeHtml(word.fa) + (word.note ? '<div class="card-note">' + escapeHtml(word.note) + '</div>' : '');
+        document.getElementById('flashcard').classList.remove('flipped');
+        document.getElementById('cardOverlay').classList.add('active');
+      }
+      function closeCard() { document.getElementById('cardOverlay').classList.remove('active'); }
+      document.getElementById('bookSelect').addEventListener('change', function (e) {
+        state.activeBookId = e.target.value || null;
+        var b = currentBook();
+        state.activeLessonId = (b && b.lessons.length) ? b.lessons[0].id : null;
+        saveState(); renderLessons(); renderTable();
+      });
+      document.getElementById('toggleBookForm').addEventListener('click', function () {
+        document.getElementById('bookForm').classList.toggle('hidden');
+      });
+      document.getElementById('cancelBook').addEventListener('click', function () {
+        document.getElementById('bookForm').classList.add('hidden');
+      });
+      document.getElementById('saveBook').addEventListener('click', function () {
+        var name = document.getElementById('bookName').value.trim();
+        var level = document.getElementById('bookLevel').value;
+        if (!name) { alert('نام کتاب را وارد کنید.'); return; }
+        state.books.push({ id: uid(), name: name, level: level, lessons: [] });
+        state.activeBookId = state.books[state.books.length - 1].id;
+        state.activeLessonId = null;
+        saveState();
+        document.getElementById('bookName').value = '';
+        document.getElementById('bookForm').classList.add('hidden');
+        renderBooks(); renderLessons(); renderTable();
+      });
+      document.getElementById('deleteBook').addEventListener('click', function () {
+        var b = currentBook();
+        if (!b) return;
+        if (!confirm('حذف کتاب «' + b.name + '» و همه درس‌هایش؟')) return;
+        var newBooks = [];
+        for (var i = 0; i < state.books.length; i++) {
+          if (state.books[i].id !== b.id) newBooks.push(state.books[i]);
+        }
+        state.books = newBooks;
+        state.activeBookId = state.books.length ? state.books[0].id : null;
+        var nb = currentBook();
+        state.activeLessonId = (nb && nb.lessons.length) ? nb.lessons[0].id : null;
         saveState(); renderBooks(); renderLessons(); renderTable();
-        alert('ورود با موفقیت انجام شد.');
-      } catch (err) { alert('خطا: ' + err.message); }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  });
-  document.getElementById('resetBtn').addEventListener('click', function () {
-    if (!confirm('همه داده‌ها به حالت اولیه برمی‌گردند. مطمئنید؟')) return;
-    state = { books: defaultBooks(), activeBookId: null, activeLessonId: null };
-    initState(); saveState(); renderBooks(); renderLessons(); renderTable();
-  });
-
-  initState();
-  renderBooks();
-  renderLessons();
-  renderTable();
-})();
-</script>
+      });
+      document.getElementById('lessonSelect').addEventListener('change', function (e) {
+        state.activeLessonId = e.target.value || null;
+        saveState(); renderTable();
+      });
+      document.getElementById('toggleLessonForm').addEventListener('click', function () {
+        document.getElementById('lessonForm').classList.toggle('hidden');
+      });
+      document.getElementById('cancelLesson').addEventListener('click', function () {
+        document.getElementById('lessonForm').classList.add('hidden');
+      });
+      document.getElementById('saveLesson').addEventListener('click', function () {
+        var b = currentBook();
+        if (!b) { alert('ابتدا یک کتاب انتخاب یا ایجاد کنید.'); return; }
+        var title = document.getElementById('lessonTitle').value.trim();
+        if (!title) { alert('عنوان درس را وارد کنید.'); return; }
+        b.lessons.push({ id: uid(), title: title, words: [], stories: [] });
+        state.activeLessonId = b.lessons[b.lessons.length - 1].id;
+        saveState();
+        document.getElementById('lessonTitle').value = '';
+        document.getElementById('lessonForm').classList.add('hidden');
+        renderLessons(); renderTable();
+      });
+      document.getElementById('deleteLesson').addEventListener('click', function () {
+        var b = currentBook();
+        var lesson = currentLesson();
+        if (!b || !lesson) return;
+        if (!confirm('حذف درس «' + lesson.title + '» و همه کلماتش؟')) return;
+        var newLessons = [];
+        for (var i = 0; i < b.lessons.length; i++) {
+          if (b.lessons[i].id !== lesson.id) newLessons.push(b.lessons[i]);
+        }
+        b.lessons = newLessons;
+        state.activeLessonId = b.lessons.length ? b.lessons[0].id : null;
+        saveState(); renderLessons(); renderTable();
+      });
+      document.getElementById('saveWord').addEventListener('click', function () {
+        var lesson = currentLesson();
+        if (!lesson) { alert('ابتدا یک درس انتخاب کنید.'); return; }
+        var de = document.getElementById('wDe').value.trim();
+        var fa = document.getElementById('wFa').value.trim();
+        if (!de || !fa) { alert('کلمه آلمانی و ترجمه فارسی الزامی است.'); return; }
+        lesson.words.push({
+          id: uid(), de: de,
+          art: document.getElementById('wArt').value,
+          plural: document.getElementById('wPlural').value.trim() || '–',
+          fa: fa,
+          speak: document.getElementById('wSpeak').value.trim() || de,
+          note: document.getElementById('wNote').value.trim() || undefined
+        });
+        saveState();
+        ['wDe', 'wPlural', 'wFa', 'wSpeak', 'wNote'].forEach(function (id) {
+          document.getElementById(id).value = '';
+        });
+        document.getElementById('wDe').focus();
+        renderTable();
+      });
+      document.getElementById('toggleStoryForm').addEventListener('click', function () {
+        var form = document.getElementById('storyForm');
+        if (form.classList.contains('hidden')) {
+          document.getElementById('storyEditId').value = '';
+          document.getElementById('storyTitle').value = '';
+          document.getElementById('storyFullAudio').value = '';
+          document.getElementById('storyCoverImage').value = '';
+          document.getElementById('storyCoverColor').value = '#536dfe';
+          document.getElementById('storySentences').value = '';
+        }
+        form.classList.toggle('hidden');
+      });
+      document.getElementById('cancelStory').addEventListener('click', function () {
+        document.getElementById('storyForm').classList.add('hidden');
+      });
+      document.getElementById('togglePersianBtn').addEventListener('click', function () {
+        showPersianTranslations = !showPersianTranslations;
+        renderStories();
+      });
+      document.getElementById('storiesList').addEventListener('click', function (e) {
+        var delBtn = e.target.closest('[data-delete-story]');
+        if (delBtn) {
+          var lessonD = currentLesson();
+          if (!lessonD) return;
+          var delId = delBtn.getAttribute('data-delete-story');
+          var sD = lessonD.stories.find(function (x) { return String(x.id) === String(delId); });
+          if (!sD) return;
+          if (!confirm('داستان «' + sD.title + '» حذف شود؟')) return;
+          lessonD.stories = lessonD.stories.filter(function (x) { return String(x.id) !== String(delId); });
+          if (String(activeStoryId) === String(delId)) activeStoryId = null;
+          saveState(); renderStories();
+          return;
+        }
+        var editBtn = e.target.closest('[data-edit-story]');
+        if (editBtn) {
+          var lessonE = currentLesson();
+          if (!lessonE) return;
+          var editId = editBtn.getAttribute('data-edit-story');
+          var story = lessonE.stories.find(function (x) { return String(x.id) === String(editId); });
+          if (!story) return;
+          document.getElementById('storyEditId').value = story.id;
+          document.getElementById('storyTitle').value = story.title || '';
+          document.getElementById('storyFullAudio').value = story.audio || '';
+          document.getElementById('storyCoverImage').value = story.coverImage || '';
+          document.getElementById('storyCoverColor').value = safeCoverColor(story.coverColor);
+          document.getElementById('storySentences').value = (story.sentences || [])
+            .map(function (s) { return s.de + ' | ' + s.fa; }).join('\n');
+          var form = document.getElementById('storyForm');
+          form.classList.remove('hidden');
+          form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+        var card = e.target.closest('[data-open-story]');
+        if (!card) return;
+        activeStoryId = card.getAttribute('data-open-story');
+        renderStories();
+        document.getElementById('storyReader').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      document.getElementById('storyNavList').addEventListener('click', function (e) {
+        var item = e.target.closest('[data-open-story]');
+        if (!item) return;
+        activeStoryId = item.getAttribute('data-open-story');
+        renderStories();
+      });
+      document.getElementById('storyMenuToggle').addEventListener('click', function () {
+        document.getElementById('storyReader').classList.toggle('sidebar-open');
+      });
+      document.getElementById('closeStoryReader').addEventListener('click', function () {
+        activeStoryId = null;
+        renderStories();
+      });
+      document.getElementById('toggleAllStories').addEventListener('click', function () {
+        showAllStoryCards = !showAllStoryCards;
+        renderStories();
+      });
+      document.getElementById('storySliderPrev').addEventListener('click', function () {
+        document.getElementById('storiesList').scrollBy({ left: 320, behavior: 'smooth' });
+      });
+      document.getElementById('storySliderNext').addEventListener('click', function () {
+        document.getElementById('storiesList').scrollBy({ left: -320, behavior: 'smooth' });
+      });
+      document.getElementById('saveStory').addEventListener('click', function () {
+        var lesson = currentLesson();
+        if (!lesson) { alert('ابتدا یک درس انتخاب کنید.'); return; }
+        var editId = document.getElementById('storyEditId').value || '';
+        var title = document.getElementById('storyTitle').value.trim();
+        var fullAudioRaw = document.getElementById('storyFullAudio').value.trim();
+        var coverImageRaw = document.getElementById('storyCoverImage').value.trim();
+        var coverColor = safeCoverColor(document.getElementById('storyCoverColor').value);
+        var rawLines = document.getElementById('storySentences').value.split(/\r?\n/);
+        if (!title) { alert('عنوان داستان را وارد کنید.'); return; }
+        if (!fullAudioRaw) { alert('لینک فایل صوتی را وارد کنید.'); return; }
+        var fullAudio = toDirectAudioUrl(fullAudioRaw);
+        if (!fullAudio) { alert('لینک صوتی معتبر نیست.'); return; }
+        var coverImage = '';
+        if (coverImageRaw) {
+          coverImage = safeImageSrc(coverImageRaw);
+          if (!coverImage) { alert('آدرس عکس جلد معتبر نیست.'); return; }
+        }
+        var sentences = [];
+        var bad = false;
+        rawLines.forEach(function (line) {
+          if (!line.trim()) return;
+          var sep = line.indexOf('|');
+          if (sep < 1) { bad = true; return; }
+          var de = line.slice(0, sep).trim();
+          var fa = line.slice(sep + 1).trim();
+          if (!de || !fa) { bad = true; return; }
+          sentences.push({ de: de, fa: fa });
+        });
+        if (bad) { alert('فرمت خطوط جمله اشتباه است. باید «جمله آلمانی | ترجمه فارسی» باشد.'); return; }
+        if (sentences.length === 0) { alert('حداقل یک جمله وارد کنید.'); return; }
+        if (!Array.isArray(lesson.stories)) lesson.stories = [];
+        if (editId) {
+          var target = lesson.stories.find(function (s) { return String(s.id) === String(editId); });
+          if (!target) { alert('داستان پیدا نشد.'); return; }
+          target.title = title;
+          target.audio = fullAudio;
+          target.coverImage = coverImage;
+          target.coverColor = coverColor;
+          target.sentences = sentences;
+        } else {
+          lesson.stories.push({
+            id: uid(), title: title, audio: fullAudio,
+            coverImage: coverImage, coverColor: coverColor, sentences: sentences
+          });
+        }
+        saveState();
+        document.getElementById('storyEditId').value = '';
+        document.getElementById('storyTitle').value = '';
+        document.getElementById('storyFullAudio').value = '';
+        document.getElementById('storyCoverImage').value = '';
+        document.getElementById('storyCoverColor').value = '#536dfe';
+        document.getElementById('storySentences').value = '';
+        document.getElementById('storyForm').classList.add('hidden');
+        renderStories();
+      });
+      document.getElementById('flashcard').addEventListener('click', function () {
+        document.getElementById('flashcard').classList.toggle('flipped');
+      });
+      document.getElementById('closeCard').addEventListener('click', closeCard);
+      document.getElementById('cardOverlay').addEventListener('click', function (e) {
+        if (e.target.id === 'cardOverlay') closeCard();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeCard();
+      });
+      document.getElementById('exportBtn').addEventListener('click', function () {
+        var blob = new Blob([JSON.stringify(state.books, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'german-vocab-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+      document.getElementById('importBtn').addEventListener('click', function () {
+        document.getElementById('importFile').click();
+      });
+      document.getElementById('importFile').addEventListener('change', function (e) {
+        var file = e.target.files[0]; if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var books = JSON.parse(reader.result);
+            if (!Array.isArray(books)) throw new Error('ساختار فایل نامعتبر است');
+            if (!confirm('داده‌های فعلی جایگزین می‌شوند. ادامه؟')) return;
+            state.books = books;
+            state.books.forEach(function (book) {
+              (book.lessons || []).forEach(function (lesson) {
+                if (!Array.isArray(lesson.stories)) lesson.stories = [];
+                if (!Array.isArray(lesson.words)) lesson.words = [];
+              });
+            });
+            state.activeBookId = books.length ? books[0].id : null;
+            state.activeLessonId = (books.length && books[0].lessons.length) ? books[0].lessons[0].id : null;
+            saveState(); renderBooks(); renderLessons(); renderTable();
+            alert('ورود با موفقیت انجام شد.');
+          } catch (err) { alert('خطا: ' + err.message); }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+      document.getElementById('resetBtn').addEventListener('click', function () {
+        if (!confirm('همه داده‌ها به حالت اولیه برمی‌گردند. مطمئنید؟')) return;
+        state = { books: defaultBooks(), activeBookId: null, activeLessonId: null };
+        initState(); saveState(); renderBooks(); renderLessons(); renderTable();
+      });
+      initState();
+      renderBooks();
+      renderLessons();
+      renderTable();
+    })();
+  </script>
 </body>
+
 </html>
