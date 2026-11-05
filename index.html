@@ -31,6 +31,14 @@
       padding-bottom: env(safe-area-inset-bottom, 20px);
     }
 
+    /* ✅ وقتی فول‌اسکرین فعاله، کل صفحه قفل می‌شه و اسکرول نمی‌خوره */
+    html.fullscreen-lock,
+    body.fullscreen-lock {
+      overflow: hidden !important;
+      height: 100% !important;
+      max-height: 100% !important;
+    }
+
     h1 {
       text-align: center;
       color: #2c3e50;
@@ -1021,7 +1029,6 @@
       font-size: 19px;
     }
 
-    /* ✅ #storyReaderContent باید خودش flex column باشد */
     #storyReaderContent {
       display: flex;
       flex-direction: column;
@@ -1036,6 +1043,7 @@
       overflow-y: auto;
       padding: 0 3px;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
 
     .story-reader-scroll .story-sentence {
@@ -1444,7 +1452,7 @@
     }
 
     /* ============================================ */
-    /* ✅ فول‌اسکرین — پلیر پایین ثابت، متن اسکرول، سایدبار قابل باز/بسته */
+    /* ✅ فول‌اسکرین — قفل کامل صفحه، فقط متن اسکرول */
     /* ============================================ */
     .story-reader.fullscreen {
       position: fixed;
@@ -1454,8 +1462,9 @@
       border-radius: 0;
       border: none;
       max-height: none;
-      height: 100vh;
       width: 100vw;
+      height: 100vh;
+      height: 100dvh; /* ✅ ارتفاع داینامیک برای موبایل */
       background: #fff;
       display: flex !important;
       flex-direction: row;
@@ -1466,8 +1475,10 @@
       display: block;
       width: 245px;
       flex-shrink: 0;
-      max-height: 100vh;
+      height: 100%;
+      max-height: 100dvh;
       border-left: 1px solid #e7ebf1;
+      overflow-y: auto;
     }
 
     .story-reader.fullscreen .story-reader-main {
@@ -1475,10 +1486,12 @@
       flex-direction: column;
       flex: 1;
       min-width: 0;
-      height: 100vh;
-      max-height: 100vh;
+      height: 100%;
+      max-height: 100dvh;
       overflow: hidden;
       padding: 16px;
+      /* ✅ احترام به safe area در موبایل */
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     }
 
     .story-reader.fullscreen #storyReaderContent {
@@ -1494,13 +1507,13 @@
       min-height: 0;
       overflow-y: auto;
       max-height: none;
+      overscroll-behavior: contain;
     }
 
     .story-reader.fullscreen .audio-player {
       flex-shrink: 0;
     }
 
-    /* در موبایل: سایدبار کشویی */
     @media (max-width: 700px) {
       .story-reader.fullscreen {
         flex-direction: column;
@@ -1514,7 +1527,8 @@
         right: 0;
         bottom: 0;
         width: min(82%, 290px);
-        height: 100vh;
+        height: 100%;
+        max-height: 100dvh;
         overflow: auto;
         box-shadow: -8px 0 25px #0002;
       }
@@ -1525,6 +1539,7 @@
 
       .story-reader.fullscreen .story-reader-main {
         padding: 10px;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
       }
     }
   </style>
@@ -1850,12 +1865,24 @@
         var s = Math.floor(sec % 60);
         return m + ':' + (s < 10 ? '0' : '') + s;
       }
+
+      // ✅ قفل/آزاد کردن اسکرول صفحه اصلی هنگام فول‌اسکرین
+      function lockBodyScroll() {
+        document.documentElement.classList.add('fullscreen-lock');
+        document.body.classList.add('fullscreen-lock');
+      }
+      function unlockBodyScroll() {
+        document.documentElement.classList.remove('fullscreen-lock');
+        document.body.classList.remove('fullscreen-lock');
+      }
+
       function renderStoryReader(lesson) {
         var reader = document.getElementById('storyReader');
         var content = document.getElementById('storyReaderContent');
         var nav = document.getElementById('storyNavList');
         if (!lesson || !activeStoryId) {
           reader.classList.remove('active', 'sidebar-open', 'fullscreen');
+          unlockBodyScroll();
           content.innerHTML = '';
           nav.innerHTML = '';
           var fsBtn0 = document.getElementById('storyFullscreenBtn');
@@ -1866,6 +1893,7 @@
         if (!story) {
           activeStoryId = null;
           reader.classList.remove('active', 'sidebar-open', 'fullscreen');
+          unlockBodyScroll();
           return;
         }
         reader.classList.add('active');
@@ -2299,22 +2327,23 @@
         renderStories();
       });
 
-      // ✅ دکمه فول‌اسکرین
+      // ✅ دکمه فول‌اسکرین — قفل اسکرول صفحه
       document.getElementById('storyFullscreenBtn').addEventListener('click', function () {
         var reader = document.getElementById('storyReader');
         if (!reader.classList.contains('active')) return;
-        reader.classList.toggle('fullscreen');
+        var isFs = reader.classList.toggle('fullscreen');
         var btn = document.getElementById('storyFullscreenBtn');
-        if (reader.classList.contains('fullscreen')) {
+        if (isFs) {
           btn.textContent = '✕';
           btn.title = 'خروج از تمام‌صفحه';
+          lockBodyScroll();
         } else {
           btn.textContent = '⛶';
           btn.title = 'تمام‌صفحه';
+          unlockBodyScroll();
         }
       });
 
-      // سوییچ بین داستان‌ها در حالت فول‌اسکرین هم کار می‌کند
       document.getElementById('storyNavList').addEventListener('click', function (e) {
         var item = e.target.closest('[data-open-story]');
         if (!item) return;
@@ -2449,6 +2478,7 @@
             var btn = document.getElementById('storyFullscreenBtn');
             btn.textContent = '⛶';
             btn.title = 'تمام‌صفحه';
+            unlockBodyScroll();
           } else {
             closeCard();
           }
