@@ -31,7 +31,6 @@
       padding-bottom: env(safe-area-inset-bottom, 20px);
     }
 
-    /* ✅ وقتی فول‌اسکرین فعاله، کل صفحه قفل می‌شه و اسکرول نمی‌خوره */
     html.fullscreen-lock,
     body.fullscreen-lock {
       overflow: hidden !important;
@@ -951,7 +950,6 @@
       overflow: visible;
     }
 
-    /* ---------- خواننده داستان ---------- */
     .story-reader {
       display: none;
       margin-top: 15px;
@@ -1113,8 +1111,9 @@
     }
 
     .audio-player.has-bg-image::after {
-      filter: blur(14px) brightness(0.7);
-      transform: scale(1.15);
+      filter: blur(6px) brightness(0.85) saturate(1.1);
+      transform: scale(1.08);
+      opacity: 0.75;
     }
 
     .audio-player.has-bg-color::after {
@@ -1327,6 +1326,106 @@
       background: rgba(255, 255, 255, 0.3);
     }
 
+    .audio-nav-btn {
+      height: 32px;
+      margin-bottom: 3px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: #fff;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .audio-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    .audio-nav-btn:active {
+      transform: scale(0.95);
+    }
+
+    .audio-nav-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* ✅ حالت‌های تکرار */
+    .audio-nav-btn.repeat-1 {
+      background: #ffd166;
+      color: #b8860b;
+      border-color: #ffd166;
+    }
+
+    .audio-nav-btn.repeat-2 {
+      background: #ff9f43;
+      color: #fff;
+      border-color: #ff9f43;
+    }
+
+    .audio-nav-btn.auto-next {
+      background: #2ecc71;
+      color: #fff;
+      border-color: #2ecc71;
+    }
+
+    /* ✅ حالت تکرار بی‌نهایت */
+    .audio-nav-btn.repeat-inf {
+      background: #e74c3c;
+      color: #fff;
+      border-color: #e74c3c;
+      animation: pulse-red 1.5s infinite;
+    }
+
+    @keyframes pulse-red {
+      0% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+      }
+
+      70% {
+        box-shadow: 0 0 0 8px rgba(231, 76, 60, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+      }
+    }
+
+    .audio-nav-btn.repeat-inf .repeat-badge {
+      background: #fff;
+      color: #e74c3c;
+      font-size: 11px;
+    }
+
+    /* بج شماره روی دکمه تکرار */
+    .audio-nav-btn .repeat-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 8px;
+      font-weight: 800;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid currentColor;
+    }
+
     @media (max-width: 640px) {
       .audio-player {
         padding: 7px 9px;
@@ -1341,6 +1440,11 @@
 
       .audio-volume {
         width: 40px;
+      }
+
+      .audio-nav-btn {
+        padding: 3px 6px;
+        font-size: 13px;
       }
     }
 
@@ -1451,9 +1555,6 @@
       }
     }
 
-    /* ============================================ */
-    /* ✅ فول‌اسکرین — قفل کامل صفحه، فقط متن اسکرول */
-    /* ============================================ */
     .story-reader.fullscreen {
       position: fixed;
       inset: 0;
@@ -1464,7 +1565,7 @@
       max-height: none;
       width: 100vw;
       height: 100vh;
-      height: 100dvh; /* ✅ ارتفاع داینامیک برای موبایل */
+      height: 100dvh;
       background: #fff;
       display: flex !important;
       flex-direction: row;
@@ -1490,7 +1591,6 @@
       max-height: 100dvh;
       overflow: hidden;
       padding: 16px;
-      /* ✅ احترام به safe area در موبایل */
       padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     }
 
@@ -1695,6 +1795,11 @@
       var showPersianTranslations = true;
       var activeStoryId = null;
       var showAllStoryCards = false;
+
+      // ✅ حالت تکرار (0=خاموش، 1=تکرار ۱ بار، 2=تکرار ۲ بار، 3=اتو‌نکست، 4=تکرار بی‌نهایت)
+      var repeatMode = 0;
+      var repeatCounter = 0;
+
       function uid() {
         uidCounter++;
         return 'id' + Date.now().toString(36) + uidCounter.toString(36) + Math.random().toString(36).slice(2, 6);
@@ -1866,7 +1971,6 @@
         return m + ':' + (s < 10 ? '0' : '') + s;
       }
 
-      // ✅ قفل/آزاد کردن اسکرول صفحه اصلی هنگام فول‌اسکرین
       function lockBodyScroll() {
         document.documentElement.classList.add('fullscreen-lock');
         document.body.classList.add('fullscreen-lock');
@@ -1876,7 +1980,71 @@
         document.body.classList.remove('fullscreen-lock');
       }
 
-      function renderStoryReader(lesson) {
+      function goToAdjacentStory(direction, autoAdvance) {
+        var lesson = currentLesson();
+        if (!lesson || !Array.isArray(lesson.stories) || lesson.stories.length === 0) return false;
+        var idx = -1;
+        for (var i = 0; i < lesson.stories.length; i++) {
+          if (String(lesson.stories[i].id) === String(activeStoryId)) { idx = i; break; }
+        }
+        if (idx === -1) return false;
+        var nextIdx = idx + direction;
+        if (nextIdx >= lesson.stories.length) {
+          if (!autoAdvance) return false;
+          nextIdx = 0;
+        }
+        if (nextIdx < 0) {
+          if (!autoAdvance) return false;
+          nextIdx = lesson.stories.length - 1;
+        }
+        activeStoryId = lesson.stories[nextIdx].id;
+        if (autoAdvance) repeatCounter = 0;
+        renderStories({ autoPlay: !!autoAdvance });
+        return true;
+      }
+
+      function applyRepeatButtonState(btn) {
+        if (!btn) return;
+        btn.classList.remove('active-toggle', 'repeat-1', 'repeat-2', 'auto-next', 'repeat-inf');
+        var oldBadge = btn.querySelector('.repeat-badge');
+        if (oldBadge) oldBadge.remove();
+        btn.textContent = '🔁';
+
+        if (repeatMode === 0) {
+          btn.title = 'حالت تکرار: خاموش';
+        } else if (repeatMode === 1) {
+          btn.classList.add('repeat-1');
+          btn.title = 'حالت تکرار: ۱ بار تکرار همین داستان، بعد برو بعدی';
+          var b = document.createElement('span');
+          b.className = 'repeat-badge';
+          b.textContent = '1';
+          btn.appendChild(b);
+        } else if (repeatMode === 2) {
+          btn.classList.add('repeat-2');
+          btn.title = 'حالت تکرار: ۲ بار تکرار همین داستان، بعد برو بعدی';
+          var b2 = document.createElement('span');
+          b2.className = 'repeat-badge';
+          b2.textContent = '2';
+          btn.appendChild(b2);
+        } else if (repeatMode === 3) {
+          btn.classList.add('auto-next');
+          btn.title = 'حالت اتو‌نکست: بعد از هر داستان، برو داستان بعدی';
+          var b3 = document.createElement('span');
+          b3.className = 'repeat-badge';
+          b3.textContent = 'A';
+          btn.appendChild(b3);
+        } else if (repeatMode === 4) {
+          btn.classList.add('repeat-inf');
+          btn.title = 'حالت تکرار بی‌نهایت: این داستان تا بی‌نهایت تکرار می‌شود (برای حفظ کردن)';
+          var b4 = document.createElement('span');
+          b4.className = 'repeat-badge';
+          b4.textContent = '∞';
+          btn.appendChild(b4);
+        }
+      }
+
+      function renderStoryReader(lesson, opts) {
+        opts = opts || {};
         var reader = document.getElementById('storyReader');
         var content = document.getElementById('storyReaderContent');
         var nav = document.getElementById('storyNavList');
@@ -1896,6 +2064,13 @@
           unlockBodyScroll();
           return;
         }
+        var storyIdx = -1;
+        for (var si = 0; si < lesson.stories.length; si++) {
+          if (String(lesson.stories[si].id) === String(activeStoryId)) { storyIdx = si; break; }
+        }
+        var hasPrev = storyIdx > 0;
+        var hasNext = storyIdx < lesson.stories.length - 1;
+
         reader.classList.add('active');
         document.getElementById('storyReaderTitle').textContent = story.title;
         var navHtml = '';
@@ -1934,12 +2109,15 @@
             '<div class="' + playerClass + '" data-audio-player' + playerStyle + '>' +
             '<div class="audio-player-label">🎧 ' + escapeHtml(story.title) + '</div>' +
             '<div class="audio-player-row">' +
+            '<button type="button" class="audio-nav-btn" data-prev-btn title="داستان قبلی" ' + (hasPrev ? '' : 'disabled') + '>⏮</button>' +
             '<button type="button" class="audio-play-btn" data-play-btn>▶</button>' +
+            '<button type="button" class="audio-nav-btn" data-next-btn title="داستان بعدی" ' + (hasNext ? '' : 'disabled') + '>⏭</button>' +
             '<div class="audio-progress-wrap">' +
             '<div class="audio-time"><span data-current>0:00</span><span data-duration>0:00</span></div>' +
             '<input type="range" class="audio-progress" data-progress min="0" max="100" value="0" step="0.1">' +
             '</div>' +
             '<button type="button" class="audio-speed-btn" data-speed-btn>1×</button>' +
+            '<button type="button" class="audio-nav-btn" data-loop-btn title="حالت تکرار">🔁</button>' +
             '<a class="audio-download-btn" href="' + escapeHtml(audio) + '" download="' + escapeHtml(downloadName) + '" target="_blank" rel="noopener" title="دانلود">⬇</a>' +
             '</div>' +
             '<div class="audio-volume-wrap">' +
@@ -1965,11 +2143,12 @@
               st.textContent = '[data-audio-player].has-bg-image::after { background-image: url("' + coverImage + '") !important; }';
               document.head.appendChild(st);
             }
-            setupCustomAudioPlayer(playerEl);
+            setupCustomAudioPlayer(playerEl, opts);
           }
         }
       }
-      function setupCustomAudioPlayer(root) {
+      function setupCustomAudioPlayer(root, opts) {
+        opts = opts || {};
         var audioEl = root.querySelector('[data-audio]');
         var playBtn = root.querySelector('[data-play-btn]');
         var progress = root.querySelector('[data-progress]');
@@ -1978,6 +2157,9 @@
         var volume = root.querySelector('[data-volume]');
         var volIcon = root.querySelector('[data-vol-icon]');
         var speedBtn = root.querySelector('[data-speed-btn]');
+        var prevBtn = root.querySelector('[data-prev-btn]');
+        var nextBtn = root.querySelector('[data-next-btn]');
+        var loopBtn = root.querySelector('[data-loop-btn]');
         if (!audioEl || !playBtn || !progress) return;
         var isSeeking = false;
         var speeds = [1, 1.25, 1.5, 0.75, 0.5];
@@ -1997,7 +2179,54 @@
         });
         audioEl.addEventListener('play', updatePlayState);
         audioEl.addEventListener('pause', updatePlayState);
-        audioEl.addEventListener('ended', updatePlayState);
+        audioEl.addEventListener('ended', function () {
+          updatePlayState();
+
+          // 0: خاموش → فقط متوقف
+          if (repeatMode === 0) return;
+
+          // 4: تکرار بی‌نهایت → همون داستان دوباره
+          if (repeatMode === 4) {
+            audioEl.currentTime = 0;
+            audioEl.play().catch(function () { });
+            return;
+          }
+
+          // 1 یا 2: تکرار محدود، بعد برو بعدی
+          if (repeatMode === 1 || repeatMode === 2) {
+            var maxRepeat = repeatMode;
+            if (repeatCounter < maxRepeat) {
+              repeatCounter++;
+              audioEl.currentTime = 0;
+              audioEl.play().catch(function () { });
+              return;
+            } else {
+              repeatCounter = 0;
+              var moved = goToAdjacentStory(1, true);
+              if (!moved) {
+                var lesson = currentLesson();
+                if (lesson && lesson.stories.length > 0) {
+                  activeStoryId = lesson.stories[0].id;
+                  renderStories({ autoPlay: true });
+                }
+              }
+              return;
+            }
+          }
+
+          // 3: اتو‌نکست
+          if (repeatMode === 3) {
+            var moved2 = goToAdjacentStory(1, true);
+            if (!moved2) {
+              var lesson2 = currentLesson();
+              if (lesson2 && lesson2.stories.length > 0) {
+                activeStoryId = lesson2.stories[0].id;
+                renderStories({ autoPlay: true });
+              }
+            }
+            return;
+          }
+        });
         audioEl.addEventListener('loadedmetadata', function () {
           durationEl.textContent = fmtTime(audioEl.duration);
           progress.max = audioEl.duration || 0;
@@ -2046,9 +2275,39 @@
           audioEl.playbackRate = s;
           speedBtn.textContent = s + '×';
         });
+
+        if (prevBtn) {
+          prevBtn.addEventListener('click', function () {
+            goToAdjacentStory(-1, false);
+          });
+        }
+        if (nextBtn) {
+          nextBtn.addEventListener('click', function () {
+            goToAdjacentStory(1, false);
+          });
+        }
+
+        // ✅ دکمه تکرار: 5 حالت چرخشی
+        // 0 (خاموش) → 1 (تکرار 1) → 2 (تکرار 2) → 3 (اتو نکست) → 4 (بی‌نهایت) → 0
+        if (loopBtn) {
+          applyRepeatButtonState(loopBtn);
+          loopBtn.addEventListener('click', function () {
+            repeatMode = (repeatMode + 1) % 5;
+            repeatCounter = 0;
+            applyRepeatButtonState(loopBtn);
+          });
+        }
+
         audioEl.volume = 1;
+
+        if (opts.autoPlay) {
+          setTimeout(function () {
+            audioEl.play().catch(function () { });
+          }, 150);
+        }
       }
-      function renderStories() {
+      function renderStories(opts) {
+        opts = opts || {};
         var panel = document.getElementById('storiesPanel');
         var list = document.getElementById('storiesList');
         var lesson = currentLesson();
@@ -2088,7 +2347,7 @@
           output += '</div>';
         });
         list.innerHTML = output;
-        renderStoryReader(lesson);
+        renderStoryReader(lesson, opts);
       }
       function renderTable() {
         var wrap = document.getElementById('tableWrapper');
@@ -2327,7 +2586,6 @@
         renderStories();
       });
 
-      // ✅ دکمه فول‌اسکرین — قفل اسکرول صفحه
       document.getElementById('storyFullscreenBtn').addEventListener('click', function () {
         var reader = document.getElementById('storyReader');
         if (!reader.classList.contains('active')) return;
@@ -2348,6 +2606,7 @@
         var item = e.target.closest('[data-open-story]');
         if (!item) return;
         activeStoryId = item.getAttribute('data-open-story');
+        repeatCounter = 0;
         renderStories();
       });
 
@@ -2356,6 +2615,7 @@
       });
       document.getElementById('closeStoryReader').addEventListener('click', function () {
         activeStoryId = null;
+        repeatCounter = 0;
         renderStories();
       });
       document.getElementById('toggleAllStories').addEventListener('click', function () {
@@ -2404,6 +2664,7 @@
         var card = e.target.closest('[data-open-story]');
         if (!card) return;
         activeStoryId = card.getAttribute('data-open-story');
+        repeatCounter = 0;
         renderStories();
         document.getElementById('storyReader').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -2523,6 +2784,8 @@
       document.getElementById('resetBtn').addEventListener('click', function () {
         if (!confirm('همه داده‌ها به حالت اولیه برمی‌گردند. مطمئنید؟')) return;
         state = { books: defaultBooks(), activeBookId: null, activeLessonId: null };
+        repeatMode = 0;
+        repeatCounter = 0;
         initState(); saveState(); renderBooks(); renderLessons(); renderTable();
       });
       initState();
