@@ -397,6 +397,7 @@
     function showMainApp() {
         document.getElementById('bookLibraryScreen').classList.add('hidden');
         document.getElementById('mainApp').classList.remove('hidden');
+        updateAppTitle();
         renderAll();
     }
 
@@ -485,6 +486,17 @@
         });
     }
 
+    function updateAppTitle() {
+        const book = getBook();
+        const titleEl = document.getElementById('appTitle');
+        if (!titleEl) return;
+        if (book) {
+            titleEl.textContent = '📖 ' + book.name + (book.level ? ' — ' + book.level : '');
+        } else {
+            titleEl.textContent = '🎓 German Vocab Pro';
+        }
+    }
+
     function openBook(bookId) {
         const book = state.books.find(b => b.id === bookId);
         if (!book) return;
@@ -492,6 +504,7 @@
         state.activeLessonId = book.lessons[0]?.id || null;
         save();
         showMainApp();
+        updateAppTitle();
         renderAll();
         populateLessonTargets();
     }
@@ -854,19 +867,23 @@
             `<option value="${b.id}" ${b.id === state.activeBookId ? 'selected' : ''}>${esc(b.name)} — ${esc(b.level)}</option>`
         ).join('');
         document.getElementById('delBookBtn').disabled = state.books.length === 0;
+        updateAppTitle();
     }
+
     function renderLessonSelect() {
         const b = getBook();
         const sel = document.getElementById('lessonSelect');
         if (!b || !b.lessons.length) {
             sel.innerHTML = '<option value="">— بدون درس —</option>';
             document.getElementById('delLessonBtn').disabled = true;
+            updateAppTitle();
             return;
         }
         sel.innerHTML = b.lessons.map(l =>
             `<option value="${l.id}" ${l.id === state.activeLessonId ? 'selected' : ''}>${esc(l.title)} (${l.words.length})</option>`
         ).join('');
         document.getElementById('delLessonBtn').disabled = b.lessons.length <= 1;
+        updateAppTitle();
     }
     function renderStats() {
         const words = getWords();
@@ -1926,7 +1943,9 @@
             state.activeBookId = e.target.value;
             const b = getBook();
             if (b && b.lessons.length) state.activeLessonId = b.lessons[0].id;
-            save(); renderAll();
+            save();
+            updateAppTitle();
+            renderAll();
         });
         document.getElementById('lessonSelect').addEventListener('change', e => {
             state.activeLessonId = e.target.value;
