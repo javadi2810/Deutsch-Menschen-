@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>German Vocab Pro</title>
 <link rel="stylesheet" href="./style/style.css">
 </head>
@@ -31,6 +33,7 @@
   <button class="header-back-btn" id="backToLibraryBtn">⬅️ کتابخانه</button>
   <h1 id="appTitle">🎓 German Vocab Pro</h1>
   <p>کارت + داستان + فلش‌کارت + آزمون + SRS + JSON</p>
+  <div id="reviewBanner" class="review-banner hidden"></div>
 </header>
 
 <div class="container">
@@ -38,29 +41,30 @@
   <div class="panel">
     <h3>📚 کتاب و درس</h3>
     <div class="row">
-      <div style="flex:2;">
+      <div style="flex:2;min-width:0;">
         <label>کتاب</label>
         <select id="bookSelect"></select>
       </div>
-      <div style="flex:2;">
+      <div style="flex:2;min-width:0;">
         <label>درس</label>
         <select id="lessonSelect"></select>
       </div>
-      <div class="row tight" style="align-self:flex-end;">
-        <button class="btn btn-sm" id="addBookBtn">➕</button>
-        <button class="btn btn-sm btn-danger" id="delBookBtn">🗑</button>
+      <div class="row tight" style="align-self:flex-end;flex:0 0 auto;">
+        <button class="btn btn-sm" id="addBookBtn" title="کتاب جدید">➕</button>
+        <button class="btn btn-sm btn-danger" id="delBookBtn" title="حذف کتاب">🗑</button>
       </div>
     </div>
-    <div class="row tight" style="margin-top:6px;">
+    <div class="row tight" style="margin-top:8px;flex-wrap:wrap;">
       <button class="btn btn-sm btn-primary" id="addLessonBtn">➕ درس جدید</button>
+      <button class="btn btn-sm" id="editLessonBtn" style="background:var(--warning);color:#000;">✏️ ویرایش نام درس</button>
       <button class="btn btn-sm btn-danger" id="delLessonBtn">🗑 حذف درس</button>
     </div>
-    <div id="lessonStatsBox" style="margin-top:10px;">
+    <div id="lessonStatsBox" style="margin-top:12px;">
       <div class="stats-grid" id="statsGrid"></div>
       <div class="progress-wrap">
         <div class="progress-fill" id="lessonProgress" style="width:0%"></div>
       </div>
-      <div class="center muted" style="font-size:11px;margin-top:4px;" id="progressText">۰٪ تسلط</div>
+      <div class="center muted" style="font-size:11px;margin-top:6px;" id="progressText">۰٪ تسلط</div>
     </div>
   </div>
 
@@ -79,9 +83,9 @@
   <div id="tab-list" class="tab-content">
     <div class="panel">
       <h3>📋 لغات این درس</h3>
-      <div class="row" style="margin-bottom:10px;">
-        <input id="searchBox" placeholder="🔍 جستجو..." style="flex:3;">
-        <select id="filterStatus" style="flex:1;">
+      <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <input id="searchBox" placeholder="🔍 جستجو..." style="flex:3;min-width:120px;">
+        <select id="filterStatus" style="flex:1;min-width:100px;">
           <option value="all">همه</option>
           <option value="new">جدید</option>
           <option value="learning">در یادگیری</option>
@@ -99,9 +103,9 @@
   <div id="tab-cards" class="tab-content hidden">
     <div class="panel">
       <h3>📇 کارت‌های لغت این درس</h3>
-      <div class="row" style="margin-bottom:10px;">
-        <input id="cardSearch" placeholder="🔍 جستجو..." style="flex:2;">
-        <select id="cardFilter" style="flex:1;">
+      <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <input id="cardSearch" placeholder="🔍 جستجو..." style="flex:2;min-width:120px;">
+        <select id="cardFilter" style="flex:1;min-width:100px;">
           <option value="all">همه</option>
           <option value="new">جدید</option>
           <option value="learning">در یادگیری</option>
@@ -111,7 +115,7 @@
           <option value="no-example">بدون مثال</option>
         </select>
       </div>
-      <div class="row" style="margin-bottom:10px;">
+      <div class="row tight" style="margin-bottom:10px;flex-wrap:wrap;">
         <button class="btn btn-sm" id="cardSortAlpha">🔤 الفبایی</button>
         <button class="btn btn-sm" id="cardSortRandom">🎲 تصادفی</button>
         <button class="btn btn-sm" id="cardSortStatus">📊 بر اساس وضعیت</button>
@@ -165,11 +169,11 @@
               </div>
             </div>
           </div>
-          <div class="row" style="margin-top:14px;">
+          <div class="row" style="margin-top:14px;flex-wrap:wrap;gap:8px;">
             <button class="btn" id="fcSpeakBtn" style="flex:0 0 auto;">🔊</button>
-            <button class="btn btn-danger" data-rate="bad" style="flex:1;">بلد نبودم ❌</button>
-            <button class="btn btn-warning" data-rate="medium" style="flex:1;">نصفه ⚠️</button>
-            <button class="btn btn-success" data-rate="good" style="flex:1;">بلدم ✔️</button>
+            <button class="btn btn-danger" data-rate="bad" style="flex:1;min-width:100px;">بلد نبودم ❌</button>
+            <button class="btn btn-warning" data-rate="medium" style="flex:1;min-width:100px;">نصفه ⚠️</button>
+            <button class="btn btn-success" data-rate="good" style="flex:1;min-width:100px;">بلدم ✔️</button>
           </div>
         </div>
       </div>
@@ -194,36 +198,46 @@
 
   <!-- TAB JSON -->
   <div id="tab-json" class="tab-content hidden">
+
     <div class="panel">
-      <h3>📂 افزودن لغت از فایل JSON</h3>
-      <p class="muted" style="font-size:12px;margin-bottom:10px;">
-        فایل JSON لغات رو بکش و اینجا رها کن یا کلیک کن. لغات به درس انتخاب‌شده اضافه می‌شن.
+      <h3>📂 افزودن از فایل JSON</h3>
+      <p class="muted" style="font-size:12px;margin-bottom:10px;line-height:1.8;">
+        فایل JSON رو بکش و اینجا رها کن یا کلیک کن. فرمت‌های پشتیبانی‌شده:
+        <br>• <b>درس کامل با عنوان</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">{"lesson":"...","words":[...],"stories":[...]}</code>
+        <br>• <b>آرایه لغات</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">[{"word":"...","mean":"..."}]</code>
+        <br>• <b>کتاب کامل</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">{"name":"...","lessons":[...]}</code>
       </p>
       <div id="bigDropZone" class="drop-zone">
         <div class="dz-icon">📁</div>
-        <div class="dz-title">فایل JSON لغات رو بکش و اینجا رها کن</div>
+        <div class="dz-title">فایل JSON رو بکش و اینجا رها کن</div>
         <div class="dz-sub">یا کلیک کن تا از پوشه‌های کامپیوترت انتخاب کنی</div>
         <button class="btn btn-primary" id="browseFileBtn" type="button" style="pointer-events:none;">📂 انتخاب فایل از کامپیوتر</button>
         <input type="file" id="jsonFileInput" accept=".json,application/json" style="display:none;">
       </div>
       <div style="margin-top:12px;">
-        <label>🎯 کلمات به کدوم درس اضافه بشن؟</label>
+        <label>🎯 مقصد پیش‌فرض (برای آرایه لغات بدون عنوان)</label>
         <select id="fileTargetLesson"></select>
       </div>
       <div id="fileStatus" style="margin-top:12px;"></div>
     </div>
 
     <div class="panel">
-      <h3>📋 پیست JSON دستی (لغات)</h3>
-      <textarea id="jsonInput" placeholder='[
-  {"word":"Apfel","article":"der","plural":"Äpfel","mean":"سیب","ex":"Der Apfel ist rot.","exMean":"سیب قرمز است."}
-]' style="min-height:150px;direction:ltr;text-align:left;font-family:monospace;font-size:12px;"></textarea>
+      <h3>📋 پیست JSON دستی</h3>
+      <textarea id="jsonInput" placeholder='{
+  "lesson": "Lektion 2",
+  "words": [
+    {"de":"Buch","fa":"کتاب","art":"das"}
+  ],
+  "stories": [
+    {"title":"Meine Familie","sentences":[{"de":"...","fa":"..."}]}
+  ]
+}' style="min-height:160px;direction:ltr;text-align:left;font-family:monospace;font-size:12px;"></textarea>
       <div style="margin-top:10px;">
-        <label>🎯 به کدوم درس اضافه بشه؟</label>
+        <label>🎯 مقصد پیش‌فرض (اگه عنوان نداشت)</label>
         <select id="jsonTargetLesson"></select>
       </div>
-      <div class="row tight" style="margin-top:10px;">
-        <button class="btn btn-primary" id="importJsonBtn">➕ اضافه</button>
+      <div class="row tight" style="margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="importJsonBtn">➕ اضافه / ساخت درس</button>
         <button class="btn" id="validateJsonBtn">🔍 بررسی</button>
         <button class="btn" id="clearJsonBtn">🧹 پاک کردن</button>
       </div>
@@ -232,38 +246,35 @@
 
     <div class="panel">
       <h3>📤 خروجی گرفتن</h3>
-      <div class="row tight" style="margin-top:10px;">
-        <button class="btn btn-success" id="exportLessonBtn">📚 فقط این درس</button>
+      <div class="row tight" style="margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-success" id="exportLessonBtn">📥 دانلود درس جاری</button>
         <button class="btn btn-warning" id="exportBadBtn">❌ فقط بلد نیستم‌ها</button>
         <button class="btn" id="exportAllBtn">💾 پشتیبان کامل</button>
       </div>
     </div>
 
     <div class="panel" style="border-color: var(--purple); border-width: 2px;">
-      <h3 style="color: var(--purple);">📦 مدیریت کتاب کامل (JSON) — پیشرفته</h3>
-      <p class="muted" style="font-size:12px;margin-bottom:10px;">
-        این بخش برای مدیریت کل کتاب (همه درس‌ها، لغات، داستان‌ها) استفاده می‌شه.
-      </p>
+      <h3 style="color: var(--purple);">📦 مدیریت کتاب کامل (JSON)</h3>
       <div class="json-actions">
         <button class="json-action-btn success" id="importFullBookBtn">
           <div class="icon">📚</div>
           <div class="label">افزودن کتاب جدید</div>
-          <div class="desc">یه کتاب کامل از فایل JSON اضافه می‌کنه</div>
+          <div class="desc">یه کتاب کامل از فایل JSON</div>
         </button>
         <button class="json-action-btn danger" id="replaceFullBookBtn">
           <div class="icon">🔄</div>
           <div class="label">جایگزینی کامل</div>
-          <div class="desc">همه کتاب‌ها با فایل جدید جایگزین می‌شن</div>
+          <div class="desc">همه کتاب‌ها جایگزین می‌شن</div>
         </button>
         <button class="json-action-btn" id="exportFullBookBtn">
           <div class="icon">📤</div>
-          <div class="label">خروجی کل کتاب جاری</div>
-          <div class="desc">کتاب انتخاب‌شده رو دانلود می‌کنه</div>
+          <div class="label">خروجی کتاب جاری</div>
+          <div class="desc">کتاب انتخاب‌شده رو دانلود کن</div>
         </button>
         <button class="json-action-btn" id="exportAllBooksBtn">
           <div class="icon">💾</div>
           <div class="label">پشتیبان کل برنامه</div>
-          <div class="desc">همه کتاب‌ها، درس‌ها، لغات و داستان‌ها</div>
+          <div class="desc">همه کتاب‌ها و درس‌ها</div>
         </button>
       </div>
       <input type="file" id="fullBookFileInput" accept=".json" style="display:none;">
@@ -272,7 +283,7 @@
     </div>
   </div>
 
-  <!-- TAB MANAGE -->
+  <!-- TAB MANAGE WORD -->
   <div id="tab-manage" class="tab-content hidden">
     <div class="panel">
       <h3>➕ افزودن کلمه جدید</h3>
@@ -280,12 +291,12 @@
         <label style="color:var(--warning);font-weight:600;">🎯 کلمه به کدوم درس اضافه بشه؟</label>
         <select id="wordTargetLesson" style="font-weight:600;"></select>
       </div>
-      <div class="row" style="margin-bottom:8px;">
-        <div style="flex:2;">
+      <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+        <div style="flex:2;min-width:120px;">
           <label>کلمه آلمانی *</label>
           <input id="wDe" placeholder="Apfel" dir="ltr">
         </div>
-        <div style="flex:1;">
+        <div style="flex:1;min-width:100px;">
           <label>نوع کلمه</label>
           <select id="wArt">
             <option value="–">–</option>
@@ -298,12 +309,12 @@
           </select>
         </div>
       </div>
-      <div class="row" style="margin-bottom:8px;">
-        <div style="flex:1;">
+      <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+        <div style="flex:1;min-width:100px;">
           <label>جمع</label>
           <input id="wPlural" placeholder="Äpfel" dir="ltr">
         </div>
-        <div style="flex:1;">
+        <div style="flex:1;min-width:100px;">
           <label>ترجمه فارسی *</label>
           <input id="wFa" placeholder="سیب">
         </div>
@@ -356,8 +367,8 @@
           <input id="storyAudioInput" placeholder="https://..." dir="ltr">
         </div>
       </div>
-      <div class="row" style="margin-bottom:8px;">
-        <div style="flex:1;">
+      <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+        <div style="flex:1;min-width:120px;">
           <label>آدرس عکس جلد</label>
           <input id="storyCoverInput" placeholder="https://..." dir="ltr">
         </div>
@@ -370,14 +381,14 @@
         <label>جمله‌ها (هر خط: آلمانی | فارسی)</label>
         <textarea id="storySentencesInput" placeholder="Das ist meine Familie. | این خانواده من است." style="min-height:120px;"></textarea>
       </div>
-      <div class="row tight">
+      <div class="row tight" style="flex-wrap:wrap;">
         <button class="btn btn-primary" id="saveStoryBtn">💾 ذخیره داستان</button>
         <button class="btn" id="cancelStoryEditBtn" style="display:none;">✕ لغو ویرایش</button>
       </div>
     </div>
     <div class="panel">
       <h3>📤/📥 پشتیبان‌گیری کامل</h3>
-      <div class="row tight">
+      <div class="row tight" style="flex-wrap:wrap;">
         <button class="btn btn-success" id="backupAllBtn">📦 دانلود پشتیبان</button>
         <button class="btn btn-warning" id="resetBtn">♻️ ریست کامل</button>
       </div>
@@ -413,7 +424,7 @@
 <!-- MODAL LESSON -->
 <div class="modal-overlay" id="modalLesson">
   <div class="modal-box">
-    <h3>درس جدید</h3>
+    <h3 id="modalLessonTitle">➕ درس جدید</h3>
     <label>عنوان درس</label>
     <input id="lessonTitleInput" placeholder="Lektion 1">
     <div class="row tight" style="margin-top:14px;">
@@ -444,18 +455,18 @@
 
 <!-- MODAL IMPORT BOOK -->
 <div class="modal-overlay" id="modalImportBook">
-  <div class="modal-box" style="max-width: 560px;">
+  <div class="modal-box">
     <h3>📥 وارد کردن کتاب از JSON</h3>
     <div id="importBookInfo"></div>
     <label>چه کاری انجام بشه؟</label>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
       <button class="btn btn-primary" id="importAsNewBookBtn" style="text-align:right;padding:12px;">
         <div style="font-weight:700;margin-bottom:2px;">➕ کتاب جدید</div>
-        <div style="font-size:11px;opacity:0.9;">یه کتاب جدید با اسم، سطح و عکس جلد اضافه می‌شه</div>
+        <div style="font-size:11px;opacity:0.9;">یه کتاب جدید اضافه می‌شه</div>
       </button>
       <button class="btn btn-warning" id="importAsReplaceBtn" style="text-align:right;padding:12px;color:#000;">
-        <div style="font-weight:700;margin-bottom:2px;">🔄 جایگزینی با کتاب موجود</div>
-        <div style="font-size:11px;opacity:0.8;">لغات داخل یه کتاب انتخاب‌شده جایگزین می‌شن</div>
+        <div style="font-weight:700;margin-bottom:2px;">🔄 جایگزینی</div>
+        <div style="font-size:11px;opacity:0.8;">با یه کتاب موجود جایگزین می‌شه</div>
       </button>
     </div>
     <div class="row tight" style="justify-content:center;">
@@ -466,7 +477,7 @@
 
 <!-- MODAL NEW BOOK FROM IMPORT -->
 <div class="modal-overlay" id="modalNewBookFromImport">
-  <div class="modal-box" style="max-width: 500px;">
+  <div class="modal-box">
     <h3>📚 تنظیمات کتاب جدید</h3>
     <label>نام کتاب</label>
     <input id="newBookNameInput" placeholder="Menschen A1.1">
@@ -493,7 +504,7 @@
 
 <!-- MODAL REPLACE BOOK -->
 <div class="modal-overlay" id="modalReplaceTargetBook">
-  <div class="modal-box" style="max-width: 500px;">
+  <div class="modal-box">
     <h3>🔄 جایگزینی با کتاب موجود</h3>
     <p class="muted" style="font-size:12px;margin-bottom:12px;">
       یه کتاب انتخاب کن. محتوای فایل داخل اون جایگزین می‌شه.
@@ -501,7 +512,7 @@
     <label>کتاب مقصد</label>
     <select id="replaceTargetSelect"></select>
     <div style="margin-top:10px;padding:10px;background:rgba(239,68,68,0.1);border:1px solid var(--danger);border-radius:8px;font-size:12px;color:var(--danger);">
-      ⚠️ تمام درس‌ها و لغات فعلی این کتاب جایگزین می‌شن!
+      ⚠️ تمام درس‌ها جایگزین می‌شن (درس نمونه حفظ می‌شه)!
     </div>
     <div class="row tight" style="margin-top:14px;">
       <button class="btn btn-danger" id="confirmReplaceBookBtn" style="flex:1;">🔄 جایگزین کن</button>

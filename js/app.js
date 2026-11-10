@@ -15,7 +15,6 @@ let storyEditId = null;
 let currentStoryId = null;
 let repeatMode = 0;
 let repeatCounter = 0;
-let currentDetailWord = null;
 let cardSortMode = 'alpha';
 let currentAudio = null;
 let editingBookId = null;
@@ -43,6 +42,23 @@ function toast(msg, type){
   t.className = 'toast show ' + (type || '');
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ✅ نرمال‌سازی آلمانی — برای مقایسه درست در آزمون تایپ */
+function normalizeGerman(str){
+  return String(str || '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[.,!?;:'"«»„“”\-–—]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+/* ✅ مقایسه دو جواب آلمانی — با نرمال‌سازی */
+function germanEquals(a, b){
+  return normalizeGerman(a) === normalizeGerman(b);
 }
 
 function speak(text, audioUrl){
@@ -141,6 +157,60 @@ function shuffle(a){
 }
 
 /* ============================================================
+   SAMPLE LESSON
+   ============================================================ */
+function makeSampleLesson(){
+  return {
+    id: 'sample-' + uid(),
+    title: 'Lektion 2 — Familie und Freunde (نمونه)',
+    isSample: true,
+    stories: [
+      {
+        id: 'sample-story-' + uid(),
+        title: 'Geschichte 1: Meine Familie',
+        audio: '',
+        coverImage: '',
+        coverColor: '#536dfe',
+        sentences: [
+          { de: 'Meine Familie ist nicht sehr groß.', fa: 'خانواده من خیلی بزرگ نیست.' },
+          { de: 'Mein Vater arbeitet in einer Firma.', fa: 'پدر من در یک شرکت کار می‌کند.' },
+          { de: 'Meine Mutter ist Lehrerin.', fa: 'مادر من معلم است.' },
+          { de: 'Ich habe einen Bruder und eine Schwester.', fa: 'من یک برادر و یک خواهر دارم.' },
+          { de: 'Wir wohnen zusammen in Teheran.', fa: 'ما با هم در تهران زندگی می‌کنیم.' },
+          { de: 'Ich bin sehr glücklich mit meiner Familie.', fa: 'من با خانواده‌ام خیلی خوشحالم.' }
+        ]
+      },
+      {
+        id: 'sample-story-' + uid(),
+        title: 'Geschichte 2: Ein Tag mit Freunden',
+        audio: '',
+        coverImage: '',
+        coverColor: '#536dfe',
+        sentences: [
+          { de: 'Heute treffe ich meine Freunde.', fa: 'امروز دوستانم را می‌بینم.' },
+          { de: 'Wir lernen zusammen Deutsch.', fa: 'ما با هم آلمانی یاد می‌گیریم.' },
+          { de: 'Mein Freund Ali wohnt in Berlin.', fa: 'دوست من علی در برلین زندگی می‌کند.' },
+          { de: 'Er arbeitet als Arzt.', fa: 'او به عنوان پزشک کار می‌کند.' },
+          { de: 'Wir sind alle sehr glücklich.', fa: 'ما همه خیلی خوشحالیم.' }
+        ]
+      }
+    ],
+    words: [
+      { id: 'sample-w-' + uid(), de: 'Familie', art: 'die', plural: 'Familien', fa: 'خانواده', ex: 'Meine Familie ist groß.', exMean: 'خانواده من بزرگ است.', exAudio: '', note: '', notes: [], synonyms: ['Verwandtschaft'], related: ['Eltern', 'Kinder'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'Vater', art: 'der', plural: 'Väter', fa: 'پدر', ex: 'Mein Vater arbeitet viel.', exMean: 'پدر من زیاد کار می‌کند.', exAudio: '', note: '', notes: [], synonyms: ['Papa'], related: ['Mutter'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'Mutter', art: 'die', plural: 'Mütter', fa: 'مادر', ex: 'Meine Mutter kocht sehr gut.', exMean: 'مادر من خیلی خوب آشپزی می‌کند.', exAudio: '', note: '', notes: [], synonyms: ['Mama'], related: ['Vater'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'Bruder', art: 'der', plural: 'Brüder', fa: 'برادر', ex: 'Mein Bruder ist zehn Jahre alt.', exMean: 'برادر من ده سال دارد.', exAudio: '', note: '', notes: [], synonyms: [], related: ['Schwester'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'Schwester', art: 'die', plural: 'Schwestern', fa: 'خواهر', ex: 'Meine Schwester studiert Medizin.', exMean: 'خواهر من پزشکی می‌خواند.', exAudio: '', note: '', notes: [], synonyms: [], related: ['Bruder'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'wohnen', art: 'Verb', plural: '–', fa: 'زندگی کردن', ex: 'Ich wohne in Teheran.', exMean: 'من در تهران زندگی می‌کنم.', exAudio: '', note: '', notes: [], synonyms: ['leben'], related: ['Wohnung'], forms: { present: 'wohne / wohnst / wohnt', past: 'wohnte', perfect: 'hat gewohnt' }, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'arbeiten', art: 'Verb', plural: '–', fa: 'کار کردن', ex: 'Ich arbeite als Lehrer.', exMean: 'من به عنوان معلم کار می‌کنم.', exAudio: '', note: '', notes: [], synonyms: [], related: ['Arbeit'], forms: { present: 'arbeite / arbeitest / arbeitet', past: 'arbeitete', perfect: 'hat gearbeitet' }, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'glücklich', art: 'Adj', plural: '–', fa: 'خوشحال', ex: 'Ich bin sehr glücklich.', exMean: 'من خیلی خوشحالم.', exAudio: '', note: '', notes: [], synonyms: ['froh'], related: [], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'zusammen', art: 'Adv', plural: '–', fa: 'با هم', ex: 'Wir lernen zusammen Deutsch.', exMean: 'ما با هم آلمانی یاد می‌گیریم.', exAudio: '', note: '', notes: [], synonyms: ['gemeinsam'], related: [], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
+      { id: 'sample-w-' + uid(), de: 'Wie heißt du?', art: '–', plural: '–', fa: 'اسمت چیه؟', ex: 'Hallo! Wie heißt du?', exMean: 'سلام! اسمت چیه؟', exAudio: '', note: '', notes: [], synonyms: [], related: [], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } }
+    ]
+  };
+}
+
+/* ============================================================
    AUTO PLAY
    ============================================================ */
 function updateAutoPlayUI(){
@@ -219,21 +289,22 @@ function normalizeStory(raw){
 function normalizeLesson(raw, fallbackTitle){
   if (!raw) return null;
   if (Array.isArray(raw)) {
-    return { id: uid(), title: fallbackTitle || 'درس', words: raw.map(normalizeWord).filter(Boolean), stories: [] };
+    return { id: uid(), title: fallbackTitle || 'درس', words: raw.map(normalizeWord).filter(Boolean), stories: [], isSample: false };
   }
   if (typeof raw !== 'object') return null;
   return {
     id: raw.id || uid(),
-    title: (raw.title || raw.name || fallbackTitle || 'درس').toString(),
+    title: (raw.title || raw.lesson || raw.lessonTitle || raw.name || fallbackTitle || 'درس').toString(),
     words: Array.isArray(raw.words) ? raw.words.map(normalizeWord).filter(Boolean) : [],
-    stories: Array.isArray(raw.stories) ? raw.stories.map(normalizeStory).filter(Boolean) : []
+    stories: Array.isArray(raw.stories) ? raw.stories.map(normalizeStory).filter(Boolean) : [],
+    isSample: !!raw.isSample
   };
 }
 function normalizeBook(raw, fallbackName){
   if (!raw || typeof raw !== 'object') return null;
   return {
     id: raw.id || uid(),
-    name: (raw.name || raw.title || fallbackName || 'کتاب').toString(),
+    name: (raw.name || raw.title || raw.book || fallbackName || 'کتاب').toString(),
     level: (raw.level || 'A1.1').toString(),
     coverImage: (raw.coverImage || raw.cover || raw.image || '').toString(),
     lessons: Array.isArray(raw.lessons) ? raw.lessons.map((l, i) => normalizeLesson(l, 'درس ' + (i+1))).filter(Boolean) : []
@@ -244,15 +315,14 @@ function normalizeBook(raw, fallbackName){
    DEFAULT DATA
    ============================================================ */
 function defaultData(){
+  const sampleLesson = makeSampleLesson();
   return {
     books: [{
-      id: uid(), name: 'Menschen', level: 'A1.1', coverImage: '',
-      lessons: [{
-        id: uid(), title: 'Lektion 1', stories: [],
-        words: [
-          { id: uid(), de: 'Name', art: 'der', plural: 'Namen', fa: 'نام', ex: 'Mein Name ist Ali.', exMean: 'نام من علی است.', status: 'new', notes: [], srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } }
-        ]
-      }]
+      id: uid(),
+      name: 'Menschen',
+      level: 'A1.1',
+      coverImage: '',
+      lessons: [sampleLesson]
     }],
     activeBookId: null,
     activeLessonId: null
@@ -324,7 +394,14 @@ function migrateFromLegacy(data){
 }
 function load(){
   const migrated = tryMigrateLegacy();
-  if (migrated) return migrated;
+  if (migrated) {
+    migrated.books.forEach(b => {
+      if (!Array.isArray(b.lessons) || !b.lessons.length) {
+        b.lessons = [makeSampleLesson()];
+      }
+    });
+    return migrated;
+  }
   const d = defaultData();
   d.activeBookId = d.books[0].id;
   d.activeLessonId = d.books[0].lessons[0].id;
@@ -351,6 +428,21 @@ function getLessonById(lessonId){
 }
 function getWords(){ const l = getLesson(); return l ? l.words : []; }
 function getStories(){ const l = getLesson(); return l ? l.stories : []; }
+
+/* ✅ کلمات سررسیده برای مرور در همه درس‌های کتاب فعال */
+function getDueWords(book){
+  book = book || getBook();
+  if (!book) return [];
+  const now = Date.now();
+  const due = [];
+  (book.lessons || []).forEach(l => {
+    (l.words || []).forEach(w => {
+      const s = ensureSrs(w);
+      if (!s.nextReview || s.nextReview <= now) due.push({ word: w, lessonTitle: l.title });
+    });
+  });
+  return due;
+}
 
 /* ============================================================
    SRS
@@ -425,6 +517,7 @@ function showMainApp(){
   document.getElementById('mainApp').classList.remove('hidden');
   updateAppTitle();
   renderAll();
+  updateReviewBanner();
 }
 function updateAppTitle(){
   const book = getBook();
@@ -435,6 +528,44 @@ function updateAppTitle(){
   } else {
     el.textContent = '🎓 German Vocab Pro';
   }
+}
+
+/* ✅ بنر مرور امروز */
+function updateReviewBanner(){
+  const banner = document.getElementById('reviewBanner');
+  if (!banner) return;
+  const due = getDueWords();
+  if (due.length === 0) {
+    banner.classList.add('hidden');
+    return;
+  }
+  banner.classList.remove('hidden');
+  banner.innerHTML = `
+    <div class="review-banner-inner">
+      <div class="review-banner-text">
+        <span class="review-icon">📅</span>
+        <span><strong>${due.length}</strong> کلمه برای مرور امروز آماده‌ست!</span>
+      </div>
+      <button class="btn btn-primary btn-sm" id="startDailyReviewBtn">🚀 شروع مرور</button>
+    </div>
+  `;
+  const btn = document.getElementById('startDailyReviewBtn');
+  if (btn) btn.addEventListener('click', startDailyReview);
+}
+
+/* ✅ شروع مرور روزانه */
+function startDailyReview(){
+  const due = getDueWords();
+  if (!due.length) { toast('کلمه‌ای برای مرور نیست!', 'warning'); return; }
+  const words = due.map(d => d.word);
+  practice.active = true;
+  practice.queue = shuffle(words);
+  practice.index = 0;
+  practice.ratings = {};
+  switchTab('practice');
+  document.getElementById('practiceFolderView').classList.add('hidden');
+  document.getElementById('practiceSession').classList.remove('hidden');
+  showCurrentPracticeCard();
 }
 
 function renderBookLibrary(){
@@ -617,6 +748,10 @@ function confirmNewBookFromImport(){
       newBooks.push(nb);
     });
   }
+  newBooks.forEach(nb => {
+    if (!Array.isArray(nb.lessons)) nb.lessons = [];
+    nb.lessons.unshift(makeSampleLesson());
+  });
   newBooks.forEach(nb => state.books.push(nb));
   state.activeBookId = newBooks[0].id;
   state.activeLessonId = newBooks[0].lessons[0]?.id;
@@ -626,7 +761,7 @@ function confirmNewBookFromImport(){
   pendingBookData = null;
   renderAll(); populateLessonTargets();
   showBookLibrary();
-  toast(`✅ ${newBooks.length} کتاب اضافه شد`, 'success');
+  toast(`✅ ${newBooks.length} کتاب اضافه شد (با درس نمونه)`, 'success');
 }
 function chooseImportAsReplace(){
   if (!pendingBookData) return;
@@ -662,23 +797,26 @@ function confirmReplaceBook(){
     id: uid(),
     title: l.title || 'درس',
     words: (l.words || []).map(w => ({ ...w, id: w.id || uid() })),
-    stories: (l.stories || []).map(s => ({ ...s, id: s.id || uid() }))
+    stories: (l.stories || []).map(s => ({ ...s, id: s.id || uid() })),
+    isSample: false
   }));
-  targetBook.lessons = newLessons;
+  const oldSample = (targetBook.lessons || []).find(l => l.isSample);
+  const sampleToKeep = oldSample || makeSampleLesson();
+  targetBook.lessons = [sampleToKeep, ...newLessons];
   targetBook.coverImage = sourceCover;
   targetBook.level = sourceLevel;
   state.activeBookId = targetBook.id;
-  state.activeLessonId = newLessons[0]?.id || null;
+  state.activeLessonId = sampleToKeep.id;
   save();
   document.getElementById('modalReplaceTargetBook').classList.remove('active');
   document.body.classList.remove('locked');
   pendingBookData = null;
   renderAll(); populateLessonTargets();
-  toast(`✅ «${targetBook.name}» با ${newLessons.length} درس جایگزین شد`, 'success');
+  toast(`✅ «${targetBook.name}» جایگزین شد (درس نمونه حفظ شد)`, 'success');
 }
 
 /* ============================================================
-   WORD VIEW (نمایش کامل)
+   WORD VIEW
    ============================================================ */
 function openWordView(wordId){
   const word = getWords().find(w => w.id === wordId);
@@ -711,6 +849,7 @@ function openWordView(wordId){
     <div class="word-view-actions-row">
       <span class="word-type-badge ${wt.type}">${wt.icon} ${wt.label}</span>
       <button class="btn btn-sm btn-primary" id="wvSpeak">🔊 تلفظ</button>
+      <button class="btn btn-sm" id="wvMuteToggle" title="پخش خودکار صدا هنگام باز شدن کارت" style="background:${autoPlayWord ? 'var(--accent)' : 'var(--bg-3)'};color:#fff;border-color:transparent;">${autoPlayWord ? '🔊 خودکار' : '🔇 سایلنت'}</button>
       <span class="btn btn-sm" style="background:${st === 'good' ? 'var(--accent)' : st === 'learning' ? 'var(--warning)' : st === 'bad' ? 'var(--danger)' : 'var(--bg-3)'};color:#fff;border-color:transparent;cursor:default;">${statusLabels[st] || st}</span>
       <span class="btn btn-sm" style="background:var(--bg-3);cursor:default;">📦 جعبه ${srs.box}</span>
     </div>
@@ -808,6 +947,19 @@ function openWordView(wordId){
     toast('🗑 حذف شد', 'success');
   });
   document.getElementById('wvSpeak').addEventListener('click', () => speakTTS(word.de));
+
+  const muteBtn = document.getElementById('wvMuteToggle');
+  if (muteBtn) {
+    muteBtn.addEventListener('click', () => {
+      autoPlayWord = !autoPlayWord;
+      try { localStorage.setItem(AUTOPLAY_KEY, String(autoPlayWord)); } catch(e){}
+      updateAutoPlayUI();
+      muteBtn.textContent = autoPlayWord ? '🔊 خودکار' : '🔇 سایلنت';
+      muteBtn.style.background = autoPlayWord ? 'var(--accent)' : 'var(--bg-3)';
+      toast(autoPlayWord ? '🔊 پخش خودکار روشن شد' : '🔇 پخش خودکار خاموش شد', autoPlayWord ? 'success' : 'warning');
+    });
+  }
+
   content.querySelectorAll('[data-wv-speak-ex]').forEach(btn => {
     btn.addEventListener('click', () => speak(btn.dataset.wvSpeakEx, btn.dataset.wvAudio));
   });
@@ -820,10 +972,14 @@ function openWordView(wordId){
       document.body.classList.remove('locked');
     }
   }, { once: true });
+
+  if (autoPlayWord) {
+    setTimeout(() => speakTTS(word.de), 200);
+  }
 }
 
 /* ============================================================
-   WORD EDIT (ادیت کامل)
+   WORD EDIT
    ============================================================ */
 function openWordEdit(wordId){
   const word = getWords().find(w => w.id === wordId);
@@ -1015,9 +1171,14 @@ function populateLessonTargets(){
       const count = (l.words || []).length;
       const storyCount = (l.stories || []).length;
       const info = id === 'storyTargetLesson' ? `${storyCount} داستان` : `${count} کلمه`;
-      return `<option value="${l.id}" ${l.id === state.activeLessonId ? 'selected' : ''}>${esc(l.title)} (${info})</option>`;
+      const sampleBadge = l.isSample ? ' 🔒' : '';
+      return `<option value="${l.id}">${esc(l.title)}${sampleBadge} (${info})</option>`;
     }).join('');
-    if (currentValue && b.lessons.find(l => l.id === currentValue)) sel.value = currentValue;
+    if (currentValue && b.lessons.find(l => l.id === currentValue)) {
+      sel.value = currentValue;
+    } else if (state.activeLessonId && b.lessons.find(l => l.id === state.activeLessonId)) {
+      sel.value = state.activeLessonId;
+    }
   });
 }
 
@@ -1030,7 +1191,8 @@ function renderBookSelect(){
   sel.innerHTML = state.books.map(b =>
     `<option value="${b.id}" ${b.id===state.activeBookId?'selected':''}>${esc(b.name)} — ${esc(b.level)}</option>`
   ).join('');
-  document.getElementById('delBookBtn').disabled = state.books.length === 0;
+  const delBtn = document.getElementById('delBookBtn');
+  if (delBtn) delBtn.disabled = state.books.length === 0;
   updateAppTitle();
 }
 function renderLessonSelect(){
@@ -1039,14 +1201,16 @@ function renderLessonSelect(){
   if (!sel) return;
   if (!b || !b.lessons.length) {
     sel.innerHTML = '<option value="">— بدون درس —</option>';
-    document.getElementById('delLessonBtn').disabled = true;
+    const delBtn = document.getElementById('delLessonBtn');
+    if (delBtn) delBtn.disabled = true;
     updateAppTitle();
     return;
   }
   sel.innerHTML = b.lessons.map(l =>
-    `<option value="${l.id}" ${l.id===state.activeLessonId?'selected':''}>${esc(l.title)} (${l.words.length})</option>`
+    `<option value="${l.id}" ${l.id===state.activeLessonId?'selected':''}>${l.isSample ? '🔒 ' : ''}${esc(l.title)} (${(l.words||[]).length})</option>`
   ).join('');
-  document.getElementById('delLessonBtn').disabled = b.lessons.length <= 1;
+  const delBtn = document.getElementById('delLessonBtn');
+  if (delBtn) delBtn.disabled = false;
   updateAppTitle();
 }
 
@@ -1321,24 +1485,64 @@ function exitPractice(){
   document.getElementById('practiceFolderView').classList.remove('hidden');
   document.getElementById('practiceSession').classList.add('hidden');
   renderAll(); populateLessonTargets();
+  updateReviewBanner();
 }
 
 /* ============================================================
-   QUIZ
+   QUIZ (با آزمون تطبیقی)
    ============================================================ */
+/* ✅ انتخاب کلمات تطبیقی: ۵۰٪ bad، ۳۰٪ learning، ۲۰٪ good/new */
+function pickAdaptiveWords(words, count){
+  const now = Date.now();
+  const bad = words.filter(w => normalizeStatus(w) === 'bad');
+  const learning = words.filter(w => normalizeStatus(w) === 'learning');
+  const good = words.filter(w => normalizeStatus(w) === 'good');
+  const fresh = words.filter(w => normalizeStatus(w) === 'new');
+  
+  const nBad = Math.min(bad.length, Math.ceil(count * 0.5));
+  const nLearning = Math.min(learning.length, Math.ceil(count * 0.3));
+  const nGood = Math.min(good.length, Math.ceil(count * 0.1));
+  const nFresh = Math.min(fresh.length, count - nBad - nLearning - nGood);
+  
+  let picked = [
+    ...shuffle(bad).slice(0, nBad),
+    ...shuffle(learning).slice(0, nLearning),
+    ...shuffle(good).slice(0, nGood),
+    ...shuffle(fresh).slice(0, nFresh)
+  ];
+  
+  // اگه کم بود، از بقیه پر کن
+  if (picked.length < count) {
+    const remaining = words.filter(w => !picked.find(p => p.id === w.id));
+    picked = picked.concat(shuffle(remaining).slice(0, count - picked.length));
+  }
+  
+  return shuffle(picked).slice(0, count);
+}
+
 function renderQuizHome(){
   const container = document.getElementById('quizHome');
   if (!container) return;
   const words = getWords();
   const badCount = words.filter(w => normalizeStatus(w) === 'bad').length;
   const exampleCount = words.filter(w => w.ex && w.ex.trim()).length;
+  const nounCount = words.filter(w => ['der','die','das'].includes(w.art)).length;
+  const pluralCount = words.filter(w => w.plural && w.plural !== '–').length;
+  const due = getDueWords();
 
   container.innerHTML = `
     <div class="panel">
       <h3 style="text-align:center;font-size:20px;margin-bottom:8px;">🎯 آزمون هوشمند</h3>
       <p class="muted" style="text-align:center;font-size:13px;margin-bottom:20px;">
-        یکی از حالت‌های آزمون رو انتخاب کن
+        ${due.length ? `<span style="color:var(--warning);">📅 ${due.length} کلمه برای مرور آماده‌ست</span>` : 'یکی از حالت‌های آزمون رو انتخاب کن'}
       </p>
+      ${due.length ? `
+        <div style="margin-bottom:16px;">
+          <button class="btn btn-warning btn-lg" id="quizDailyReviewBtn" style="width:100%;color:#000;">
+            📅 شروع مرور روزانه (${due.length} کلمه)
+          </button>
+        </div>
+      ` : ''}
       <div class="quiz-mode-grid">
         <div class="quiz-mode-card mode-mean" data-quiz-mode="mean">
           <span class="mode-icon">🔤</span>
@@ -1360,6 +1564,20 @@ function renderQuizHome(){
           <div class="mode-title">شنیداری</div>
           <div class="mode-desc">${words.length} کلمه<br>گوش کن → تایپ کن</div>
         </div>
+        ${nounCount >= 2 ? `
+          <div class="quiz-mode-card mode-article" data-quiz-mode="article">
+            <span class="mode-icon">🔤</span>
+            <div class="mode-title">جنسیت اسم</div>
+            <div class="mode-desc">${nounCount} اسم<br>der / die / das</div>
+          </div>
+        ` : ''}
+        ${pluralCount >= 2 ? `
+          <div class="quiz-mode-card mode-plural" data-quiz-mode="plural">
+            <span class="mode-icon">📚</span>
+            <div class="mode-title">جمع اسم</div>
+            <div class="mode-desc">${pluralCount} اسم<br>جمع درست رو انتخاب کن</div>
+          </div>
+        ` : ''}
       </div>
       ${badCount > 0 ? `
         <div style="text-align:center;margin-top:16px;">
@@ -1376,12 +1594,16 @@ function renderQuizHome(){
   });
   const badBtn = document.getElementById('quizBadBtn');
   if (badBtn) badBtn.addEventListener('click', () => startQuizMode('mean', true));
+  const dailyBtn = document.getElementById('quizDailyReviewBtn');
+  if (dailyBtn) dailyBtn.addEventListener('click', startDailyReview);
 }
 
 function startQuizMode(mode, onlyBad){
   let words = getWords().slice();
   if (onlyBad) words = words.filter(w => normalizeStatus(w) === 'bad');
   if (mode === 'sentence') words = words.filter(w => w.ex && w.ex.trim());
+  if (mode === 'article') words = words.filter(w => ['der','die','das'].includes(w.art));
+  if (mode === 'plural') words = words.filter(w => w.plural && w.plural !== '–');
   if (words.length < 2) {
     toast('حداقل ۲ کلمه لازمه', 'warning');
     return;
@@ -1395,15 +1617,19 @@ function startQuizMode(mode, onlyBad){
   quizState.wrongWords = [];
   quizState.answered = false;
 
+  // ✅ انتخاب تطبیقی — مکس ۲۰ سوال
+  const poolSize = Math.min(20, words.length);
+  const picked = pickAdaptiveWords(words, poolSize);
+
   if (mode === 'mean') {
-    words.forEach(w => {
+    picked.forEach(w => {
       const others = words.filter(x => x.id !== w.id).map(x => x.fa).filter(Boolean);
       if (others.length < 2) return;
       const opts = shuffle([w.fa, ...shuffle(others).slice(0, 3)]);
       quizState.questions.push({ type: 'mean', word: w, correct: w.fa, options: opts });
     });
   } else if (mode === 'sentence') {
-    words.forEach(w => {
+    picked.forEach(w => {
       const others = words.filter(x => x.id !== w.id).map(x => x.de);
       if (others.length < 2) return;
       const escaped = w.de.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1412,8 +1638,19 @@ function startQuizMode(mode, onlyBad){
       quizState.questions.push({ type: 'sentence', word: w, correct: w.de, options: opts, masked, exMean: w.exMean });
     });
   } else if (mode === 'typing' || mode === 'listening') {
-    words.forEach(w => {
+    picked.forEach(w => {
       quizState.questions.push({ type: 'typing', word: w, correct: w.de, mode: mode });
+    });
+  } else if (mode === 'article') {
+    picked.forEach(w => {
+      quizState.questions.push({ type: 'article', word: w, correct: w.art, options: ['der','die','das'] });
+    });
+  } else if (mode === 'plural') {
+    picked.forEach(w => {
+      const others = words.filter(x => x.id !== w.id && x.plural && x.plural !== '–').map(x => x.plural);
+      if (others.length < 2) return;
+      const opts = shuffle([w.plural, ...shuffle(others).slice(0, 3)]);
+      quizState.questions.push({ type: 'plural', word: w, correct: w.plural, options: opts });
     });
   }
 
@@ -1491,6 +1728,30 @@ function renderQuizQuestionNew(){
         <button class="btn btn-primary" id="quizCheckBtn" style="width:100%;margin-top:12px;padding:12px;">✅ بررسی جواب</button>
       </div>
     `;
+  } else if (q.type === 'article') {
+    questionHtml = `
+      <div class="quiz-question-box">
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">آرتیکل درست چیه؟</div>
+        <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">${esc(q.word.de)}</div>
+        <div style="text-align:center;color:var(--muted);font-size:13px;margin-top:6px;">${esc(q.word.fa)}</div>
+      </div>
+      <div class="quiz-options">
+        ${q.options.map(o => `<button class="quiz-opt article-opt-${o}" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
+      </div>
+    `;
+  } else if (q.type === 'plural') {
+    questionHtml = `
+      <div class="quiz-question-box">
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">جمع این اسم چیه؟</div>
+        <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">
+          ${q.word.art && q.word.art !== '–' ? `<span style="opacity:0.7;font-size:0.6em;">${esc(q.word.art)}</span> ` : ''}${esc(q.word.de)}
+        </div>
+        <div style="text-align:center;color:var(--muted);font-size:13px;margin-top:6px;">${esc(q.word.fa)}</div>
+      </div>
+      <div class="quiz-options">
+        ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
+      </div>
+    `;
   }
 
   session.innerHTML = `
@@ -1550,7 +1811,8 @@ function renderQuizQuestionNew(){
 function answerChoice(q, selected){
   if (quizState.answered) return;
   quizState.answered = true;
-  const isCorrect = selected === q.correct;
+  // ✅ مقایسه با نرمال‌سازی
+  const isCorrect = germanEquals(selected, q.correct);
 
   if (isCorrect) {
     quizState.correct++;
@@ -1563,7 +1825,7 @@ function answerChoice(q, selected){
 
   document.querySelectorAll('[data-qopt]').forEach(btn => {
     btn.disabled = true;
-    if (btn.dataset.qopt === q.correct) btn.classList.add('correct');
+    if (germanEquals(btn.dataset.qopt, q.correct)) btn.classList.add('correct');
     else if (btn.dataset.qopt === selected) btn.classList.add('wrong');
   });
 
@@ -1583,9 +1845,9 @@ function answerChoice(q, selected){
 
 function checkTypingAnswer(q, input){
   if (quizState.answered) return;
-  const userAnswer = (input.value || '').trim().toLowerCase();
-  const correctAnswer = q.correct.toLowerCase();
-  const isCorrect = userAnswer === correctAnswer;
+  const userAnswer = (input.value || '').trim();
+  // ✅ استفاده از نرمال‌سازی
+  const isCorrect = germanEquals(userAnswer, q.correct);
 
   quizState.answered = true;
   input.disabled = true;
@@ -1605,7 +1867,8 @@ function checkTypingAnswer(q, input){
   fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'wrong');
   fb.innerHTML = isCorrect
     ? `✅ آفرین! درست بود — <strong style="direction:ltr;">${esc(q.correct)}</strong>`
-    : `❌ اشتباه — جواب درست: <strong style="direction:ltr;">${esc(q.correct)}</strong>`;
+    : `❌ اشتباه — جواب درست: <strong style="direction:ltr;">${esc(q.correct)}</strong>
+       <div style="font-size:12px;opacity:0.8;margin-top:6px;">جواب تو: <span dir="ltr">${esc(userAnswer || '(خالی)')}</span></div>`;
   document.getElementById('quizSession').appendChild(fb);
 
   document.getElementById('quizCheckBtn').style.display = 'none';
@@ -1705,6 +1968,7 @@ function renderQuizReportNew(){
   }
 
   renderAll(); populateLessonTargets();
+  updateReviewBanner();
 }
 
 function backToQuizHome(){
@@ -1996,32 +2260,53 @@ function setupCustomAudioPlayer(root){
   audioEl.volume = 1;
 }
 function loadStoryForEdit(id){
-  const s = getStories().find(x => x.id === id);
-  if (!s) return;
+  const book = getBook();
+  if (!book) return;
+  let foundStory = null;
+  let foundLesson = null;
+  for (const l of book.lessons) {
+    const s = (l.stories || []).find(x => x.id === id);
+    if (s) { foundStory = s; foundLesson = l; break; }
+  }
+  if (!foundStory) { toast('داستان پیدا نشد', 'error'); return; }
+
   storyEditId = id;
-  document.getElementById('storyTitleInput').value = s.title || '';
-  document.getElementById('storyAudioInput').value = s.audio || '';
-  document.getElementById('storyCoverInput').value = s.coverImage || '';
-  document.getElementById('storyColorInput').value = safeCoverColor(s.coverColor);
-  document.getElementById('storySentencesInput').value = (s.sentences || []).map(x => x.de + ' | ' + x.fa).join('\n');
+
+  if (foundLesson && state.activeLessonId !== foundLesson.id) {
+    state.activeLessonId = foundLesson.id;
+    save();
+    renderAll();
+  }
+
+  document.getElementById('storyTitleInput').value = foundStory.title || '';
+  document.getElementById('storyAudioInput').value = foundStory.audio || '';
+  document.getElementById('storyCoverInput').value = foundStory.coverImage || '';
+  document.getElementById('storyColorInput').value = safeCoverColor(foundStory.coverColor);
+  document.getElementById('storySentencesInput').value = (foundStory.sentences || []).map(x => x.de + ' | ' + x.fa).join('\n');
+
   switchTab('manage-story');
   setTimeout(() => {
-    document.getElementById('storyTargetLesson').value = state.activeLessonId;
-    document.getElementById('cancelStoryEditBtn').style.display = 'inline-block';
+    const tsel = document.getElementById('storyTargetLesson');
+    if (tsel) tsel.value = foundLesson.id;
+    const cb = document.getElementById('cancelStoryEditBtn');
+    if (cb) cb.style.display = 'inline-block';
     document.getElementById('storyTitleInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 100);
 }
 function saveStory(){
   const title = document.getElementById('storyTitleInput').value.trim();
   if (!title) { toast('عنوان لازمه', 'error'); return; }
+
   const targetId = document.getElementById('storyTargetLesson').value;
   const target = getLessonById(targetId);
   if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
+
   const audio = document.getElementById('storyAudioInput').value.trim();
   const cover = document.getElementById('storyCoverInput').value.trim();
   const color = safeCoverColor(document.getElementById('storyColorInput').value);
   const lines = document.getElementById('storySentencesInput').value.split(/\r?\n/);
   const sentences = [];
+
   for (const line of lines) {
     if (!line.trim()) continue;
     const sep = line.indexOf('|');
@@ -2032,15 +2317,44 @@ function saveStory(){
     sentences.push({ de, fa });
   }
   if (!sentences.length) { toast('حداقل یک جمله لازمه', 'error'); return; }
-  if (!Array.isArray(target.stories)) target.stories = [];
+
+  let isEdit = false;
   if (storyEditId) {
-    const s = target.stories.find(x => x.id === storyEditId);
-    if (s) { s.title = title; s.audio = audio; s.coverImage = cover; s.coverColor = color; s.sentences = sentences; }
-  } else {
+    const book = getBook();
+    let foundStory = null;
+    if (book) {
+      for (const l of book.lessons) {
+        const s = (l.stories || []).find(x => x.id === storyEditId);
+        if (s) { foundStory = s; break; }
+      }
+    }
+    if (foundStory) {
+      foundStory.title = title;
+      foundStory.audio = audio;
+      foundStory.coverImage = cover;
+      foundStory.coverColor = color;
+      foundStory.sentences = sentences;
+      isEdit = true;
+    }
+  }
+
+  if (!isEdit) {
+    if (!Array.isArray(target.stories)) target.stories = [];
     target.stories.push({ id: uid(), title, audio, coverImage: cover, coverColor: color, sentences });
   }
-  save(); resetStoryForm(); renderAll(); populateLessonTargets();
-  toast(`✅ به «${target.title}» اضافه شد`, 'success');
+
+  save();
+  resetStoryForm();
+  renderAll();
+  populateLessonTargets();
+
+  document.getElementById('storyTitleInput').value = '';
+  document.getElementById('storyAudioInput').value = '';
+  document.getElementById('storyCoverInput').value = '';
+  document.getElementById('storyColorInput').value = '#6366f1';
+  document.getElementById('storySentencesInput').value = '';
+
+  toast(isEdit ? `✅ داستان «${title}» ویرایش شد` : `✅ داستان «${title}» به «${target.title}» اضافه شد`, 'success');
 }
 function resetStoryForm(){
   storyEditId = null;
@@ -2094,7 +2408,71 @@ function confirmDeleteBook(){
 }
 
 /* ============================================================
-   JSON
+   JSON - ADD LESSON / BOOK
+   ============================================================ */
+function addFullLessonFromJson(data, textareaEl, statusEl){
+  const book = getBook();
+  if (!book) { toast('اول یک کتاب انتخاب کن', 'error'); return; }
+
+  const title = (data.title || data.lesson || data.lessonTitle || data.name || '').toString().trim();
+  const words = (data.words || []).map(normalizeWord).filter(Boolean);
+  const stories = (data.stories || []).map(normalizeStory).filter(Boolean);
+
+  if (!words.length && !stories.length) {
+    toast('نه لغتی نه داستانی برای اضافه کردن هست', 'warning');
+    return;
+  }
+
+  if (title) {
+    const newLesson = {
+      id: uid(),
+      title: title,
+      words: words,
+      stories: stories,
+      isSample: false
+    };
+    if (!Array.isArray(book.lessons)) book.lessons = [];
+    book.lessons.push(newLesson);
+    state.activeLessonId = newLesson.id;
+    save();
+    renderAll();
+    populateLessonTargets();
+    if (textareaEl) textareaEl.value = '';
+    if (statusEl) statusEl.innerHTML =
+      `<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">
+        ✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>
+        📝 ${words.length} لغت &nbsp;•&nbsp; 📖 ${stories.length} داستان
+      </div>`;
+    toast(`✅ درس «${newLesson.title}» اضافه شد`, 'success');
+    return;
+  }
+
+  const targetId = document.getElementById('jsonTargetLesson').value;
+  const target = getLessonById(targetId);
+  if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
+  if (!Array.isArray(target.words)) target.words = [];
+  if (!Array.isArray(target.stories)) target.stories = [];
+
+  let addedW = 0, dupW = 0, addedS = 0;
+  words.forEach(w => {
+    if (target.words.some(x => x.de.toLowerCase() === w.de.toLowerCase())) { dupW++; return; }
+    target.words.push(w); addedW++;
+  });
+  stories.forEach(s => {
+    target.stories.push(s); addedS++;
+  });
+
+  save();
+  renderAll();
+  populateLessonTargets();
+  if (textareaEl) textareaEl.value = '';
+  if (statusEl) statusEl.innerHTML =
+    `<div style="color:var(--accent);font-size:13px;">✅ ${addedW} لغت و ${addedS} داستان به «${esc(target.title)}» اضافه شد${dupW ? ` (${dupW} تکراری رد شد)` : ''}</div>`;
+  toast(`✅ ${addedW} لغت + ${addedS} داستان اضافه شد`, 'success');
+}
+
+/* ============================================================
+   JSON IMPORT / EXPORT
    ============================================================ */
 function importFullBook(file){
   const status = document.getElementById('fullBookStatus');
@@ -2115,7 +2493,11 @@ function importFullBook(file){
       }
       const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
       if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`; return; }
-      newBooks.forEach(nb => state.books.push(nb));
+      newBooks.forEach(nb => {
+        if (!Array.isArray(nb.lessons)) nb.lessons = [];
+        nb.lessons.unshift(makeSampleLesson());
+        state.books.push(nb);
+      });
       state.activeBookId = newBooks[0].id;
       state.activeLessonId = newBooks[0].lessons[0]?.id;
       save(); renderAll(); populateLessonTargets();
@@ -2123,8 +2505,9 @@ function importFullBook(file){
       newBooks.forEach(nb => { totalLessons += nb.lessons.length; nb.lessons.forEach(l => totalWords += l.words.length); });
       status.innerHTML = `<div style="background:rgba(16,185,129,0.1);border:1px solid var(--accent);border-radius:8px;padding:12px;font-size:13px;">
         ✅ <b>${newBooks.length}</b> کتاب، <b>${totalLessons}</b> درس، <b>${totalWords}</b> کلمه اضافه شد
+        <br><small style="color:var(--muted);">🔒 درس نمونه به هر کتاب اضافه شد</small>
       </div>`;
-      toast(`${newBooks.length} کتاب اضافه شد`, 'success');
+      toast(`${newBooks.length} کتاب اضافه شد (با درس نمونه)`, 'success');
     } catch(err) {
       status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا: ${esc(err.message)}</div>`;
     }
@@ -2146,12 +2529,16 @@ function replaceFullBook(file){
       else { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ فرمت شناسایی نشد</div>`; return; }
       const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
       if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`; return; }
+      newBooks.forEach(nb => {
+        if (!Array.isArray(nb.lessons)) nb.lessons = [];
+        nb.lessons.unshift(makeSampleLesson());
+      });
       state.books = newBooks;
       state.activeBookId = newBooks[0].id;
       state.activeLessonId = newBooks[0].lessons[0]?.id;
       save(); renderAll(); populateLessonTargets();
-      status.innerHTML = `<div style="color:var(--accent);font-size:13px;">✅ ${newBooks.length} کتاب جایگزین شد</div>`;
-      toast('جایگزین شد', 'success');
+      status.innerHTML = `<div style="color:var(--accent);font-size:13px;">✅ ${newBooks.length} کتاب جایگزین شد (با درس نمونه)</div>`;
+      toast('جایگزین شد (با درس نمونه)', 'success');
     } catch(err) {
       status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا: ${esc(err.message)}</div>`;
     }
@@ -2161,15 +2548,26 @@ function replaceFullBook(file){
 function importJsonWords(){
   const raw = document.getElementById('jsonInput').value.trim();
   if (!raw) { toast('JSON خالیه', 'error'); return; }
+
   let data;
   try { data = JSON.parse(raw); }
-  catch(e){ toast('JSON نامعتبر', 'error'); return; }
+  catch(e){ toast('JSON نامعتبر: ' + e.message, 'error'); return; }
+
+  if (!Array.isArray(data) && (data.title || data.lesson || data.words || data.stories) && !data.name && !data.lessons) {
+    addFullLessonFromJson(data, document.getElementById('jsonInput'), document.getElementById('jsonPreview'));
+    return;
+  }
+
+  let arr = null;
+  if (Array.isArray(data)) arr = data;
+  else if (data.words && Array.isArray(data.words)) arr = data.words;
+  if (!arr) { toast('فرمت نامعتبر — باید آرایه لغات یا آبجکت درس باشد', 'warning'); return; }
+
   const targetId = document.getElementById('jsonTargetLesson').value;
   const target = getLessonById(targetId);
   if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
   if (!Array.isArray(target.words)) target.words = [];
-  let arr = Array.isArray(data) ? data : (data.words && Array.isArray(data.words) ? data.words : null);
-  if (!arr) { toast('فرمت نامعتبر', 'warning'); return; }
+
   let added = 0, dup = 0, skip = 0;
   arr.forEach(item => {
     const w = normalizeWord(item);
@@ -2177,8 +2575,18 @@ function importJsonWords(){
     if (target.words.some(x => x.de.toLowerCase() === w.de.toLowerCase())) { dup++; return; }
     target.words.push(w); added++;
   });
-  save(); renderAll(); populateLessonTargets();
-  toast(`✅ ${added} اضافه، ${dup} تکراری، ${skip} نامعتبر`, added ? 'success' : 'warning');
+
+  save();
+  renderAll();
+  populateLessonTargets();
+
+  document.getElementById('jsonInput').value = '';
+  document.getElementById('jsonPreview').innerHTML = '';
+
+  const msg = `✅ ${added} اضافه${dup ? `، ${dup} تکراری` : ''}${skip ? `، ${skip} نامعتبر` : ''} به «${target.title}»`;
+  toast(msg, added ? 'success' : 'warning');
+  document.getElementById('jsonPreview').innerHTML =
+    `<div style="color:var(--accent);font-size:13px;">${msg}</div>`;
 }
 function validateJson(){
   const raw = document.getElementById('jsonInput').value.trim();
@@ -2187,8 +2595,22 @@ function validateJson(){
   let data;
   try { data = JSON.parse(raw); }
   catch(e){ preview.innerHTML = `<div style="color:var(--danger);">❌ ${esc(e.message)}</div>`; return; }
+
+  if (!Array.isArray(data) && (data.title || data.lesson || data.words || data.stories) && !data.name && !data.lessons) {
+    const words = (data.words || []).map(normalizeWord).filter(Boolean);
+    const stories = (data.stories || []).map(normalizeStory).filter(Boolean);
+    const title = data.title || data.lesson || data.name || '';
+    preview.innerHTML = `<div style="background:var(--bg);padding:10px;border-radius:8px;font-size:13px;">
+      <div style="color:var(--accent);">✅ آبجکت درس: «${esc(title || 'بدون عنوان')}»</div>
+      <div style="color:var(--accent);">✅ ${words.length} لغت معتبر</div>
+      <div style="color:var(--accent);">✅ ${stories.length} داستان معتبر</div>
+      ${title ? '<div style="color:var(--info);margin-top:4px;">با «اضافه» → درس جدید ساخته می‌شه</div>' : '<div style="color:var(--warning);margin-top:4px;">بدون title → به درس انتخاب‌شده اضافه می‌شه</div>'}
+    </div>`;
+    return;
+  }
+
   let arr = Array.isArray(data) ? data : (data.words && Array.isArray(data.words) ? data.words : null);
-  if (!arr) { preview.innerHTML = `<div style="color:var(--danger);">❌ باید آرایه باشه</div>`; return; }
+  if (!arr) { preview.innerHTML = `<div style="color:var(--danger);">❌ باید آرایه لغات یا آبجکت درس باشد</div>`; return; }
   const valid = arr.map(normalizeWord).filter(Boolean);
   preview.innerHTML = `<div style="background:var(--bg);padding:10px;border-radius:8px;font-size:13px;">
     <div style="color:var(--accent);">✅ ${valid.length} معتبر</div>
@@ -2209,9 +2631,16 @@ function exportBook(){
 }
 function exportLesson(){
   const l = getLesson(), b = getBook();
-  if (!l) return;
-  exportData({ book: b.name, lesson: l.title, words: l.words, stories: l.stories }, `${b.name}-${l.title}.json`);
-  toast('دانلود شد', 'success');
+  if (!l) { toast('درسی انتخاب نشده', 'error'); return; }
+  const out = {
+    book: b ? b.name : '',
+    lesson: l.title,
+    words: l.words || [],
+    stories: l.stories || []
+  };
+  const safeName = (b ? b.name : 'book') + '-' + l.title;
+  exportData(out, `${safeName}.json`);
+  toast(`📥 درس «${l.title}» دانلود شد`, 'success');
 }
 function exportBad(){
   const words = getWords().filter(w => normalizeStatus(w) === 'bad');
@@ -2278,11 +2707,103 @@ function handleFileUpload(file, forceActiveLesson){
   reader.readAsText(file);
 }
 function processUploadedData(data, filename, status, forceActiveLesson){
-  const targetId = forceActiveLesson ? state.activeLessonId : document.getElementById('fileTargetLesson').value;
-  const target = getLessonById(targetId);
+  const book = getBook();
+  if (!book) { toast('اول یک کتاب انتخاب کن', 'error'); return; }
   function show(html){ if (status) status.innerHTML = html; }
 
+  function extractLessonTitle(obj){
+    if (!obj) return '';
+    return (obj.title || obj.lesson || obj.lessonTitle || obj.name || '').toString().trim();
+  }
+
+  function addNewLessonFromObject(lessonObj, fallbackTitle){
+    const title = extractLessonTitle(lessonObj) || fallbackTitle || 'درس جدید';
+    const nWords = Array.isArray(lessonObj.words) ? lessonObj.words.map(normalizeWord).filter(Boolean) : [];
+    const nStories = Array.isArray(lessonObj.stories) ? lessonObj.stories.map(normalizeStory).filter(Boolean) : [];
+    if (!nWords.length && !nStories.length) return null;
+    const newLesson = { id: uid(), title: title, words: nWords, stories: nStories, isSample: false };
+    if (!Array.isArray(book.lessons)) book.lessons = [];
+    book.lessons.push(newLesson);
+    return newLesson;
+  }
+
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const hasRootWords = Array.isArray(data.words);
+    const hasRootStories = Array.isArray(data.stories);
+    const hasLessonsArray = Array.isArray(data.lessons);
+
+    if ((hasRootWords || hasRootStories) && !hasLessonsArray) {
+      const newLesson = addNewLessonFromObject(data, 'درس جدید');
+      if (!newLesson) {
+        show(`<div style="color:var(--danger);font-size:13px;">❌ نه لغت معتبری داشت نه داستان معتبری</div>`);
+        toast('داده معتبری نبود', 'error');
+        return;
+      }
+      state.activeLessonId = newLesson.id;
+      save();
+      renderAll();
+      populateLessonTargets();
+      show(`<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">
+        ✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>
+        📝 ${newLesson.words.length} لغت &nbsp;•&nbsp; 📖 ${newLesson.stories.length} داستان
+      </div>`);
+      toast(`✅ درس «${newLesson.title}» اضافه شد`, 'success');
+      return;
+    }
+
+    if (Array.isArray(data.books)) {
+      const booksData = data.books.map(b => normalizeBook(b)).filter(Boolean);
+      if (!booksData.length) { show(`<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`); return; }
+      show('');
+      openImportBookPopup({ type: 'multi', data: booksData });
+      return;
+    }
+
+    if (hasLessonsArray) {
+      const bookData = {
+        name: data.name || data.title || data.book || filename.replace('.json', ''),
+        level: data.level || 'A1.1',
+        coverImage: data.coverImage || '',
+        lessons: data.lessons.map((l, i) => normalizeLesson(l, 'درس ' + (i+1))).filter(Boolean)
+      };
+      if (!bookData.lessons.length) { show(`<div style="color:var(--danger);font-size:13px;">❌ درس معتبری نبود</div>`); return; }
+      show('');
+      openImportBookPopup({ type: 'single', data: bookData });
+      return;
+    }
+  }
+
   if (Array.isArray(data)) {
+    const looksLikeLessons = data.length > 0 && data.every(item =>
+      item && typeof item === 'object' &&
+      (item.title || item.lesson || item.name) &&
+      (Array.isArray(item.words) || Array.isArray(item.stories))
+    );
+
+    if (looksLikeLessons) {
+      let addedLessons = 0, totalWords = 0, totalStories = 0;
+      let lastLesson = null;
+      data.forEach(lessonRaw => {
+        const nl = addNewLessonFromObject(lessonRaw, 'درس');
+        if (!nl) return;
+        addedLessons++;
+        totalWords += nl.words.length;
+        totalStories += nl.stories.length;
+        lastLesson = nl;
+      });
+      if (addedLessons > 0) {
+        state.activeLessonId = lastLesson.id;
+        save(); renderAll(); populateLessonTargets();
+        show(`<div style="color:var(--accent);font-size:13px;">✅ ${addedLessons} درس جدید با ${totalWords} لغت و ${totalStories} داستان اضافه شد</div>`);
+        toast(`✅ ${addedLessons} درس اضافه شد`, 'success');
+      } else {
+        show(`<div style="color:var(--danger);font-size:13px;">❌ هیچ درس معتبری نبود</div>`);
+      }
+      return;
+    }
+
+    const targetId = forceActiveLesson ? state.activeLessonId : (document.getElementById('fileTargetLesson').value || state.activeLessonId);
+    const target = getLessonById(targetId);
     if (!target) { show(`<div style="color:var(--danger);font-size:13px;">❌ درس مقصد انتخاب نشده</div>`); return; }
     let added = 0, dup = 0, skip = 0;
     data.forEach(item => {
@@ -2292,30 +2813,14 @@ function processUploadedData(data, filename, status, forceActiveLesson){
       target.words.push(w); added++;
     });
     save(); renderAll(); populateLessonTargets();
-    show(`<div style="color:var(--accent);font-size:13px;">✅ ${added} کلمه اضافه شد</div>`);
-    toast(`${added} اضافه شد`, 'success');
+    show(`<div style="color:var(--accent);font-size:13px;">✅ ${added} لغت اضافه شد به «${esc(target.title)}»${dup ? `، ${dup} تکراری` : ''}${skip ? `، ${skip} نامعتبر` : ''}</div>`);
+    toast(`${added} لغت اضافه شد`, 'success');
     return;
   }
-  if (data.lessons && Array.isArray(data.lessons)) {
-    const bookData = {
-      name: data.name || data.title || filename.replace('.json', ''),
-      level: data.level || 'A1.1',
-      coverImage: data.coverImage || '',
-      lessons: data.lessons.map((l, i) => normalizeLesson(l, 'درس ' + (i+1))).filter(Boolean)
-    };
-    if (!bookData.lessons.length) { show(`<div style="color:var(--danger);font-size:13px;">❌ درس معتبری نبود</div>`); return; }
-    if (status) status.innerHTML = '';
-    openImportBookPopup({ type: 'single', data: bookData });
-    return;
-  }
-  if (data.books && Array.isArray(data.books)) {
-    const booksData = data.books.map(b => normalizeBook(b)).filter(Boolean);
-    if (!booksData.length) { show(`<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`); return; }
-    if (status) status.innerHTML = '';
-    openImportBookPopup({ type: 'multi', data: booksData });
-    return;
-  }
-  if (data.words && Array.isArray(data.words)) {
+
+  if (data && typeof data === 'object' && Array.isArray(data.words)) {
+    const targetId = forceActiveLesson ? state.activeLessonId : (document.getElementById('fileTargetLesson').value || state.activeLessonId);
+    const target = getLessonById(targetId);
     if (!target) { show(`<div style="color:var(--danger);font-size:13px;">❌ درس مقصد انتخاب نشده</div>`); return; }
     let added = 0, dup = 0;
     data.words.forEach(item => {
@@ -2325,10 +2830,11 @@ function processUploadedData(data, filename, status, forceActiveLesson){
       target.words.push(w); added++;
     });
     save(); renderAll(); populateLessonTargets();
-    show(`<div style="color:var(--accent);font-size:13px;">✅ ${added} کلمه اضافه شد</div>`);
-    toast(`${added} اضافه شد`, 'success');
+    show(`<div style="color:var(--accent);font-size:13px;">✅ ${added} لغت اضافه شد به «${esc(target.title)}»${dup ? `، ${dup} تکراری` : ''}</div>`);
+    toast(`${added} لغت اضافه شد`, 'success');
     return;
   }
+
   show(`<div style="color:var(--danger);font-size:13px;">❌ فرمت شناسایی نشد</div>`);
   toast('فرمت نامعتبر', 'error');
 }
@@ -2358,6 +2864,7 @@ function renderAll(){
   renderCards();
   populateLessonTargets();
   updateAppTitle();
+  updateReviewBanner();
 }
 
 /* ============================================================
@@ -2396,9 +2903,41 @@ function openEditBookModal(bookId){
   document.body.classList.add('locked');
 }
 function openLessonModal(){
-  document.getElementById('lessonTitleInput').value = '';
+  const b = getBook();
+  if (!b) { toast('اول یه کتاب انتخاب کن یا بساز', 'error'); return; }
+  const input = document.getElementById('lessonTitleInput');
+  const saveBtn = document.getElementById('saveLessonBtn');
+  const titleEl = document.getElementById('modalLessonTitle');
+  if (input) input.value = '';
+  if (titleEl) titleEl.textContent = '➕ درس جدید';
+  if (saveBtn) {
+    saveBtn.textContent = '💾 ذخیره';
+    delete saveBtn.dataset.editId;
+  }
+  const modal = document.getElementById('modalLesson');
+  if (modal) modal.classList.add('active');
+  document.body.classList.add('locked');
+  setTimeout(() => { if (input) input.focus(); }, 100);
+}
+function openEditLessonModal(){
+  const l = getLesson();
+  if (!l) { toast('درسی انتخاب نشده', 'error'); return; }
+  if (l.isSample) {
+    toast('🔒 عنوان درس نمونه قابل ویرایش نیست. یه درس جدید بساز.', 'warning');
+    return;
+  }
+  const input = document.getElementById('lessonTitleInput');
+  const saveBtn = document.getElementById('saveLessonBtn');
+  const titleEl = document.getElementById('modalLessonTitle');
+  if (input) input.value = l.title || '';
+  if (titleEl) titleEl.textContent = '✏️ ویرایش نام درس';
+  if (saveBtn) {
+    saveBtn.textContent = '💾 ذخیره تغییرات';
+    saveBtn.dataset.editId = l.id;
+  }
   document.getElementById('modalLesson').classList.add('active');
   document.body.classList.add('locked');
+  setTimeout(() => { if (input) { input.focus(); input.select(); } }, 100);
 }
 
 /* ============================================================
@@ -2421,16 +2960,48 @@ function bindEvents(){
     save(); renderAll();
   });
 
-  document.getElementById('addBookBtn').addEventListener('click', openBookModal);
-  document.getElementById('addLessonBtn').addEventListener('click', openLessonModal);
-  document.getElementById('delBookBtn').addEventListener('click', openDeleteBookModal);
-  document.getElementById('delLessonBtn').addEventListener('click', () => {
+  const addBookBtn = document.getElementById('addBookBtn');
+  if (addBookBtn) addBookBtn.addEventListener('click', openBookModal);
+  const addLessonBtn = document.getElementById('addLessonBtn');
+  if (addLessonBtn) addLessonBtn.addEventListener('click', openLessonModal);
+  const editLessonBtn = document.getElementById('editLessonBtn');
+  if (editLessonBtn) editLessonBtn.addEventListener('click', openEditLessonModal);
+  const delBookBtn = document.getElementById('delBookBtn');
+  if (delBookBtn) delBookBtn.addEventListener('click', openDeleteBookModal);
+
+  const delLessonBtn = document.getElementById('delLessonBtn');
+  if (delLessonBtn) delLessonBtn.addEventListener('click', () => {
     const l = getLesson(), b = getBook();
-    if (!l || !b || b.lessons.length <= 1) { toast('نمی‌شه حذف کرد', 'warning'); return; }
-    if (!confirm(`حذف «${l.title}»؟`)) return;
+    if (!l) { toast('درسی انتخاب نشده', 'warning'); return; }
+    if (!b) { toast('کتابی انتخاب نشده', 'warning'); return; }
+
+    if (l.isSample) {
+      toast('🔒 درس نمونه قابل حذف نیست. می‌تونید ویرایشش کنید یا یه درس جدید بسازید.', 'error');
+      return;
+    }
+
+    if (b.lessons.length <= 1) {
+      if (!confirm(`«${l.title}» تنها درس این کتابه.\nاگه حذفش کنی، یه درس خالی جدید جاش ساخته می‌شه.\n\nادامه بدی؟`)) return;
+      const emptyLesson = { id: uid(), title: 'Lektion 1', words: [], stories: [], isSample: false };
+      b.lessons = [emptyLesson];
+      state.activeLessonId = emptyLesson.id;
+      save(); renderAll(); populateLessonTargets();
+      toast('🗑 درس حذف و یه درس خالی جدید ساخته شد', 'success');
+      return;
+    }
+
+    const wordCount = (l.words || []).length;
+    const storyCount = (l.stories || []).length;
+    const msg = `⚠️ حذف درس «${l.title}»\n\nاین درس شامل:\n• ${wordCount} لغت\n• ${storyCount} داستان\n\nبرگشت‌پذیر نیست. مطمئنی؟`;
+    if (!confirm(msg)) return;
+
+    const idx = b.lessons.findIndex(x => x.id === l.id);
     b.lessons = b.lessons.filter(x => x.id !== l.id);
-    state.activeLessonId = b.lessons[0].id;
-    save(); renderAll(); toast('حذف شد', 'success');
+    const nextIdx = Math.min(idx, b.lessons.length - 1);
+    state.activeLessonId = b.lessons[nextIdx].id;
+
+    save(); renderAll(); populateLessonTargets();
+    toast(`🗑 درس «${l.title}» حذف شد`, 'success');
   });
 
   const searchBox = document.getElementById('searchBox');
@@ -2449,19 +3020,24 @@ function bindEvents(){
   const css = document.getElementById('cardSortStatus');
   if (css) css.addEventListener('click', () => { cardSortMode = 'status'; renderCards(); });
 
-  document.getElementById('startSrsBtn').addEventListener('click', () => startPractice('due'));
-  document.getElementById('exitPractice').addEventListener('click', exitPractice);
-  document.getElementById('flashcardStage').addEventListener('click', () => {
+  const startSrsBtn = document.getElementById('startSrsBtn');
+  if (startSrsBtn) startSrsBtn.addEventListener('click', () => startPractice('due'));
+  const exitPracticeBtn = document.getElementById('exitPractice');
+  if (exitPracticeBtn) exitPracticeBtn.addEventListener('click', exitPractice);
+  const flashcardStage = document.getElementById('flashcardStage');
+  if (flashcardStage) flashcardStage.addEventListener('click', () => {
     document.getElementById('flashcardInner').classList.toggle('flipped');
   });
-  document.getElementById('fcSpeakBtn').addEventListener('click', () => {
+  const fcSpeakBtn = document.getElementById('fcSpeakBtn');
+  if (fcSpeakBtn) fcSpeakBtn.addEventListener('click', () => {
     const w = practice.queue[practice.index];
     if (w) speak(w.de, w.exAudio);
   });
   document.querySelectorAll('[data-rate]').forEach(btn => {
     btn.addEventListener('click', () => rateCurrent(btn.dataset.rate));
   });
-  document.getElementById('prevPracticeBtn').addEventListener('click', () => {
+  const prevPracticeBtn = document.getElementById('prevPracticeBtn');
+  if (prevPracticeBtn) prevPracticeBtn.addEventListener('click', () => {
     if (!practice.active || practice.index === 0) return;
     practice.index--;
     const w = practice.queue[practice.index];
@@ -2470,22 +3046,29 @@ function bindEvents(){
     showCurrentPracticeCard(); renderStats();
     if (hadRating) toast('🔄 برگشت', 'warning');
   });
-  document.getElementById('autoPlayToggle').addEventListener('click', toggleAutoPlay);
-  document.getElementById('autoPlayToggleSession').addEventListener('click', toggleAutoPlay);
+  const autoPlayToggle = document.getElementById('autoPlayToggle');
+  if (autoPlayToggle) autoPlayToggle.addEventListener('click', toggleAutoPlay);
+  const autoPlayToggleSession = document.getElementById('autoPlayToggleSession');
+  if (autoPlayToggleSession) autoPlayToggleSession.addEventListener('click', toggleAutoPlay);
 
-  document.getElementById('addStoryBtn').addEventListener('click', () => {
+  const addStoryBtn = document.getElementById('addStoryBtn');
+  if (addStoryBtn) addStoryBtn.addEventListener('click', () => {
     switchTab('manage-story');
     resetStoryForm();
     setTimeout(() => document.getElementById('storyTitleInput').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   });
-  document.getElementById('saveStoryBtn').addEventListener('click', saveStory);
+  const saveStoryBtn = document.getElementById('saveStoryBtn');
+  if (saveStoryBtn) saveStoryBtn.addEventListener('click', saveStory);
   const cancelStoryBtn = document.getElementById('cancelStoryEditBtn');
   if (cancelStoryBtn) cancelStoryBtn.addEventListener('click', () => { resetStoryForm(); });
-  document.getElementById('closeStoryReader').addEventListener('click', () => {
+  const closeStoryReaderBtn = document.getElementById('closeStoryReader');
+  if (closeStoryReaderBtn) closeStoryReaderBtn.addEventListener('click', () => {
     document.getElementById('storyReaderModal').classList.remove('active');
     document.body.classList.remove('locked');
   });
-  document.getElementById('saveWordBtn').addEventListener('click', () => {
+
+  const saveWordBtn = document.getElementById('saveWordBtn');
+  if (saveWordBtn) saveWordBtn.addEventListener('click', () => {
     const target = getLessonById(document.getElementById('wordTargetLesson').value);
     if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
     const de = document.getElementById('wDe').value.trim();
@@ -2512,39 +3095,54 @@ function bindEvents(){
     toast(`✅ به «${target.title}» اضافه شد`, 'success');
   });
 
-  document.getElementById('importFullBookBtn').addEventListener('click', () => document.getElementById('fullBookFileInput').click());
-  document.getElementById('replaceFullBookBtn').addEventListener('click', () => document.getElementById('replaceBookFileInput').click());
-  document.getElementById('fullBookFileInput').addEventListener('change', e => {
+  const importFullBookBtn = document.getElementById('importFullBookBtn');
+  if (importFullBookBtn) importFullBookBtn.addEventListener('click', () => document.getElementById('fullBookFileInput').click());
+  const replaceFullBookBtn = document.getElementById('replaceFullBookBtn');
+  if (replaceFullBookBtn) replaceFullBookBtn.addEventListener('click', () => document.getElementById('replaceBookFileInput').click());
+  const fullBookFileInput = document.getElementById('fullBookFileInput');
+  if (fullBookFileInput) fullBookFileInput.addEventListener('change', e => {
     if (e.target.files[0]) importFullBook(e.target.files[0]);
     e.target.value = '';
   });
-  document.getElementById('replaceBookFileInput').addEventListener('change', e => {
+  const replaceBookFileInput = document.getElementById('replaceBookFileInput');
+  if (replaceBookFileInput) replaceBookFileInput.addEventListener('change', e => {
     if (e.target.files[0]) replaceFullBook(e.target.files[0]);
     e.target.value = '';
   });
-  document.getElementById('exportFullBookBtn').addEventListener('click', exportBook);
-  document.getElementById('exportAllBooksBtn').addEventListener('click', () => {
+  const exportFullBookBtn = document.getElementById('exportFullBookBtn');
+  if (exportFullBookBtn) exportFullBookBtn.addEventListener('click', exportBook);
+  const exportAllBooksBtn = document.getElementById('exportAllBooksBtn');
+  if (exportAllBooksBtn) exportAllBooksBtn.addEventListener('click', () => {
     exportData(state, `german-vocab-backup-${new Date().toISOString().slice(0,10)}.json`);
     toast('دانلود شد', 'success');
   });
 
-  document.getElementById('importJsonBtn').addEventListener('click', importJsonWords);
-  document.getElementById('validateJsonBtn').addEventListener('click', validateJson);
-  document.getElementById('clearJsonBtn').addEventListener('click', () => {
+  const importJsonBtn = document.getElementById('importJsonBtn');
+  if (importJsonBtn) importJsonBtn.addEventListener('click', importJsonWords);
+  const validateJsonBtn = document.getElementById('validateJsonBtn');
+  if (validateJsonBtn) validateJsonBtn.addEventListener('click', validateJson);
+  const clearJsonBtn = document.getElementById('clearJsonBtn');
+  if (clearJsonBtn) clearJsonBtn.addEventListener('click', () => {
     document.getElementById('jsonInput').value = '';
     document.getElementById('jsonPreview').innerHTML = '';
   });
-  document.getElementById('exportLessonBtn').addEventListener('click', exportLesson);
-  document.getElementById('exportBadBtn').addEventListener('click', exportBad);
-  document.getElementById('exportAllBtn').addEventListener('click', () => {
+
+  const exportLessonBtn = document.getElementById('exportLessonBtn');
+  if (exportLessonBtn) exportLessonBtn.addEventListener('click', exportLesson);
+  const exportBadBtn = document.getElementById('exportBadBtn');
+  if (exportBadBtn) exportBadBtn.addEventListener('click', exportBad);
+  const exportAllBtn = document.getElementById('exportAllBtn');
+  if (exportAllBtn) exportAllBtn.addEventListener('click', () => {
     exportData(state, `german-vocab-backup-${new Date().toISOString().slice(0,10)}.json`);
     toast('دانلود شد', 'success');
   });
-  document.getElementById('backupAllBtn').addEventListener('click', () => {
+  const backupAllBtn = document.getElementById('backupAllBtn');
+  if (backupAllBtn) backupAllBtn.addEventListener('click', () => {
     exportData(state, `german-vocab-backup-${new Date().toISOString().slice(0,10)}.json`);
     toast('دانلود شد', 'success');
   });
-  document.getElementById('resetBtn').addEventListener('click', () => {
+  const resetBtn = document.getElementById('resetBtn');
+  if (resetBtn) resetBtn.addEventListener('click', () => {
     if (!confirm('همه داده‌ها ریست بشن؟')) return;
     localStorage.removeItem(STORAGE_KEY);
     state = load();
@@ -2552,12 +3150,15 @@ function bindEvents(){
     toast('ریست شد', 'success');
   });
 
-  document.getElementById('cancelDeleteBookBtn').addEventListener('click', () => {
+  const cancelDeleteBookBtn = document.getElementById('cancelDeleteBookBtn');
+  if (cancelDeleteBookBtn) cancelDeleteBookBtn.addEventListener('click', () => {
     document.getElementById('modalDeleteBook').classList.remove('active');
     document.body.classList.remove('locked');
   });
-  document.getElementById('delBookConfirmInput').addEventListener('input', checkDeleteBookConfirm);
-  document.getElementById('confirmDeleteBookBtn').addEventListener('click', confirmDeleteBook);
+  const delBookConfirmInput = document.getElementById('delBookConfirmInput');
+  if (delBookConfirmInput) delBookConfirmInput.addEventListener('input', checkDeleteBookConfirm);
+  const confirmDeleteBookBtn = document.getElementById('confirmDeleteBookBtn');
+  if (confirmDeleteBookBtn) confirmDeleteBookBtn.addEventListener('click', confirmDeleteBook);
 
   document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', e => {
@@ -2572,16 +3173,21 @@ function bindEvents(){
   const wem = document.getElementById('wordEditModal');
   if (wem) wem.addEventListener('click', e => { if (e.target === wem) closeWordEdit(); });
 
-  document.getElementById('cancelBookBtn').addEventListener('click', () => {
+  const cancelBookBtn = document.getElementById('cancelBookBtn');
+  if (cancelBookBtn) cancelBookBtn.addEventListener('click', () => {
     document.getElementById('modalBook').classList.remove('active');
     document.body.classList.remove('locked');
     editingBookId = null;
   });
-  document.getElementById('cancelLessonBtn').addEventListener('click', () => {
+  const cancelLessonBtn = document.getElementById('cancelLessonBtn');
+  if (cancelLessonBtn) cancelLessonBtn.addEventListener('click', () => {
     document.getElementById('modalLesson').classList.remove('active');
     document.body.classList.remove('locked');
+    const saveBtn = document.getElementById('saveLessonBtn');
+    if (saveBtn) delete saveBtn.dataset.editId;
   });
-  document.getElementById('saveBookBtn').addEventListener('click', () => {
+  const saveBookBtn = document.getElementById('saveBookBtn');
+  if (saveBookBtn) saveBookBtn.addEventListener('click', () => {
     const name = document.getElementById('bookNameInput').value.trim();
     const level = document.getElementById('bookLevelInput').value;
     const coverInput = document.getElementById('bookCoverInput');
@@ -2599,50 +3205,115 @@ function bindEvents(){
       if (isLibrary) { renderBookLibrary(); toast(`✅ «${name}» ویرایش شد`, 'success'); }
       else { renderAll(); toast('✅ ویرایش شد', 'success'); }
     } else {
-      const nb = { id: uid(), name, level, coverImage, lessons: [{ id: uid(), title: 'Lektion 1', words: [], stories: [] }] };
+      const nb = {
+        id: uid(),
+        name,
+        level,
+        coverImage,
+        lessons: [makeSampleLesson()]
+      };
       state.books.push(nb);
       state.activeBookId = nb.id;
       state.activeLessonId = nb.lessons[0].id;
       save();
       document.getElementById('modalBook').classList.remove('active');
       document.body.classList.remove('locked');
-      if (isLibrary) { renderBookLibrary(); toast(`✅ «${name}» اضافه شد`, 'success'); }
-      else { renderAll(); toast('✅ ذخیره شد', 'success'); }
+      if (isLibrary) { renderBookLibrary(); toast(`✅ «${name}» اضافه شد (با درس نمونه)`, 'success'); }
+      else { renderAll(); toast('✅ ذخیره شد (با درس نمونه)', 'success'); }
     }
   });
-  document.getElementById('saveLessonBtn').addEventListener('click', () => {
-    const title = document.getElementById('lessonTitleInput').value.trim();
-    if (!title) { toast('عنوان لازمه', 'error'); return; }
+  const saveLessonBtn = document.getElementById('saveLessonBtn');
+  if (saveLessonBtn) saveLessonBtn.addEventListener('click', () => {
+    const titleInput = document.getElementById('lessonTitleInput');
+    const title = (titleInput ? titleInput.value : '').trim();
+    if (!title) { toast('عنوان درس رو بنویس', 'error'); if (titleInput) titleInput.focus(); return; }
     const b = getBook();
-    if (!b) { toast('اول کتاب بساز', 'error'); return; }
-    const nl = { id: uid(), title, words: [], stories: [] };
+    if (!b) {
+      toast('اول یه کتاب انتخاب کن', 'error');
+      document.getElementById('modalLesson').classList.remove('active');
+      document.body.classList.remove('locked');
+      return;
+    }
+
+    const editId = saveLessonBtn.dataset.editId;
+
+    if (editId) {
+      const target = b.lessons.find(x => x.id === editId);
+      if (!target) { toast('درس پیدا نشد', 'error'); return; }
+      if (target.isSample) { toast('🔒 درس نمونه قابل ویرایش نیست', 'error'); return; }
+      if ((b.lessons || []).some(l => l.id !== editId && l.title.trim().toLowerCase() === title.toLowerCase())) {
+        if (!confirm(`درسی با عنوان «${title}» قبلاً هست.\nادامه بدی و نامش رو یکسان کنی؟`)) return;
+      }
+      target.title = title;
+      save();
+      delete saveLessonBtn.dataset.editId;
+      document.getElementById('modalLesson').classList.remove('active');
+      document.body.classList.remove('locked');
+      renderAll();
+      populateLessonTargets();
+      toast(`✅ نام درس به «${title}» تغییر کرد`, 'success');
+      return;
+    }
+
+    if ((b.lessons || []).some(l => l.title.trim().toLowerCase() === title.toLowerCase())) {
+      if (!confirm(`درسی با عنوان «${title}» قبلاً هست.\nادامه بدی و یکی دیگه با همین عنوان بسازی؟`)) return;
+    }
+    const nl = { id: uid(), title, words: [], stories: [], isSample: false };
+    if (!Array.isArray(b.lessons)) b.lessons = [];
     b.lessons.push(nl);
     state.activeLessonId = nl.id;
     save();
     document.getElementById('modalLesson').classList.remove('active');
     document.body.classList.remove('locked');
-    renderAll(); toast('درس اضافه شد', 'success');
+    renderAll();
+    populateLessonTargets();
+    const sel = document.getElementById('lessonSelect');
+    if (sel) {
+      sel.value = nl.id;
+      sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    toast(`✅ درس «${title}» اضافه شد`, 'success');
   });
+  const lessonTitleInput = document.getElementById('lessonTitleInput');
+  if (lessonTitleInput) {
+    lessonTitleInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const btn = document.getElementById('saveLessonBtn');
+        if (btn) btn.click();
+      }
+    });
+  }
 
-  document.getElementById('libraryAddBookBtn').addEventListener('click', openBookModal);
-  document.getElementById('libraryImportBtn').addEventListener('click', () => {
+  const libraryAddBookBtn = document.getElementById('libraryAddBookBtn');
+  if (libraryAddBookBtn) libraryAddBookBtn.addEventListener('click', openBookModal);
+  const libraryImportBtn = document.getElementById('libraryImportBtn');
+  if (libraryImportBtn) libraryImportBtn.addEventListener('click', () => {
     if (state.books.length === 0) { toast('اول کتاب بساز', 'warning'); return; }
     openBook(state.books[0].id);
     setTimeout(() => switchTab('json'), 100);
   });
-  document.getElementById('backToLibraryBtn').addEventListener('click', showBookLibrary);
+  const backToLibraryBtn = document.getElementById('backToLibraryBtn');
+  if (backToLibraryBtn) backToLibraryBtn.addEventListener('click', showBookLibrary);
 
-  document.getElementById('importAsNewBookBtn').addEventListener('click', chooseImportAsNewBook);
-  document.getElementById('importAsReplaceBtn').addEventListener('click', chooseImportAsReplace);
-  document.getElementById('cancelImportBookBtn').addEventListener('click', closeImportBookPopup);
-  document.getElementById('confirmNewBookBtn').addEventListener('click', confirmNewBookFromImport);
-  document.getElementById('cancelNewBookBtn').addEventListener('click', () => {
+  const importAsNewBookBtn = document.getElementById('importAsNewBookBtn');
+  if (importAsNewBookBtn) importAsNewBookBtn.addEventListener('click', chooseImportAsNewBook);
+  const importAsReplaceBtn = document.getElementById('importAsReplaceBtn');
+  if (importAsReplaceBtn) importAsReplaceBtn.addEventListener('click', chooseImportAsReplace);
+  const cancelImportBookBtn = document.getElementById('cancelImportBookBtn');
+  if (cancelImportBookBtn) cancelImportBookBtn.addEventListener('click', closeImportBookPopup);
+  const confirmNewBookBtn = document.getElementById('confirmNewBookBtn');
+  if (confirmNewBookBtn) confirmNewBookBtn.addEventListener('click', confirmNewBookFromImport);
+  const cancelNewBookBtn = document.getElementById('cancelNewBookBtn');
+  if (cancelNewBookBtn) cancelNewBookBtn.addEventListener('click', () => {
     document.getElementById('modalNewBookFromImport').classList.remove('active');
     document.body.classList.remove('locked');
     closeImportBookPopup();
   });
-  document.getElementById('confirmReplaceBookBtn').addEventListener('click', confirmReplaceBook);
-  document.getElementById('cancelReplaceBookBtn').addEventListener('click', () => {
+  const confirmReplaceBookBtn = document.getElementById('confirmReplaceBookBtn');
+  if (confirmReplaceBookBtn) confirmReplaceBookBtn.addEventListener('click', confirmReplaceBook);
+  const cancelReplaceBookBtn = document.getElementById('cancelReplaceBookBtn');
+  if (cancelReplaceBookBtn) cancelReplaceBookBtn.addEventListener('click', () => {
     document.getElementById('modalReplaceTargetBook').classList.remove('active');
     document.body.classList.remove('locked');
     closeImportBookPopup();
