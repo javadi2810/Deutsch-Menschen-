@@ -9,13 +9,12 @@
 </head>
 <body>
 
-<!-- ============ BOOK LIBRARY SCREEN ============ -->
+<!-- ============ BOOK LIBRARY ============ -->
 <div id="bookLibraryScreen" class="book-library-screen">
   <div class="library-hero">
     <h1>📚 کتابخانه من</h1>
     <p>یک کتاب انتخاب کن یا کتاب جدید اضافه کن</p>
   </div>
-
   <div class="library-container">
     <div class="library-actions">
       <button class="btn btn-primary btn-lg" id="libraryAddBookBtn">➕ کتاب جدید</button>
@@ -29,7 +28,7 @@
 <div id="mainApp" class="main-app hidden">
 
 <header>
-  <button class="header-back-btn" id="backToLibraryBtn" title="بازگشت به کتابخانه">⬅️ کتابخانه</button>
+  <button class="header-back-btn" id="backToLibraryBtn">⬅️ کتابخانه</button>
   <h1 id="appTitle">🎓 German Vocab Pro</h1>
   <p>کارت + داستان + فلش‌کارت + آزمون + SRS + JSON</p>
 </header>
@@ -48,8 +47,8 @@
         <select id="lessonSelect"></select>
       </div>
       <div class="row tight" style="align-self:flex-end;">
-        <button class="btn btn-sm" id="addBookBtn" title="کتاب جدید">➕</button>
-        <button class="btn btn-sm btn-danger" id="delBookBtn" title="حذف کل کتاب">🗑</button>
+        <button class="btn btn-sm" id="addBookBtn">➕</button>
+        <button class="btn btn-sm btn-danger" id="delBookBtn">🗑</button>
       </div>
     </div>
     <div class="row tight" style="margin-top:6px;">
@@ -76,6 +75,7 @@
     <button class="tab" data-tab="manage-story">➕ داستان جدید</button>
   </div>
 
+  <!-- TAB LIST -->
   <div id="tab-list" class="tab-content">
     <div class="panel">
       <h3>📋 لغات این درس</h3>
@@ -88,13 +88,14 @@
           <option value="good">مسلط</option>
           <option value="bad">بلد نیستم</option>
         </select>
-        <button class="btn btn-primary" id="quickJsonBtn" title="افزودن JSON به این درس" style="flex:0 0 auto;">📥 JSON</button>
+        <button class="btn btn-primary" id="quickJsonBtn" style="flex:0 0 auto;">📥 JSON</button>
         <input type="file" id="quickJsonFile" accept=".json,application/json" style="display:none;">
       </div>
       <div id="wordTableContainer"></div>
     </div>
   </div>
 
+  <!-- TAB CARDS -->
   <div id="tab-cards" class="tab-content hidden">
     <div class="panel">
       <h3>📇 کارت‌های لغت این درس</h3>
@@ -119,6 +120,7 @@
     </div>
   </div>
 
+  <!-- TAB PRACTICE -->
   <div id="tab-practice" class="tab-content hidden">
     <div id="practiceFolderView">
       <div class="panel">
@@ -135,12 +137,11 @@
         </div>
       </div>
     </div>
-
     <div id="practiceSession" class="hidden">
       <div class="panel">
         <div class="quiz-header">
           <button class="btn btn-sm" id="exitPractice">⬅️ خروج</button>
-          <button class="btn btn-sm" id="prevPracticeBtn" title="برگشت به لغت قبلی" disabled>◀️ قبلی</button>
+          <button class="btn btn-sm" id="prevPracticeBtn" disabled>◀️ قبلی</button>
           <button class="auto-play-toggle" id="autoPlayToggleSession" type="button" style="padding:4px 10px;font-size:11px;">
             <span class="toggle-indicator" style="width:26px;height:14px;"></span>
             <span id="autoPlayLabelSession">🔊</span>
@@ -150,7 +151,6 @@
         <div class="quiz-progress">
           <div class="quiz-progress-fill" id="practiceProgress" style="width:0%"></div>
         </div>
-
         <div id="fcMode">
           <div class="flashcard-stage" id="flashcardStage">
             <div class="flashcard-inner" id="flashcardInner">
@@ -176,32 +176,14 @@
     </div>
   </div>
 
+  <!-- TAB QUIZ -->
   <div id="tab-quiz" class="tab-content hidden">
-    <div id="quizHome">
-      <div class="panel">
-        <h3>✅ آزمون جامع</h3>
-        <p class="muted" style="font-size:13px;">آزمون شامل معنی کلمه + جای خالی در جمله</p>
-        <div class="row" style="margin-top:14px;">
-          <button class="btn btn-primary btn-lg" id="startQuizAll" style="flex:1;">🎯 شروع (کل لغات)</button>
-          <button class="btn btn-danger btn-lg" id="startQuizBad" style="flex:1;">❌ آزمون «بلد نیستم»ها</button>
-        </div>
-      </div>
-    </div>
-    <div id="quizSession" class="hidden">
-      <div class="panel">
-        <div class="quiz-header">
-          <button class="btn btn-sm" id="exitQuiz">⬅️ خروج</button>
-          <span id="quizCounter">0 / 0</span>
-        </div>
-        <div class="quiz-progress">
-          <div class="quiz-progress-fill" id="quizProgressFill" style="width:0%"></div>
-        </div>
-        <div id="quizContent"></div>
-      </div>
-    </div>
+    <div id="quizHome"></div>
+    <div id="quizSession" class="hidden"></div>
     <div id="quizReport" class="hidden"></div>
   </div>
 
+  <!-- TAB STORIES -->
   <div id="tab-stories" class="tab-content hidden">
     <div class="panel">
       <h3>📖 داستان‌های این درس</h3>
@@ -210,6 +192,7 @@
     </div>
   </div>
 
+  <!-- TAB JSON -->
   <div id="tab-json" class="tab-content hidden">
     <div class="panel">
       <h3>📂 افزودن لغت از فایل JSON</h3>
@@ -289,6 +272,7 @@
     </div>
   </div>
 
+  <!-- TAB MANAGE -->
   <div id="tab-manage" class="tab-content hidden">
     <div class="panel">
       <h3>➕ افزودن کلمه جدید</h3>
@@ -305,18 +289,18 @@
           <label>نوع کلمه</label>
           <select id="wArt">
             <option value="–">–</option>
-            <option value="der">اسم مذکر (der)</option>
-            <option value="die">اسم مؤنث (die)</option>
-            <option value="das">اسم خنثی (das)</option>
-            <option value="Verb">فعل (Verb)</option>
-            <option value="Adj">صفت (Adjektiv)</option>
-            <option value="Adv">قید (Adverb)</option>
+            <option value="der">der</option>
+            <option value="die">die</option>
+            <option value="das">das</option>
+            <option value="Verb">Verb</option>
+            <option value="Adj">Adj</option>
+            <option value="Adv">Adv</option>
           </select>
         </div>
       </div>
       <div class="row" style="margin-bottom:8px;">
         <div style="flex:1;">
-          <label>جمع (Plural)</label>
+          <label>جمع</label>
           <input id="wPlural" placeholder="Äpfel" dir="ltr">
         </div>
         <div style="flex:1;">
@@ -338,8 +322,8 @@
       </div>
       <div class="row" style="margin-bottom:8px;">
         <div style="flex:1;">
-          <label>🎵 لینک فایل صوتی جمله (اختیاری)</label>
-          <input id="wExAudio" placeholder="https://drive.google.com/..." dir="ltr">
+          <label>🎵 لینک صوتی جمله (اختیاری)</label>
+          <input id="wExAudio" placeholder="https://..." dir="ltr">
         </div>
       </div>
       <div class="row" style="margin-bottom:8px;">
@@ -352,6 +336,7 @@
     </div>
   </div>
 
+  <!-- TAB MANAGE STORY -->
   <div id="tab-manage-story" class="tab-content hidden">
     <div class="panel">
       <h3>📖 افزودن داستان جدید</h3>
@@ -368,7 +353,7 @@
       <div class="row" style="margin-bottom:8px;">
         <div style="flex:1;">
           <label>لینک صوتی</label>
-          <input id="storyAudioInput" placeholder="https://drive.google.com/..." dir="ltr">
+          <input id="storyAudioInput" placeholder="https://..." dir="ltr">
         </div>
       </div>
       <div class="row" style="margin-bottom:8px;">
@@ -400,10 +385,9 @@
   </div>
 
 </div>
+</div>
 
-</div><!-- /mainApp -->
-
-<!-- Modal کتاب -->
+<!-- MODAL BOOK -->
 <div class="modal-overlay" id="modalBook">
   <div class="modal-box">
     <h3 id="bookModalTitle">📚 کتاب جدید</h3>
@@ -418,7 +402,7 @@
       <option>C1</option><option>C2</option>
     </select>
     <label style="margin-top:8px;">🎨 عکس جلد (اختیاری)</label>
-    <input id="bookCoverInput" placeholder="https://example.com/cover.jpg" dir="ltr">
+    <input id="bookCoverInput" placeholder="https://..." dir="ltr">
     <div class="row tight" style="margin-top:14px;">
       <button class="btn btn-primary" id="saveBookBtn">💾 ذخیره</button>
       <button class="btn" id="cancelBookBtn">لغو</button>
@@ -426,7 +410,7 @@
   </div>
 </div>
 
-<!-- Modal درس -->
+<!-- MODAL LESSON -->
 <div class="modal-overlay" id="modalLesson">
   <div class="modal-box">
     <h3>درس جدید</h3>
@@ -439,18 +423,18 @@
   </div>
 </div>
 
-<!-- Modal حذف کتاب -->
+<!-- MODAL DELETE BOOK -->
 <div class="modal-overlay" id="modalDeleteBook">
   <div class="modal-box">
     <h3 style="color:var(--danger);">⚠️ حذف کامل کتاب</h3>
     <p style="font-size:14px;line-height:1.7;margin-bottom:14px;">
-      این کار کتاب «<strong id="delBookName">...</strong>» و <strong>همه درس‌ها، لغات، داستان‌ها و آمار SRS</strong> آن را برای همیشه حذف می‌کند.
+      این کار کتاب «<strong id="delBookName">...</strong>» و همه محتوایش را حذف می‌کند.
     </p>
     <div style="background:rgba(239,68,68,0.1);border:1px solid var(--danger);border-radius:8px;padding:12px;font-size:12px;color:var(--danger);margin-bottom:14px;">
-      ⚠️ این عملیات برگشت‌پذیر نیست!
+      ⚠️ برگشت‌پذیر نیست!
     </div>
     <label>برای تأیید، نام کتاب را تایپ کن:</label>
-    <input id="delBookConfirmInput" placeholder="نام کتاب را دقیقاً تایپ کن...">
+    <input id="delBookConfirmInput" placeholder="نام کتاب...">
     <div class="row tight" style="margin-top:14px;">
       <button class="btn btn-danger" id="confirmDeleteBookBtn" disabled>🗑 حذف کامل</button>
       <button class="btn" id="cancelDeleteBookBtn">لغو</button>
@@ -458,7 +442,7 @@
   </div>
 </div>
 
-<!-- Modal ورود کتاب از JSON -->
+<!-- MODAL IMPORT BOOK -->
 <div class="modal-overlay" id="modalImportBook">
   <div class="modal-box" style="max-width: 560px;">
     <h3>📥 وارد کردن کتاب از JSON</h3>
@@ -467,11 +451,11 @@
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
       <button class="btn btn-primary" id="importAsNewBookBtn" style="text-align:right;padding:12px;">
         <div style="font-weight:700;margin-bottom:2px;">➕ کتاب جدید</div>
-        <div style="font-size:11px;opacity:0.9;">یه کتاب جدید با اسم، سطح و عکس جلد که خودت انتخاب می‌کنی اضافه می‌شه</div>
+        <div style="font-size:11px;opacity:0.9;">یه کتاب جدید با اسم، سطح و عکس جلد اضافه می‌شه</div>
       </button>
       <button class="btn btn-warning" id="importAsReplaceBtn" style="text-align:right;padding:12px;color:#000;">
         <div style="font-weight:700;margin-bottom:2px;">🔄 جایگزینی با کتاب موجود</div>
-        <div style="font-size:11px;opacity:0.8;">لغات این فایل، داخل یه کتابی که انتخاب می‌کنی جایگزین می‌شن</div>
+        <div style="font-size:11px;opacity:0.8;">لغات داخل یه کتاب انتخاب‌شده جایگزین می‌شن</div>
       </button>
     </div>
     <div class="row tight" style="justify-content:center;">
@@ -480,7 +464,7 @@
   </div>
 </div>
 
-<!-- Modal تنظیمات کتاب جدید -->
+<!-- MODAL NEW BOOK FROM IMPORT -->
 <div class="modal-overlay" id="modalNewBookFromImport">
   <div class="modal-box" style="max-width: 500px;">
     <h3>📚 تنظیمات کتاب جدید</h3>
@@ -494,8 +478,8 @@
       <option>B2.1</option><option>B2.2</option>
       <option>C1</option><option>C2</option>
     </select>
-    <label style="margin-top:8px;">🎨 عکس جلد (لینک)</label>
-    <input id="newBookCoverInput" placeholder="https://example.com/cover.jpg" dir="ltr">
+    <label style="margin-top:8px;">🎨 عکس جلد</label>
+    <input id="newBookCoverInput" placeholder="https://..." dir="ltr">
     <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;">
       <div style="color:var(--muted);margin-bottom:4px;">📊 محتوای کتاب:</div>
       <div id="newBookStatsPreview"></div>
@@ -507,17 +491,17 @@
   </div>
 </div>
 
-<!-- Modal انتخاب کتاب برای جایگزینی -->
+<!-- MODAL REPLACE BOOK -->
 <div class="modal-overlay" id="modalReplaceTargetBook">
   <div class="modal-box" style="max-width: 500px;">
     <h3>🔄 جایگزینی با کتاب موجود</h3>
     <p class="muted" style="font-size:12px;margin-bottom:12px;">
-      یه کتاب انتخاب کن. لغات فایل JSON داخل درس‌های اون کتاب جایگزین می‌شن.
+      یه کتاب انتخاب کن. محتوای فایل داخل اون جایگزین می‌شه.
     </p>
     <label>کتاب مقصد</label>
     <select id="replaceTargetSelect"></select>
     <div style="margin-top:10px;padding:10px;background:rgba(239,68,68,0.1);border:1px solid var(--danger);border-radius:8px;font-size:12px;color:var(--danger);">
-      ⚠️ تمام درس‌ها و لغات فعلی این کتاب حذف و با محتوای فایل جایگزین می‌شن!
+      ⚠️ تمام درس‌ها و لغات فعلی این کتاب جایگزین می‌شن!
     </div>
     <div class="row tight" style="margin-top:14px;">
       <button class="btn btn-danger" id="confirmReplaceBookBtn" style="flex:1;">🔄 جایگزین کن</button>
@@ -526,17 +510,22 @@
   </div>
 </div>
 
-<!-- Modal داستان -->
+<!-- MODAL WORD VIEW -->
+<div class="word-view-modal" id="wordViewModal">
+  <div class="word-view-content" id="wordViewContent"></div>
+</div>
+
+<!-- MODAL WORD EDIT -->
+<div class="word-edit-modal" id="wordEditModal">
+  <div class="word-edit-content" id="wordEditContent"></div>
+</div>
+
+<!-- MODAL STORY READER -->
 <div class="story-reader-modal" id="storyReaderModal">
   <div class="story-reader-content">
     <button class="story-reader-close" id="closeStoryReader">✕</button>
     <div class="story-reader-body-wrap" id="storyReaderBody" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;"></div>
   </div>
-</div>
-
-<!-- Modal جزئیات کلمه -->
-<div class="word-detail-modal" id="wordDetailModal">
-  <div class="word-detail-content" id="wordDetailContent"></div>
 </div>
 
 <div class="toast" id="toast"></div>
