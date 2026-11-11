@@ -20,7 +20,7 @@
   <div class="library-container">
     <div class="library-actions">
       <button class="btn btn-primary btn-lg" id="libraryAddBookBtn">➕ کتاب جدید</button>
-      <button class="btn btn-lg" id="libraryImportBtn" style="background:var(--bg-3);">📥 ورود از JSON</button>
+      <button class="btn btn-lg" id="libraryImportBtn" style="background:var(--bg-3);">📥 افزودن کتاب از JSON</button>
     </div>
     <div id="bookCardsGrid" class="book-cards-grid"></div>
   </div>
@@ -126,13 +126,20 @@
 
   <!-- TAB PRACTICE -->
   <div id="tab-practice" class="tab-content hidden">
+    <!-- Folder View -->
     <div id="practiceFolderView">
       <div class="panel">
         <h3>🎯 انتخاب پوشه تمرین</h3>
-        <div class="row" style="margin-bottom:10px;">
+        <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
           <button class="auto-play-toggle on" id="autoPlayToggle" type="button">
             <span class="toggle-indicator"></span>
             <span id="autoPlayLabel">🔊 پخش خودکار: روشن</span>
+          </button>
+          <button class="btn btn-sm" id="flipDirectionFolderBtn" type="button">
+            🔄 جهت: <span id="directionLabel">آلمانی → فارسی</span>
+          </button>
+          <button class="btn btn-sm btn-warning" id="resetPracticeSettingsBtn" type="button">
+            ♻️ ریست تنظیمات
           </button>
         </div>
         <div class="folder-grid" id="folderGrid"></div>
@@ -141,20 +148,30 @@
         </div>
       </div>
     </div>
+
+    <!-- Practice Session -->
     <div id="practiceSession" class="hidden">
-      <div class="panel">
-        <div class="quiz-header">
+      <div class="panel practice-panel">
+        <button class="practice-theater-close" id="practiceTheaterClose" title="بستن">✕</button>
+
+        <div class="quiz-header practice-top-bar">
           <button class="btn btn-sm" id="exitPractice">⬅️ خروج</button>
           <button class="btn btn-sm" id="prevPracticeBtn" disabled>◀️ قبلی</button>
+          <button class="btn btn-sm" id="flipDirectionBtn" title="تغییر جهت کارت">🔄 جهت</button>
           <button class="auto-play-toggle" id="autoPlayToggleSession" type="button" style="padding:4px 10px;font-size:11px;">
             <span class="toggle-indicator" style="width:26px;height:14px;"></span>
             <span id="autoPlayLabelSession">🔊</span>
           </button>
+          <button class="btn btn-sm" id="muteAudioBtn" title="قطع صدا" style="background:var(--danger);border-color:var(--danger);">🔇 قطع</button>
+          <button class="btn btn-sm" id="practiceHamburgerBtn" title="پوشه‌ها">☰</button>
           <span id="practiceCounter">0 / 0</span>
+          <button class="btn btn-sm" id="practiceFullscreenBtn" title="نمایش بزرگ">⛶ بزرگ</button>
         </div>
+
         <div class="quiz-progress">
           <div class="quiz-progress-fill" id="practiceProgress" style="width:0%"></div>
         </div>
+
         <div id="fcMode">
           <div class="flashcard-stage" id="flashcardStage">
             <div class="flashcard-inner" id="flashcardInner">
@@ -177,6 +194,15 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Folder Drawer -->
+    <div class="practice-folder-menu hidden" id="practiceFolderMenu">
+      <div class="practice-folder-menu-head">
+        <strong>📁 پوشه‌ها</strong>
+        <button class="btn btn-sm" id="closeFolderMenuBtn">✕</button>
+      </div>
+      <div class="practice-folder-menu-list" id="practiceFolderMenuList"></div>
     </div>
   </div>
 
@@ -202,7 +228,7 @@
     <div class="panel">
       <h3>📂 افزودن از فایل JSON</h3>
       <p class="muted" style="font-size:12px;margin-bottom:10px;line-height:1.8;">
-        فایل JSON رو بکش و اینجا رها کن یا کلیک کن. فرمت‌های پشتیبانی‌شده:
+        فایل JSON رو بکش و اینجا رها کن یا کلیک کن.
         <br>• <b>درس کامل با عنوان</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">{"lesson":"...","words":[...],"stories":[...]}</code>
         <br>• <b>آرایه لغات</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">[{"word":"...","mean":"..."}]</code>
         <br>• <b>کتاب کامل</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">{"name":"...","lessons":[...]}</code>
@@ -227,13 +253,10 @@
   "lesson": "Lektion 2",
   "words": [
     {"de":"Buch","fa":"کتاب","art":"das"}
-  ],
-  "stories": [
-    {"title":"Meine Familie","sentences":[{"de":"...","fa":"..."}]}
   ]
 }' style="min-height:160px;direction:ltr;text-align:left;font-family:monospace;font-size:12px;"></textarea>
       <div style="margin-top:10px;">
-        <label>🎯 مقصد پیش‌فرض (اگه عنوان نداشت)</label>
+        <label>🎯 مقصد پیش‌فرض</label>
         <select id="jsonTargetLesson"></select>
       </div>
       <div class="row tight" style="margin-top:10px;flex-wrap:wrap;">
@@ -449,6 +472,61 @@
     <div class="row tight" style="margin-top:14px;">
       <button class="btn btn-danger" id="confirmDeleteBookBtn" disabled>🗑 حذف کامل</button>
       <button class="btn" id="cancelDeleteBookBtn">لغو</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: LIBRARY JSON IMPORT -->
+<div class="modal-overlay" id="modalLibraryImport">
+  <div class="modal-box" style="max-width:600px;">
+    <h3>📥 افزودن کتاب از JSON</h3>
+    <p class="muted" style="font-size:12px;line-height:1.8;margin-bottom:14px;">
+      از یکی از روش‌های زیر کتاب کامل اضافه کن:
+    </p>
+    <div class="import-methods">
+      <div class="import-method-card" id="libImportFileCard">
+        <div class="imc-icon">📁</div>
+        <div class="imc-body">
+          <div class="imc-title">انتخاب فایل از کامپیوتر</div>
+          <div class="imc-desc">فایل JSON کتاب رو انتخاب کن</div>
+        </div>
+      </div>
+      <div class="import-method-card" id="libImportUrlCard">
+        <div class="imc-icon">🔗</div>
+        <div class="imc-body">
+          <div class="imc-title">دریافت از لینک (URL)</div>
+          <div class="imc-desc">آدرس JSON کتاب رو وارد کن</div>
+        </div>
+      </div>
+      <div class="import-method-card" id="libImportPasteCard">
+        <div class="imc-icon">📋</div>
+        <div class="imc-body">
+          <div class="imc-title">پیست متن JSON</div>
+          <div class="imc-desc">مستقیم JSON رو پیست کن</div>
+        </div>
+      </div>
+    </div>
+    <div id="libImportUrlBox" class="hidden" style="margin-top:12px;">
+      <label>آدرس JSON کتاب:</label>
+      <input id="libImportUrlInput" placeholder="https://example.com/book.json" dir="ltr">
+      <div class="row tight" style="margin-top:8px;">
+        <button class="btn btn-primary" id="libImportUrlFetchBtn">⬇️ دریافت و افزودن</button>
+        <button class="btn" id="libImportUrlCancelBtn">لغو</button>
+      </div>
+      <div id="libImportUrlStatus" style="margin-top:10px;"></div>
+    </div>
+    <div id="libImportPasteBox" class="hidden" style="margin-top:12px;">
+      <label>متن JSON کتاب:</label>
+      <textarea id="libImportPasteInput" placeholder='{"name":"Menschen A1.1","level":"A1.1","lessons":[...]}' style="min-height:140px;direction:ltr;text-align:left;font-family:monospace;font-size:12px;"></textarea>
+      <div class="row tight" style="margin-top:8px;">
+        <button class="btn btn-primary" id="libImportPasteAddBtn">➕ افزودن</button>
+        <button class="btn" id="libImportPasteCancelBtn">لغو</button>
+      </div>
+      <div id="libImportPasteStatus" style="margin-top:10px;"></div>
+    </div>
+    <input type="file" id="libImportFileInput" accept=".json,application/json" style="display:none;">
+    <div class="row tight" style="margin-top:14px;justify-content:center;">
+      <button class="btn" id="cancelLibraryImportBtn">بستن</button>
     </div>
   </div>
 </div>

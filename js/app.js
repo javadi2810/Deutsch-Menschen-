@@ -8,9 +8,9 @@ const STORAGE_KEY = 'german-vocab-pro-v1';
 const LEGACY_KEYS = ['german-vocab-v2', 'german_vocab_app_data_v11', 'german-vocab-pro'];
 const AUTOPLAY_KEY = 'german-vocab-autoplay';
 
-let state = { books: [], activeBookId: null, activeLessonId: null };
+let state = { books: [], activeBookId: null, activeLessonId: null, lastLessonByBook: {}, quizHistory: [] };
 let practice = { active: false, queue: [], index: 0, ratings: {} };
-let quizState = { mode: null, questions: [], index: 0, correct: 0, wrong: 0, wrongWords: [], answered: false };
+let quizState = { mode: null, questions: [], index: 0, correct: 0, wrong: 0, wrongWords: [], answered: false, startedAt: 0 };
 let storyEditId = null;
 let currentStoryId = null;
 let repeatMode = 0;
@@ -19,6 +19,7 @@ let cardSortMode = 'alpha';
 let currentAudio = null;
 let editingBookId = null;
 let pendingBookData = null;
+let practiceDirection = 'de-fa';
 
 let autoPlayWord = true;
 try {
@@ -44,7 +45,6 @@ function toast(msg, type){
   t._timer = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-/* ✅ نرمال‌سازی آلمانی — برای مقایسه درست در آزمون تایپ */
 function normalizeGerman(str){
   return String(str || '')
     .toLowerCase()
@@ -56,7 +56,6 @@ function normalizeGerman(str){
     .replace(/\s+/g, ' ')
     .trim();
 }
-/* ✅ مقایسه دو جواب آلمانی — با نرمال‌سازی */
 function germanEquals(a, b){
   return normalizeGerman(a) === normalizeGerman(b);
 }
@@ -155,6 +154,13 @@ function shuffle(a){
   }
   return a;
 }
+function quizModeLabel(mode){
+  const m = {
+    mean:'🔤 معنی', sentence:'📝 جمله', typing:'⌨️ تایپ',
+    listening:'🎧 شنیداری', article:'🔤 جنسیت', plural:'📚 جمع'
+  };
+  return m[mode] || mode;
+}
 
 /* ============================================================
    SAMPLE LESSON
@@ -168,9 +174,7 @@ function makeSampleLesson(){
       {
         id: 'sample-story-' + uid(),
         title: 'Geschichte 1: Meine Familie',
-        audio: '',
-        coverImage: '',
-        coverColor: '#536dfe',
+        audio: '', coverImage: '', coverColor: '#536dfe',
         sentences: [
           { de: 'Meine Familie ist nicht sehr groß.', fa: 'خانواده من خیلی بزرگ نیست.' },
           { de: 'Mein Vater arbeitet in einer Firma.', fa: 'پدر من در یک شرکت کار می‌کند.' },
@@ -183,9 +187,7 @@ function makeSampleLesson(){
       {
         id: 'sample-story-' + uid(),
         title: 'Geschichte 2: Ein Tag mit Freunden',
-        audio: '',
-        coverImage: '',
-        coverColor: '#536dfe',
+        audio: '', coverImage: '', coverColor: '#536dfe',
         sentences: [
           { de: 'Heute treffe ich meine Freunde.', fa: 'امروز دوستانم را می‌بینم.' },
           { de: 'Wir lernen zusammen Deutsch.', fa: 'ما با هم آلمانی یاد می‌گیریم.' },
@@ -210,6 +212,16 @@ function makeSampleLesson(){
   };
 }
 
+/* ✅ اطمینان از وجود فقط یک درس نمونه در کتاب */
+function ensureSingleSampleLesson(book) {
+  if (!book) return;
+  if (!Array.isArray(book.lessons)) book.lessons = [];
+  // همه درس‌های نمونه قبلی رو حذف کن
+  book.lessons = book.lessons.filter(l => !l.isSample);
+  // فقط یک درس نمونه جدید اضافه کن
+  book.lessons.unshift(makeSampleLesson());
+}
+
 /* ============================================================
    AUTO PLAY
    ============================================================ */
@@ -228,6 +240,20 @@ function toggleAutoPlay(){
   try { localStorage.setItem(AUTOPLAY_KEY, String(autoPlayWord)); } catch(e){}
   updateAutoPlayUI();
   toast(autoPlayWord ? '🔊 پخش خودکار روشن شد' : '🔇 پخش خودکار خاموش شد', autoPlayWord ? 'success' : 'warning');
+}
+
+/* ============================================================
+   PRACTICE DIRECTION
+   ============================================================ */
+function updateDirectionLabel(){
+  const lbl = document.getElementById('directionLabel');
+  if (lbl) lbl.textContent = practiceDirection === 'de-fa' ? 'آلمانی → فارسی' : 'فارسی → آلمانی';
+}
+function togglePracticeDirection(){
+  practiceDirection = practiceDirection === 'de-fa' ? 'fa-de' : 'de-fa';
+  updateDirectionLabel();
+  if (practice.active) showCurrentPracticeCard();
+  toast(practiceDirection === 'de-fa' ? '🔄 جهت: آلمانی → فارسی' : '🔄 جهت: فارسی → آلمانی', 'success');
 }
 
 /* ============================================================
@@ -315,17 +341,20 @@ function normalizeBook(raw, fallbackName){
    DEFAULT DATA
    ============================================================ */
 function defaultData(){
-  const sampleLesson = makeSampleLesson();
+  const book = {
+    id: uid(),
+    name: 'Menschen',
+    level: 'A1.1',
+    coverImage: '',
+    lessons: []
+  };
+  ensureSingleSampleLesson(book);
   return {
-    books: [{
-      id: uid(),
-      name: 'Menschen',
-      level: 'A1.1',
-      coverImage: '',
-      lessons: [sampleLesson]
-    }],
-    activeBookId: null,
-    activeLessonId: null
+    books: [book],
+    activeBookId: book.id,
+    activeLessonId: book.lessons[0].id,
+    lastLessonByBook: {},
+    quizHistory: []
   };
 }
 
@@ -334,11 +363,17 @@ function defaultData(){
    ============================================================ */
 function tryMigrateLegacy(){
   const currentRaw = localStorage.getItem(STORAGE_KEY);
-  if (currentRaw) {
+  // ✅ اگر STORAGE_KEY وجود داره (حتی اگه books خالی باشه)، legacy رو چک نکن
+  if (currentRaw !== null) {
     try {
       const d = JSON.parse(currentRaw);
-      if (d && Array.isArray(d.books) && d.books.length) return d;
+      if (d && typeof d === 'object' && Array.isArray(d.books)) {
+        if (!d.lastLessonByBook) d.lastLessonByBook = {};
+        if (!Array.isArray(d.quizHistory)) d.quizHistory = [];
+        return d;
+      }
     } catch(e){}
+    return null;
   }
   for (const key of LEGACY_KEYS) {
     const raw = localStorage.getItem(key);
@@ -348,6 +383,7 @@ function tryMigrateLegacy(){
       const migrated = migrateFromLegacy(data);
       if (migrated && migrated.books.length) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+        try { localStorage.removeItem(key); } catch(e){}
         return migrated;
       }
     } catch(e) { console.warn('[Migration]', e); }
@@ -360,7 +396,9 @@ function migrateFromLegacy(data){
     const result = {
       books,
       activeBookId: data.activeBookId || (books[0] && books[0].id),
-      activeLessonId: data.activeLessonId || (books[0] && books[0].lessons[0] && books[0].lessons[0].id)
+      activeLessonId: data.activeLessonId || (books[0] && books[0].lessons[0] && books[0].lessons[0].id),
+      lastLessonByBook: data.lastLessonByBook || {},
+      quizHistory: Array.isArray(data.quizHistory) ? data.quizHistory : []
     };
     if (!result.books.find(b => b.id === result.activeBookId)) result.activeBookId = result.books[0]?.id || null;
     const ab = result.books.find(b => b.id === result.activeBookId);
@@ -369,7 +407,7 @@ function migrateFromLegacy(data){
   }
   const books = [];
   if (typeof data === 'object' && data !== null) {
-    const specialKeys = ['activeBookId', 'activeLessonId', 'books'];
+    const specialKeys = ['activeBookId', 'activeLessonId', 'books', 'lastLessonByBook', 'quizHistory'];
     const realBooks = Object.keys(data).filter(k => !specialKeys.includes(k) && typeof data[k] === 'object');
     realBooks.forEach(bookName => {
       const lessonsData = data[bookName];
@@ -390,24 +428,39 @@ function migrateFromLegacy(data){
     });
   }
   if (!books.length) return null;
-  return { books, activeBookId: books[0].id, activeLessonId: books[0].lessons[0]?.id || null };
+  return { books, activeBookId: books[0].id, activeLessonId: books[0].lessons[0]?.id || null, lastLessonByBook: {}, quizHistory: [] };
 }
 function load(){
   const migrated = tryMigrateLegacy();
   if (migrated) {
     migrated.books.forEach(b => {
+      // ✅ فقط اگه کتاب هیچ درسی نداره، درس نمونه اضافه کن
       if (!Array.isArray(b.lessons) || !b.lessons.length) {
-        b.lessons = [makeSampleLesson()];
+        ensureSingleSampleLesson(b);
       }
     });
     return migrated;
   }
-  const d = defaultData();
-  d.activeBookId = d.books[0].id;
-  d.activeLessonId = d.books[0].lessons[0].id;
-  return d;
+  // ✅ اگر STORAGE_KEY وجود داره ولی books خالیه (همه کتاب‌ها حذف شده)، default نساز
+  const currentRaw = localStorage.getItem(STORAGE_KEY);
+  if (currentRaw !== null) {
+    try {
+      const d = JSON.parse(currentRaw);
+      if (d && typeof d === 'object' && Array.isArray(d.books)) {
+        if (!d.lastLessonByBook) d.lastLessonByBook = {};
+        if (!Array.isArray(d.quizHistory)) d.quizHistory = [];
+        return d;
+      }
+    } catch(e){}
+  }
+  // فقط اگه STORAGE_KEY اصلاً وجود نداره (اولین اجرا)، default بساز
+  return defaultData();
 }
 function save(){
+  if (!state.lastLessonByBook) state.lastLessonByBook = {};
+  if (state.activeBookId && state.activeLessonId) {
+    state.lastLessonByBook[state.activeBookId] = state.activeLessonId;
+  }
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch(e){ console.error(e); }
 }
@@ -429,7 +482,6 @@ function getLessonById(lessonId){
 function getWords(){ const l = getLesson(); return l ? l.words : []; }
 function getStories(){ const l = getLesson(); return l ? l.stories : []; }
 
-/* ✅ کلمات سررسیده برای مرور در همه درس‌های کتاب فعال */
 function getDueWords(book){
   book = book || getBook();
   if (!book) return [];
@@ -530,7 +582,6 @@ function updateAppTitle(){
   }
 }
 
-/* ✅ بنر مرور امروز */
 function updateReviewBanner(){
   const banner = document.getElementById('reviewBanner');
   if (!banner) return;
@@ -553,7 +604,6 @@ function updateReviewBanner(){
   if (btn) btn.addEventListener('click', startDailyReview);
 }
 
-/* ✅ شروع مرور روزانه */
 function startDailyReview(){
   const due = getDueWords();
   if (!due.length) { toast('کلمه‌ای برای مرور نیست!', 'warning'); return; }
@@ -592,6 +642,7 @@ function renderBookLibrary(){
     const pct = totalWords ? Math.round((mastered / totalWords) * 100) : 0;
     return `<div class="book-card-library" data-book-id="${esc(book.id)}">
       <button class="book-card-edit" data-lib-edit="${esc(book.id)}" title="ویرایش">✏️</button>
+      <button class="book-card-download" data-lib-download="${esc(book.id)}" title="دانلود کتاب">⬇️</button>
       <button class="book-card-delete" data-lib-del="${esc(book.id)}" title="حذف">🗑</button>
       <div class="book-cover-wrap">
         ${coverImage
@@ -621,7 +672,7 @@ function renderBookLibrary(){
 
   grid.querySelectorAll('[data-book-id]').forEach(card => {
     card.addEventListener('click', e => {
-      if (e.target.closest('[data-lib-del]') || e.target.closest('[data-lib-edit]')) return;
+      if (e.target.closest('[data-lib-del]') || e.target.closest('[data-lib-edit]') || e.target.closest('[data-lib-download]')) return;
       openBook(card.dataset.bookId);
     });
   });
@@ -629,6 +680,16 @@ function renderBookLibrary(){
     btn.addEventListener('click', e => {
       e.stopPropagation();
       openEditBookModal(btn.dataset.libEdit);
+    });
+  });
+  grid.querySelectorAll('[data-lib-download]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const bookId = btn.dataset.libDownload;
+      const book = state.books.find(b => b.id === bookId);
+      if (!book) return;
+      exportData(book, `${book.name}-${book.level || 'A1.1'}.json`);
+      toast(`⬇️ «${book.name}» دانلود شد`, 'success');
     });
   });
   grid.querySelectorAll('[data-lib-del]').forEach(btn => {
@@ -647,6 +708,8 @@ function renderBookLibrary(){
         state.activeLessonId = nb?.lessons[0]?.id || null;
       }
       save();
+      // ✅ legacy رو پاک کن تا کتاب حذف‌شده برنگرده
+      LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
       renderBookLibrary();
       toast(`🗑 «${book.name}» حذف شد`, 'success');
     });
@@ -656,8 +719,17 @@ function renderBookLibrary(){
 function openBook(bookId){
   const book = state.books.find(b => b.id === bookId);
   if (!book) return;
+  // ✅ اگر تمرین فعاله، خارج شو
+  if (practice.active) exitPractice();
+
   state.activeBookId = bookId;
-  state.activeLessonId = book.lessons[0]?.id || null;
+  // ✅ آخرین درس این کتاب رو بازیابی کن
+  const savedLessonId = state.lastLessonByBook && state.lastLessonByBook[bookId];
+  if (savedLessonId && book.lessons.find(l => l.id === savedLessonId)) {
+    state.activeLessonId = savedLessonId;
+  } else {
+    state.activeLessonId = book.lessons[0]?.id || null;
+  }
   save();
   showMainApp();
   renderAll();
@@ -749,8 +821,8 @@ function confirmNewBookFromImport(){
     });
   }
   newBooks.forEach(nb => {
-    if (!Array.isArray(nb.lessons)) nb.lessons = [];
-    nb.lessons.unshift(makeSampleLesson());
+    // ✅ فقط یک درس نمونه
+    ensureSingleSampleLesson(nb);
   });
   newBooks.forEach(nb => state.books.push(nb));
   state.activeBookId = newBooks[0].id;
@@ -793,20 +865,22 @@ function confirmReplaceBook(){
   } else {
     pendingBookData.data.forEach(b => { sourceLessons = sourceLessons.concat(b.lessons); });
   }
-  const newLessons = sourceLessons.map(l => ({
-    id: uid(),
-    title: l.title || 'درس',
-    words: (l.words || []).map(w => ({ ...w, id: w.id || uid() })),
-    stories: (l.stories || []).map(s => ({ ...s, id: s.id || uid() })),
-    isSample: false
-  }));
-  const oldSample = (targetBook.lessons || []).find(l => l.isSample);
-  const sampleToKeep = oldSample || makeSampleLesson();
-  targetBook.lessons = [sampleToKeep, ...newLessons];
+  const newLessons = sourceLessons
+    .filter(l => !l.isSample)  // ✅ درس‌های نمونه قدیمی رو حذف کن
+    .map(l => ({
+      id: uid(),
+      title: l.title || 'درس',
+      words: (l.words || []).map(w => ({ ...w, id: w.id || uid() })),
+      stories: (l.stories || []).map(s => ({ ...s, id: s.id || uid() })),
+      isSample: false
+    }));
+  // ✅ فقط یک درس نمونه
+  const sampleLesson = makeSampleLesson();
+  targetBook.lessons = [sampleLesson, ...newLessons];
   targetBook.coverImage = sourceCover;
   targetBook.level = sourceLevel;
   state.activeBookId = targetBook.id;
-  state.activeLessonId = sampleToKeep.id;
+  state.activeLessonId = sampleLesson.id;
   save();
   document.getElementById('modalReplaceTargetBook').classList.remove('active');
   document.body.classList.remove('locked');
@@ -1431,6 +1505,90 @@ function renderFolders(){
 }
 
 /* ============================================================
+   PRACTICE FOLDER DRAWER
+   ============================================================ */
+function buildFolderMenu(){
+  const words = getWords();
+  const now = Date.now();
+  let c = { new:0, learning:0, good:0, bad:0, due:0 };
+  words.forEach(w => {
+    const st = normalizeStatus(w);
+    if (c[st] !== undefined) c[st]++;
+    const s = ensureSrs(w);
+    if (!s.nextReview || s.nextReview <= now) c.due++;
+  });
+  const list = document.getElementById('practiceFolderMenuList');
+  if (!list) return;
+  const items = [
+    { key:'new', icon:'⚪', label:'جدید', count:c.new },
+    { key:'learning', icon:'🟡', label:'در یادگیری', count:c.learning },
+    { key:'good', icon:'🟢', label:'مسلط', count:c.good },
+    { key:'bad', icon:'❌', label:'بلد نیستم', count:c.bad },
+    { key:'due', icon:'📅', label:'مرور امروز', count:c.due },
+    { key:'all', icon:'📦', label:'همه', count:words.length },
+  ];
+  list.innerHTML = items.map(i =>
+    `<div class="practice-folder-menu-item" data-menu-folder="${i.key}">
+      <span>${i.icon} ${i.label}</span>
+      <span class="count">${i.count}</span>
+    </div>`
+  ).join('');
+  list.querySelectorAll('[data-menu-folder]').forEach(el => {
+    el.addEventListener('click', () => {
+      const menu = document.getElementById('practiceFolderMenu');
+      if (menu) menu.classList.add('hidden');
+      startPractice(el.dataset.menuFolder);
+    });
+  });
+}
+
+/* ============================================================
+   THEATER MODE
+   ============================================================ */
+function enterTheaterMode(){
+  document.body.classList.add('practice-theater');
+  const btn = document.getElementById('practiceFullscreenBtn');
+  if (btn) {
+    btn.textContent = '✕ خروج';
+    btn.title = 'بستن حالت بزرگ';
+  }
+}
+function exitTheaterMode(){
+  document.body.classList.remove('practice-theater');
+  const btn = document.getElementById('practiceFullscreenBtn');
+  if (btn) {
+    btn.textContent = '⛶ بزرگ';
+    btn.title = 'نمایش بزرگ';
+  }
+}
+function toggleTheaterMode(){
+  if (document.body.classList.contains('practice-theater')) exitTheaterMode();
+  else enterTheaterMode();
+}
+
+/* ============================================================
+   RESET PRACTICE SETTINGS
+   ============================================================ */
+function resetPracticeSettings(){
+  if (!confirm('تنظیمات تمرین (پخش خودکار، جهت کارت، مرتب‌سازی) به حالت اولیه برگرده؟')) return;
+  autoPlayWord = true;
+  try { localStorage.setItem(AUTOPLAY_KEY, 'true'); } catch(e){}
+  updateAutoPlayUI();
+  repeatMode = 0;
+  repeatCounter = 0;
+  practiceDirection = 'de-fa';
+  updateDirectionLabel();
+  cardSortMode = 'alpha';
+  if (practice.active) exitPractice();
+  exitTheaterMode();
+  const menu = document.getElementById('practiceFolderMenu');
+  if (menu) menu.classList.add('hidden');
+  renderFolders();
+  renderCards();
+  toast('♻️ تنظیمات به حالت اولیه برگشت', 'success');
+}
+
+/* ============================================================
    PRACTICE
    ============================================================ */
 function startPractice(folderType){
@@ -1450,6 +1608,7 @@ function startPractice(folderType){
   document.getElementById('practiceSession').classList.remove('hidden');
   showCurrentPracticeCard();
 }
+
 function showCurrentPracticeCard(){
   if (practice.index >= practice.queue.length) {
     exitPractice();
@@ -1460,15 +1619,37 @@ function showCurrentPracticeCard(){
   document.getElementById('practiceCounter').textContent = `${practice.index + 1} / ${practice.queue.length}`;
   document.getElementById('practiceProgress').style.width = ((practice.index / practice.queue.length) * 100) + '%';
   document.getElementById('flashcardInner').classList.remove('flipped');
-  document.getElementById('fcArt').textContent = w.art && w.art !== '–' ? w.art : '';
-  document.getElementById('fcArt').className = 'fc-art art ' + articleClass(w.art);
-  document.getElementById('fcWord').textContent = w.de;
-  document.getElementById('fcMeaning').textContent = w.fa;
-  document.getElementById('fcExample').innerHTML = w.ex ? `📌 ${esc(w.ex)}${w.exMean ? `<br><small>${esc(w.exMean)}</small>` : ''}` : '';
+
+  // ✅ اعمال جهت کارت
+  if (practiceDirection === 'de-fa') {
+    document.getElementById('fcArt').textContent = w.art && w.art !== '–' ? w.art : '';
+    document.getElementById('fcArt').className = 'fc-art art ' + articleClass(w.art);
+    document.getElementById('fcWord').textContent = w.de;
+    document.getElementById('fcMeaning').textContent = w.fa;
+    document.getElementById('fcExample').innerHTML = w.ex ? `📌 ${esc(w.ex)}${w.exMean ? `<br><small>${esc(w.exMean)}</small>` : ''}` : '';
+  } else {
+    // فارسی → آلمانی
+    document.getElementById('fcArt').textContent = '';
+    document.getElementById('fcArt').className = 'fc-art';
+    document.getElementById('fcWord').textContent = w.fa;
+    document.getElementById('fcMeaning').textContent = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+    document.getElementById('fcExample').innerHTML = w.exMean ? `📌 ${esc(w.exMean)}${w.ex ? `<br><small dir="ltr">${esc(w.ex)}</small>` : ''}` : (w.ex ? `📌 <span dir="ltr">${esc(w.ex)}</span>` : '');
+  }
+
   const prevBtn = document.getElementById('prevPracticeBtn');
   if (prevBtn) prevBtn.disabled = practice.index === 0;
-  if (autoPlayWord) setTimeout(() => speakTTS(w.de), 200);
+
+  // ✅ صدا فقط در جهت de-fa و فقط اگر کارت نچرخیده
+  if (autoPlayWord && practiceDirection === 'de-fa') {
+    setTimeout(() => {
+      const inner = document.getElementById('flashcardInner');
+      if (inner && !inner.classList.contains('flipped')) {
+        speakTTS(w.de);
+      }
+    }, 200);
+  }
 }
+
 function rateCurrent(rating){
   const w = practice.queue[practice.index];
   reviewWord(w, rating);
@@ -1477,23 +1658,65 @@ function rateCurrent(rating){
   showCurrentPracticeCard();
   renderStats();
 }
+
 function exitPractice(){
+  exitTheaterMode();
+  const menu = document.getElementById('practiceFolderMenu');
+  if (menu) menu.classList.add('hidden');
+
   practice.active = false;
   practice.ratings = {};
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   if (currentAudio) { try { currentAudio.pause(); } catch(e){} currentAudio = null; }
-  document.getElementById('practiceFolderView').classList.remove('hidden');
-  document.getElementById('practiceSession').classList.add('hidden');
+  const folderView = document.getElementById('practiceFolderView');
+  const sessionView = document.getElementById('practiceSession');
+  if (folderView) folderView.classList.remove('hidden');
+  if (sessionView) sessionView.classList.add('hidden');
   renderAll(); populateLessonTargets();
   updateReviewBanner();
 }
 
 /* ============================================================
-   QUIZ (با آزمون تطبیقی)
+   QUIZ STATS HELPERS
    ============================================================ */
-/* ✅ انتخاب کلمات تطبیقی: ۵۰٪ bad، ۳۰٪ learning، ۲۰٪ good/new */
+function getQuizModeStats(mode){
+  const history = (state.quizHistory || []).filter(h =>
+    h.lessonId === state.activeLessonId && h.mode === mode
+  );
+  if (!history.length) {
+    return { attempts: 0, bestPct: 0, lastPct: 0, lastDate: null, totalWordsTested: 0 };
+  }
+  let bestPct = 0;
+  let totalWordsTested = 0;
+  let last = history[history.length - 1];
+  history.forEach(h => {
+    if (h.pct > bestPct) bestPct = h.pct;
+    totalWordsTested += h.total || 0;
+  });
+  return {
+    attempts: history.length,
+    bestPct,
+    lastPct: last.pct,
+    lastDate: last.date,
+    totalWordsTested
+  };
+}
+
+function renderModeStatsBadge(mode){
+  const s = getQuizModeStats(mode);
+  if (s.attempts === 0) {
+    return `<div class="quiz-mode-stats none">🆕 هنوز کار نکردی</div>`;
+  }
+  return `<div class="quiz-mode-stats done">
+    <span class="qms-attempts">🔁 ${s.attempts} بار</span>
+    <span class="qms-best">🏆 ${s.bestPct}%</span>
+  </div>`;
+}
+
+/* ============================================================
+   QUIZ
+   ============================================================ */
 function pickAdaptiveWords(words, count){
-  const now = Date.now();
   const bad = words.filter(w => normalizeStatus(w) === 'bad');
   const learning = words.filter(w => normalizeStatus(w) === 'learning');
   const good = words.filter(w => normalizeStatus(w) === 'good');
@@ -1511,7 +1734,6 @@ function pickAdaptiveWords(words, count){
     ...shuffle(fresh).slice(0, nFresh)
   ];
   
-  // اگه کم بود، از بقیه پر کن
   if (picked.length < count) {
     const remaining = words.filter(w => !picked.find(p => p.id === w.id));
     picked = picked.concat(shuffle(remaining).slice(0, count - picked.length));
@@ -1530,6 +1752,51 @@ function renderQuizHome(){
   const pluralCount = words.filter(w => w.plural && w.plural !== '–').length;
   const due = getDueWords();
 
+  const lessonHistory = (state.quizHistory || [])
+    .filter(h => h.lessonId === state.activeLessonId)
+    .slice(-10)
+    .reverse();
+
+  // ✅ بخش وضعیت کلی
+  const modes = ['mean', 'sentence', 'typing', 'listening', 'article', 'plural'];
+  const tested = modes.filter(m => getQuizModeStats(m).attempts > 0);
+  const notTested = modes.filter(m => getQuizModeStats(m).attempts === 0);
+  const totalAttempts = modes.reduce((s, m) => s + getQuizModeStats(m).attempts, 0);
+  let overviewHtml = '';
+  if (totalAttempts === 0) {
+    overviewHtml = `
+      <div class="quiz-overview new">
+        <div class="qo-icon">🆕</div>
+        <div class="qo-text">
+          <strong>هنوز هیچ آزمونی از این درس کار نکردی!</strong>
+          <div class="qo-sub">با انتخاب یکی از حالت‌های زیر شروع کن</div>
+        </div>
+      </div>
+    `;
+  } else {
+    overviewHtml = `
+      <div class="quiz-overview">
+        <div class="qo-row">
+          <span class="qo-label">📊 کل آزمون‌ها:</span>
+          <span class="qo-value">${totalAttempts} بار</span>
+        </div>
+        <div class="qo-row">
+          <span class="qo-label">✅ کار شده:</span>
+          <span class="qo-value qo-done">${tested.length} حالت</span>
+        </div>
+        ${notTested.length ? `
+        <div class="qo-row">
+          <span class="qo-label">⏳ هنوز کار نشده:</span>
+          <span class="qo-value qo-pending">${notTested.length} حالت</span>
+        </div>
+        <div class="qo-pending-list">
+          ${notTested.map(m => `<span class="qo-pending-chip">${quizModeLabel(m)}</span>`).join('')}
+        </div>
+        ` : `<div class="qo-all-done">🎉 همه حالت‌ها رو کار کردی!</div>`}
+      </div>
+    `;
+  }
+
   container.innerHTML = `
     <div class="panel">
       <h3 style="text-align:center;font-size:20px;margin-bottom:8px;">🎯 آزمون هوشمند</h3>
@@ -1543,32 +1810,38 @@ function renderQuizHome(){
           </button>
         </div>
       ` : ''}
+      ${overviewHtml}
       <div class="quiz-mode-grid">
         <div class="quiz-mode-card mode-mean" data-quiz-mode="mean">
           <span class="mode-icon">🔤</span>
           <div class="mode-title">معنی کلمه</div>
-          <div class="mode-desc">${words.length} کلمه<br>کلمه آلمانی → معنی فارسی</div>
+          <div class="mode-desc">${words.length} کلمه<br>کلمه آلمانی ↔ معنی فارسی</div>
+          ${renderModeStatsBadge('mean')}
         </div>
         <div class="quiz-mode-card mode-sentence" data-quiz-mode="sentence">
           <span class="mode-icon">📝</span>
           <div class="mode-title">جای خالی در جمله</div>
           <div class="mode-desc">${exampleCount} جمله<br>کلمه درست رو انتخاب کن</div>
+          ${renderModeStatsBadge('sentence')}
         </div>
         <div class="quiz-mode-card mode-typing" data-quiz-mode="typing">
           <span class="mode-icon">⌨️</span>
           <div class="mode-title">تایپ کردن</div>
           <div class="mode-desc">${words.length} کلمه<br>ترجمه فارسی → تایپ آلمانی</div>
+          ${renderModeStatsBadge('typing')}
         </div>
         <div class="quiz-mode-card mode-listening" data-quiz-mode="listening">
           <span class="mode-icon">🎧</span>
           <div class="mode-title">شنیداری</div>
           <div class="mode-desc">${words.length} کلمه<br>گوش کن → تایپ کن</div>
+          ${renderModeStatsBadge('listening')}
         </div>
         ${nounCount >= 2 ? `
           <div class="quiz-mode-card mode-article" data-quiz-mode="article">
             <span class="mode-icon">🔤</span>
             <div class="mode-title">جنسیت اسم</div>
             <div class="mode-desc">${nounCount} اسم<br>der / die / das</div>
+            ${renderModeStatsBadge('article')}
           </div>
         ` : ''}
         ${pluralCount >= 2 ? `
@@ -1576,6 +1849,7 @@ function renderQuizHome(){
             <span class="mode-icon">📚</span>
             <div class="mode-title">جمع اسم</div>
             <div class="mode-desc">${pluralCount} اسم<br>جمع درست رو انتخاب کن</div>
+            ${renderModeStatsBadge('plural')}
           </div>
         ` : ''}
       </div>
@@ -1587,6 +1861,28 @@ function renderQuizHome(){
         </div>
       ` : ''}
     </div>
+    ${lessonHistory.length ? `
+      <div class="panel" style="margin-top:16px;">
+        <h3>📊 تاریخچه آزمون‌های این درس</h3>
+        <div class="quiz-history-list">
+          ${lessonHistory.map(h => {
+            const d = new Date(h.date);
+            let dateStr = '';
+            try {
+              dateStr = d.toLocaleDateString('fa-IR') + ' ' + d.toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'});
+            } catch(e) {
+              dateStr = d.toLocaleString();
+            }
+            return `<div class="quiz-history-item">
+              <span class="qh-mode">${quizModeLabel(h.mode)}</span>
+              <span class="qh-score" style="color:${h.pct>=70?'var(--accent)':h.pct>=50?'var(--warning)':'var(--danger)'}">${h.pct}%</span>
+              <span class="qh-detail">${h.correct}/${h.total}</span>
+              <span class="qh-date">${dateStr}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    ` : ''}
   `;
 
   container.querySelectorAll('[data-quiz-mode]').forEach(card => {
@@ -1616,17 +1912,24 @@ function startQuizMode(mode, onlyBad){
   quizState.wrong = 0;
   quizState.wrongWords = [];
   quizState.answered = false;
+  quizState.startedAt = Date.now();
 
-  // ✅ انتخاب تطبیقی — مکس ۲۰ سوال
   const poolSize = Math.min(20, words.length);
   const picked = pickAdaptiveWords(words, poolSize);
 
   if (mode === 'mean') {
     picked.forEach(w => {
-      const others = words.filter(x => x.id !== w.id).map(x => x.fa).filter(Boolean);
-      if (others.length < 2) return;
-      const opts = shuffle([w.fa, ...shuffle(others).slice(0, 3)]);
-      quizState.questions.push({ type: 'mean', word: w, correct: w.fa, options: opts });
+      if (practiceDirection === 'de-fa') {
+        const others = words.filter(x => x.id !== w.id).map(x => x.fa).filter(Boolean);
+        if (others.length < 2) return;
+        const opts = shuffle([w.fa, ...shuffle(others).slice(0, 3)]);
+        quizState.questions.push({ type: 'mean', word: w, correct: w.fa, options: opts, dir: 'de-fa' });
+      } else {
+        const others = words.filter(x => x.id !== w.id).map(x => x.de).filter(Boolean);
+        if (others.length < 2) return;
+        const opts = shuffle([w.de, ...shuffle(others).slice(0, 3)]);
+        quizState.questions.push({ type: 'mean', word: w, correct: w.de, options: opts, dir: 'fa-de' });
+      }
     });
   } else if (mode === 'sentence') {
     picked.forEach(w => {
@@ -1680,10 +1983,16 @@ function renderQuizQuestionNew(){
   let questionHtml = '';
 
   if (q.type === 'mean') {
+    const showDe = (q.dir || 'de-fa') === 'de-fa';
     questionHtml = `
       <div class="quiz-question-box">
-        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">معنی این کلمه چیه؟</div>
-        <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">${esc(q.word.de)}</div>
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
+          ${showDe ? 'معنی این کلمه چیه؟' : 'معادل آلمانی این کلمه چیه؟'}
+        </div>
+        <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">${esc(showDe ? q.word.de : q.word.fa)}</div>
+        <div style="text-align:center;">
+          <button class="quiz-hint-toggle" id="quizFlipDirBtn">🔄 تغییر جهت</button>
+        </div>
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
@@ -1784,6 +2093,31 @@ function renderQuizQuestionNew(){
     });
   }
 
+  // ✅ دکمه تغییر جهت در آزمون mean
+  const flipDirBtn = document.getElementById('quizFlipDirBtn');
+  if (flipDirBtn) {
+    flipDirBtn.addEventListener('click', () => {
+      practiceDirection = practiceDirection === 'de-fa' ? 'fa-de' : 'de-fa';
+      updateDirectionLabel();
+      const w = q.word;
+      const allWords = getWords();
+      if (practiceDirection === 'de-fa') {
+        const others = allWords.filter(x => x.id !== w.id).map(x => x.fa).filter(Boolean);
+        const opts = shuffle([w.fa, ...shuffle(others).slice(0, 3)]);
+        q.correct = w.fa;
+        q.options = opts;
+        q.dir = 'de-fa';
+      } else {
+        const others = allWords.filter(x => x.id !== w.id).map(x => x.de).filter(Boolean);
+        const opts = shuffle([w.de, ...shuffle(others).slice(0, 3)]);
+        q.correct = w.de;
+        q.options = opts;
+        q.dir = 'fa-de';
+      }
+      renderQuizQuestionNew();
+    });
+  }
+
   if (q.type === 'typing') {
     const input = document.getElementById('quizTypingInput');
     const checkBtn = document.getElementById('quizCheckBtn');
@@ -1811,7 +2145,6 @@ function renderQuizQuestionNew(){
 function answerChoice(q, selected){
   if (quizState.answered) return;
   quizState.answered = true;
-  // ✅ مقایسه با نرمال‌سازی
   const isCorrect = germanEquals(selected, q.correct);
 
   if (isCorrect) {
@@ -1846,7 +2179,6 @@ function answerChoice(q, selected){
 function checkTypingAnswer(q, input){
   if (quizState.answered) return;
   const userAnswer = (input.value || '').trim();
-  // ✅ استفاده از نرمال‌سازی
   const isCorrect = germanEquals(userAnswer, q.correct);
 
   quizState.answered = true;
@@ -1890,6 +2222,22 @@ function renderQuizReportNew(){
   else if (pct >= 70) { badge = 'good'; badgeText = '👍 خیلی خوب!'; }
   else if (pct >= 50) { badge = 'average'; badgeText = '📚 خوب، ولی بیشتر تمرین کن'; }
   else { badge = 'weak'; badgeText = '💪 نیاز به تمرین بیشتر'; }
+
+  // ✅ ذخیره تاریخچه
+  if (!state.quizHistory) state.quizHistory = [];
+  state.quizHistory.push({
+    id: uid(),
+    date: Date.now(),
+    bookId: state.activeBookId,
+    lessonId: state.activeLessonId,
+    mode: quizState.mode,
+    correct: quizState.correct,
+    wrong: quizState.wrong,
+    total: total,
+    pct: pct
+  });
+  if (state.quizHistory.length > 100) state.quizHistory = state.quizHistory.slice(-100);
+  save();
 
   document.getElementById('quizSession').classList.add('hidden');
   const report = document.getElementById('quizReport');
@@ -1954,11 +2302,12 @@ function renderQuizReportNew(){
       quizState.correct = 0;
       quizState.wrong = 0;
       quizState.wrongWords = [];
+      quizState.startedAt = Date.now();
       wrongWords.forEach(w => {
         const all = getWords();
         const extra = all.filter(x => x.id !== w.id).map(x => x.fa);
         const opts = shuffle([w.fa, ...shuffle(extra).slice(0, 3)]);
-        quizState.questions.push({ type: 'mean', word: w, correct: w.fa, options: opts });
+        quizState.questions.push({ type: 'mean', word: w, correct: w.fa, options: opts, dir: 'de-fa' });
       });
       quizState.questions = shuffle(quizState.questions);
       document.getElementById('quizReport').classList.add('hidden');
@@ -1995,13 +2344,13 @@ function renderStories(){
   grid.innerHTML = stories.map(s => {
     const img = safeImageSrc(s.coverImage);
     const color = safeCoverColor(s.coverColor);
-    return `<div style="position:relative;">
+    return `<div class="story-card-wrapper">
       <button class="story-card" style="--cover-color:${color};width:100%;" data-story="${s.id}">
         ${img ? `<img src="${esc(img)}" alt="">` : ''}
         <span class="title">${esc(s.title)}</span>
       </button>
-      <button class="edit-btn" data-edit="${s.id}">✏️</button>
-      <button class="del-btn" data-del-story="${s.id}">✕</button>
+      <button class="story-edit-btn" data-edit="${s.id}" title="ویرایش">✏️</button>
+      <button class="story-del-btn" data-del-story="${s.id}" title="حذف">✕</button>
     </div>`;
   }).join('');
   grid.querySelectorAll('[data-story]').forEach(btn => {
@@ -2067,7 +2416,7 @@ function openStory(id){
     playerStyle = ` style="--player-cover-color:${coverColor}"`;
   }
 
-  let html = `<h2 style="color:var(--primary);margin-bottom:8px;padding-left:44px;padding-right:4px;">${esc(s.title)}</h2>`;
+  let html = `<h2 class="story-reader-title">${esc(s.title)}</h2>`;
 
   if (stories.length > 1) {
     html += `<div class="story-quick-nav">`;
@@ -2119,6 +2468,16 @@ function openStory(id){
   }
 
   document.getElementById('storyReaderBody').innerHTML = html;
+
+  // ✅ اسکرول به بالا + نوار داستان فعال وسط
+  const scrollBody = document.getElementById('storyScrollBody');
+  if (scrollBody) scrollBody.scrollTop = 0;
+  const activeNav = document.querySelector('.story-quick-nav-btn.active');
+  if (activeNav) {
+    try {
+      activeNav.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    } catch(e) {}
+  }
 
   document.querySelectorAll('[data-jump-story]').forEach(btn => {
     btn.addEventListener('click', () => openStory(btn.dataset.jumpStory));
@@ -2345,8 +2704,7 @@ function saveStory(){
 
   save();
   resetStoryForm();
-  renderAll();
-  populateLessonTargets();
+  renderAll(); populateLessonTargets();
 
   document.getElementById('storyTitleInput').value = '';
   document.getElementById('storyAudioInput').value = '';
@@ -2400,6 +2758,8 @@ function confirmDeleteBook(){
     state.activeLessonId = null;
   }
   save();
+  // ✅ legacy پاک بشه
+  LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
   document.getElementById('modalDeleteBook').classList.remove('active');
   document.body.classList.remove('locked');
   if (state.books.length === 0) showBookLibrary();
@@ -2408,7 +2768,7 @@ function confirmDeleteBook(){
 }
 
 /* ============================================================
-   JSON - ADD LESSON / BOOK
+   JSON - ADD LESSON
    ============================================================ */
 function addFullLessonFromJson(data, textareaEl, statusEl){
   const book = getBook();
@@ -2435,8 +2795,7 @@ function addFullLessonFromJson(data, textareaEl, statusEl){
     book.lessons.push(newLesson);
     state.activeLessonId = newLesson.id;
     save();
-    renderAll();
-    populateLessonTargets();
+    renderAll(); populateLessonTargets();
     if (textareaEl) textareaEl.value = '';
     if (statusEl) statusEl.innerHTML =
       `<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">
@@ -2463,8 +2822,7 @@ function addFullLessonFromJson(data, textareaEl, statusEl){
   });
 
   save();
-  renderAll();
-  populateLessonTargets();
+  renderAll(); populateLessonTargets();
   if (textareaEl) textareaEl.value = '';
   if (statusEl) statusEl.innerHTML =
     `<div style="color:var(--accent);font-size:13px;">✅ ${addedW} لغت و ${addedS} داستان به «${esc(target.title)}» اضافه شد${dupW ? ` (${dupW} تکراری رد شد)` : ''}</div>`;
@@ -2494,8 +2852,7 @@ function importFullBook(file){
       const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
       if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`; return; }
       newBooks.forEach(nb => {
-        if (!Array.isArray(nb.lessons)) nb.lessons = [];
-        nb.lessons.unshift(makeSampleLesson());
+        ensureSingleSampleLesson(nb);
         state.books.push(nb);
       });
       state.activeBookId = newBooks[0].id;
@@ -2530,8 +2887,7 @@ function replaceFullBook(file){
       const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
       if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`; return; }
       newBooks.forEach(nb => {
-        if (!Array.isArray(nb.lessons)) nb.lessons = [];
-        nb.lessons.unshift(makeSampleLesson());
+        ensureSingleSampleLesson(nb);
       });
       state.books = newBooks;
       state.activeBookId = newBooks[0].id;
@@ -2577,8 +2933,7 @@ function importJsonWords(){
   });
 
   save();
-  renderAll();
-  populateLessonTargets();
+  renderAll(); populateLessonTargets();
 
   document.getElementById('jsonInput').value = '';
   document.getElementById('jsonPreview').innerHTML = '';
@@ -2650,7 +3005,85 @@ function exportBad(){
 }
 
 /* ============================================================
-   FILE UPLOAD
+   LIBRARY JSON IMPORT MODAL
+   ============================================================ */
+function openLibraryImportModal(){
+  document.getElementById('modalLibraryImport').classList.add('active');
+  document.body.classList.add('locked');
+  document.getElementById('libImportUrlBox').classList.add('hidden');
+  document.getElementById('libImportPasteBox').classList.add('hidden');
+  document.getElementById('libImportUrlStatus').innerHTML = '';
+  document.getElementById('libImportPasteStatus').innerHTML = '';
+  document.getElementById('libImportUrlInput').value = '';
+  document.getElementById('libImportPasteInput').value = '';
+}
+function closeLibraryImportModal(){
+  document.getElementById('modalLibraryImport').classList.remove('active');
+  document.body.classList.remove('locked');
+}
+function processLibraryImportData(data, fileName){
+  let rawBooks = [];
+  if (data.books && Array.isArray(data.books)) rawBooks = data.books;
+  else if (data.lessons && Array.isArray(data.lessons)) rawBooks = [data];
+  else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
+  else if (Array.isArray(data) && data.length > 0 && data[0].words) {
+    rawBooks = [{ name: (fileName || 'کتاب جدید').replace('.json',''), level: 'A1.1', lessons: [{ title: 'درس 1', words: data }] }];
+  } else {
+    toast('❌ فرمت کتاب شناسایی نشد. باید کتاب کامل با lessons باشه.', 'error');
+    return;
+  }
+  const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
+  if (!newBooks.length) { toast('❌ کتاب معتبری نبود', 'error'); return; }
+  newBooks.forEach(nb => {
+    ensureSingleSampleLesson(nb);
+  });
+  newBooks.forEach(nb => state.books.push(nb));
+  state.activeBookId = newBooks[0].id;
+  state.activeLessonId = newBooks[0].lessons[0]?.id;
+  save();
+  renderBookLibrary();
+  closeLibraryImportModal();
+  let totalLessons = 0, totalWords = 0;
+  newBooks.forEach(nb => { totalLessons += nb.lessons.length; nb.lessons.forEach(l => totalWords += l.words.length); });
+  toast(`✅ ${newBooks.length} کتاب (${totalLessons} درس، ${totalWords} کلمه) اضافه شد`, 'success');
+}
+function fetchLibraryFromUrl(){
+  const urlInput = document.getElementById('libImportUrlInput');
+  const status = document.getElementById('libImportUrlStatus');
+  const url = urlInput.value.trim();
+  if (!url) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">آدرس لازمه</div>`; return; }
+  status.innerHTML = `<div style="color:var(--info);font-size:13px;">⏳ در حال دریافت...</div>`;
+  fetch(url)
+    .then(res => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.text();
+    })
+    .then(text => {
+      try {
+        const data = JSON.parse(text);
+        const fileName = url.split('/').pop() || 'book.json';
+        processLibraryImportData(data, fileName);
+      } catch(err) {
+        status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ JSON نامعتبر: ${esc(err.message)}</div>`;
+      }
+    })
+    .catch(err => {
+      status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا در دریافت: ${esc(err.message)}<br><small>ممکنه CORS باشه. از روش فایل یا پیست استفاده کن.</small></div>`;
+    });
+}
+function addLibraryFromPaste(){
+  const input = document.getElementById('libImportPasteInput');
+  const status = document.getElementById('libImportPasteStatus');
+  const raw = input.value.trim();
+  if (!raw) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">JSON خالیه</div>`; return; }
+  let data;
+  try { data = JSON.parse(raw); }
+  catch(e) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ JSON نامعتبر: ${esc(e.message)}</div>`; return; }
+  processLibraryImportData(data, 'pasted-book.json');
+}
+
+/* ============================================================
+   FILE UPLOAD (تب JSON)
    ============================================================ */
 function setupFileDropZone(){
   const zone = document.getElementById('bigDropZone');
@@ -2741,8 +3174,7 @@ function processUploadedData(data, filename, status, forceActiveLesson){
       }
       state.activeLessonId = newLesson.id;
       save();
-      renderAll();
-      populateLessonTargets();
+      renderAll(); populateLessonTargets();
       show(`<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">
         ✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>
         📝 ${newLesson.words.length} لغت &nbsp;•&nbsp; 📖 ${newLesson.stories.length} داستان
@@ -2865,6 +3297,7 @@ function renderAll(){
   populateLessonTargets();
   updateAppTitle();
   updateReviewBanner();
+  updateDirectionLabel();
 }
 
 /* ============================================================
@@ -2947,15 +3380,25 @@ function bindEvents(){
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => switchTab(t.dataset.tab));
   });
+
   const bookSel = document.getElementById('bookSelect');
   if (bookSel) bookSel.addEventListener('change', e => {
+    if (practice.active) exitPractice();
     state.activeBookId = e.target.value;
     const b = getBook();
-    if (b && b.lessons.length) state.activeLessonId = b.lessons[0].id;
+    if (b && b.lessons.length) {
+      const saved = state.lastLessonByBook && state.lastLessonByBook[b.id];
+      if (saved && b.lessons.find(l => l.id === saved)) {
+        state.activeLessonId = saved;
+      } else {
+        state.activeLessonId = b.lessons[0].id;
+      }
+    }
     save(); updateAppTitle(); renderAll();
   });
   const lessonSel = document.getElementById('lessonSelect');
   if (lessonSel) lessonSel.addEventListener('change', e => {
+    if (practice.active) exitPractice();
     state.activeLessonId = e.target.value;
     save(); renderAll();
   });
@@ -3022,12 +3465,25 @@ function bindEvents(){
 
   const startSrsBtn = document.getElementById('startSrsBtn');
   if (startSrsBtn) startSrsBtn.addEventListener('click', () => startPractice('due'));
+
   const exitPracticeBtn = document.getElementById('exitPractice');
   if (exitPracticeBtn) exitPracticeBtn.addEventListener('click', exitPractice);
+
+  // ✅ چرخش کارت + قطع صدا هنگام چرخش
   const flashcardStage = document.getElementById('flashcardStage');
   if (flashcardStage) flashcardStage.addEventListener('click', () => {
-    document.getElementById('flashcardInner').classList.toggle('flipped');
+    const inner = document.getElementById('flashcardInner');
+    inner.classList.toggle('flipped');
+    // ✅ اگر کارت برگشت، صدا رو قطع کن
+    if (inner.classList.contains('flipped')) {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (currentAudio) {
+        try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){}
+        currentAudio = null;
+      }
+    }
   });
+
   const fcSpeakBtn = document.getElementById('fcSpeakBtn');
   if (fcSpeakBtn) fcSpeakBtn.addEventListener('click', () => {
     const w = practice.queue[practice.index];
@@ -3050,6 +3506,51 @@ function bindEvents(){
   if (autoPlayToggle) autoPlayToggle.addEventListener('click', toggleAutoPlay);
   const autoPlayToggleSession = document.getElementById('autoPlayToggleSession');
   if (autoPlayToggleSession) autoPlayToggleSession.addEventListener('click', toggleAutoPlay);
+
+  // ✅ دکمه قطع صدا
+  const muteAudioBtn = document.getElementById('muteAudioBtn');
+  if (muteAudioBtn) {
+    muteAudioBtn.addEventListener('click', () => {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (currentAudio) {
+        try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){}
+        currentAudio = null;
+      }
+      if (autoPlayWord) {
+        autoPlayWord = false;
+        try { localStorage.setItem(AUTOPLAY_KEY, 'false'); } catch(e){}
+        updateAutoPlayUI();
+        toast('🔇 صدا قطع و پخش خودکار خاموش شد', 'warning');
+      } else {
+        toast('🔇 صدا قطع شد', 'warning');
+      }
+    });
+  }
+
+  // ✅ دکمه‌های جهت / تئاتر / منوی پوشه / ریست
+  const flipDirBtn = document.getElementById('flipDirectionBtn');
+  if (flipDirBtn) flipDirBtn.addEventListener('click', togglePracticeDirection);
+  const flipDirFolderBtn = document.getElementById('flipDirectionFolderBtn');
+  if (flipDirFolderBtn) flipDirFolderBtn.addEventListener('click', togglePracticeDirection);
+  updateDirectionLabel();
+
+  const practiceFullscreenBtn = document.getElementById('practiceFullscreenBtn');
+  if (practiceFullscreenBtn) practiceFullscreenBtn.addEventListener('click', toggleTheaterMode);
+  const practiceTheaterClose = document.getElementById('practiceTheaterClose');
+  if (practiceTheaterClose) practiceTheaterClose.addEventListener('click', exitTheaterMode);
+
+  const hamburgerBtn = document.getElementById('practiceHamburgerBtn');
+  if (hamburgerBtn) hamburgerBtn.addEventListener('click', () => {
+    buildFolderMenu();
+    document.getElementById('practiceFolderMenu').classList.remove('hidden');
+  });
+  const closeFolderMenuBtn = document.getElementById('closeFolderMenuBtn');
+  if (closeFolderMenuBtn) closeFolderMenuBtn.addEventListener('click', () => {
+    document.getElementById('practiceFolderMenu').classList.add('hidden');
+  });
+
+  const resetPracticeSettingsBtn = document.getElementById('resetPracticeSettingsBtn');
+  if (resetPracticeSettingsBtn) resetPracticeSettingsBtn.addEventListener('click', resetPracticeSettings);
 
   const addStoryBtn = document.getElementById('addStoryBtn');
   if (addStoryBtn) addStoryBtn.addEventListener('click', () => {
@@ -3144,10 +3645,11 @@ function bindEvents(){
   const resetBtn = document.getElementById('resetBtn');
   if (resetBtn) resetBtn.addEventListener('click', () => {
     if (!confirm('همه داده‌ها ریست بشن؟')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    state = load();
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+    LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
+    state = defaultData();
     save(); renderAll();
-    toast('ریست شد', 'success');
+    toast('ریست شد — یک کتاب با درس نمونه ساخته شد', 'success');
   });
 
   const cancelDeleteBookBtn = document.getElementById('cancelDeleteBookBtn');
@@ -3210,8 +3712,9 @@ function bindEvents(){
         name,
         level,
         coverImage,
-        lessons: [makeSampleLesson()]
+        lessons: []
       };
+      ensureSingleSampleLesson(nb);
       state.books.push(nb);
       state.activeBookId = nb.id;
       state.activeLessonId = nb.lessons[0].id;
@@ -3249,8 +3752,7 @@ function bindEvents(){
       delete saveLessonBtn.dataset.editId;
       document.getElementById('modalLesson').classList.remove('active');
       document.body.classList.remove('locked');
-      renderAll();
-      populateLessonTargets();
+      renderAll(); populateLessonTargets();
       toast(`✅ نام درس به «${title}» تغییر کرد`, 'success');
       return;
     }
@@ -3265,8 +3767,7 @@ function bindEvents(){
     save();
     document.getElementById('modalLesson').classList.remove('active');
     document.body.classList.remove('locked');
-    renderAll();
-    populateLessonTargets();
+    renderAll(); populateLessonTargets();
     const sel = document.getElementById('lessonSelect');
     if (sel) {
       sel.value = nl.id;
@@ -3285,16 +3786,63 @@ function bindEvents(){
     });
   }
 
+  // ✅ دکمه‌های کتابخانه
   const libraryAddBookBtn = document.getElementById('libraryAddBookBtn');
   if (libraryAddBookBtn) libraryAddBookBtn.addEventListener('click', openBookModal);
   const libraryImportBtn = document.getElementById('libraryImportBtn');
-  if (libraryImportBtn) libraryImportBtn.addEventListener('click', () => {
-    if (state.books.length === 0) { toast('اول کتاب بساز', 'warning'); return; }
-    openBook(state.books[0].id);
-    setTimeout(() => switchTab('json'), 100);
-  });
+  if (libraryImportBtn) libraryImportBtn.addEventListener('click', openLibraryImportModal);
   const backToLibraryBtn = document.getElementById('backToLibraryBtn');
   if (backToLibraryBtn) backToLibraryBtn.addEventListener('click', showBookLibrary);
+
+  // ✅ مودال ورودی کتابخانه
+  const cancelLibraryImportBtn = document.getElementById('cancelLibraryImportBtn');
+  if (cancelLibraryImportBtn) cancelLibraryImportBtn.addEventListener('click', closeLibraryImportModal);
+
+  const libImportFileCard = document.getElementById('libImportFileCard');
+  if (libImportFileCard) libImportFileCard.addEventListener('click', () => {
+    document.getElementById('libImportFileInput').click();
+  });
+  const libImportFileInput = document.getElementById('libImportFileInput');
+  if (libImportFileInput) libImportFileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.json')) { toast('فقط .json', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        processLibraryImportData(data, file.name);
+      } catch(err) {
+        toast('❌ JSON نامعتبر: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  const libImportUrlCard = document.getElementById('libImportUrlCard');
+  if (libImportUrlCard) libImportUrlCard.addEventListener('click', () => {
+    document.getElementById('libImportUrlBox').classList.remove('hidden');
+    document.getElementById('libImportPasteBox').classList.add('hidden');
+  });
+  const libImportUrlFetchBtn = document.getElementById('libImportUrlFetchBtn');
+  if (libImportUrlFetchBtn) libImportUrlFetchBtn.addEventListener('click', fetchLibraryFromUrl);
+  const libImportUrlCancelBtn = document.getElementById('libImportUrlCancelBtn');
+  if (libImportUrlCancelBtn) libImportUrlCancelBtn.addEventListener('click', () => {
+    document.getElementById('libImportUrlBox').classList.add('hidden');
+  });
+
+  const libImportPasteCard = document.getElementById('libImportPasteCard');
+  if (libImportPasteCard) libImportPasteCard.addEventListener('click', () => {
+    document.getElementById('libImportPasteBox').classList.remove('hidden');
+    document.getElementById('libImportUrlBox').classList.add('hidden');
+  });
+  const libImportPasteAddBtn = document.getElementById('libImportPasteAddBtn');
+  if (libImportPasteAddBtn) libImportPasteAddBtn.addEventListener('click', addLibraryFromPaste);
+  const libImportPasteCancelBtn = document.getElementById('libImportPasteCancelBtn');
+  if (libImportPasteCancelBtn) libImportPasteCancelBtn.addEventListener('click', () => {
+    document.getElementById('libImportPasteBox').classList.add('hidden');
+  });
 
   const importAsNewBookBtn = document.getElementById('importAsNewBookBtn');
   if (importAsNewBookBtn) importAsNewBookBtn.addEventListener('click', chooseImportAsNewBook);
@@ -3320,6 +3868,8 @@ function bindEvents(){
   });
 
   setupFileDropZone();
+
+  // ✅ Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
@@ -3329,12 +3879,22 @@ function bindEvents(){
       if (wv && wv.classList.contains('active')) { wv.classList.remove('active'); document.body.classList.remove('locked'); }
       const we = document.getElementById('wordEditModal');
       if (we && we.classList.contains('active')) closeWordEdit();
+      const libImp = document.getElementById('modalLibraryImport');
+      if (libImp && libImp.classList.contains('active')) closeLibraryImportModal();
       if (practice.active) exitPractice();
+      if (document.body.classList.contains('practice-theater')) exitTheaterMode();
+      const menu = document.getElementById('practiceFolderMenu');
+      if (menu) menu.classList.add('hidden');
       document.body.classList.remove('locked');
     }
     if (e.key === ' ' && practice.active) {
       e.preventDefault();
-      document.getElementById('flashcardInner').classList.toggle('flipped');
+      const inner = document.getElementById('flashcardInner');
+      inner.classList.toggle('flipped');
+      if (inner.classList.contains('flipped')) {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        if (currentAudio) { try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){} currentAudio = null; }
+      }
     }
   });
 }
@@ -3344,28 +3904,62 @@ function bindEvents(){
    ============================================================ */
 function init(){
   state = load();
+  if (!state.lastLessonByBook) state.lastLessonByBook = {};
+  if (!Array.isArray(state.quizHistory)) state.quizHistory = [];
+
   if (!state.activeBookId && state.books.length) state.activeBookId = state.books[0].id;
   const b = getBook();
-  if (!state.activeLessonId && b && b.lessons.length) state.activeLessonId = b.lessons[0].id;
-  state.books.forEach(bk => (bk.lessons || []).forEach(l => {
-    if (!Array.isArray(l.words)) l.words = [];
-    if (!Array.isArray(l.stories)) l.stories = [];
-    l.words.forEach(w => {
-      if (!w.status) w.status = normalizeStatus(w);
-      if (!Array.isArray(w.notes)) w.notes = [];
-      if (!Array.isArray(w.synonyms)) w.synonyms = [];
-      if (!Array.isArray(w.related)) w.related = [];
-      if (!Array.isArray(w.extraExamples)) w.extraExamples = [];
-      if (!w.forms) w.forms = {};
-      ensureSrs(w);
+
+  if (b && b.lessons.length) {
+    const saved = state.lastLessonByBook[state.activeBookId];
+    if (saved && b.lessons.find(l => l.id === saved)) {
+      state.activeLessonId = saved;
+    } else if (!state.activeLessonId || !b.lessons.find(l => l.id === state.activeLessonId)) {
+      state.activeLessonId = b.lessons[0].id;
+    }
+  }
+
+  // ✅ اطمینان از وجود فقط یک درس نمونه + آماده‌سازی کلمات
+  state.books.forEach(bk => {
+    if (!Array.isArray(bk.lessons) || !bk.lessons.length) {
+      ensureSingleSampleLesson(bk);
+    }
+    // حذف درس‌های نمونه تکراری
+    const samples = bk.lessons.filter(l => l.isSample);
+    if (samples.length > 1) {
+      const firstSample = samples[0];
+      bk.lessons = bk.lessons.filter(l => !l.isSample || l === firstSample);
+    }
+    // آماده‌سازی کلمات
+    bk.lessons.forEach(l => {
+      if (!Array.isArray(l.words)) l.words = [];
+      if (!Array.isArray(l.stories)) l.stories = [];
+      l.words.forEach(w => {
+        if (!w.status) w.status = normalizeStatus(w);
+        if (!Array.isArray(w.notes)) w.notes = [];
+        if (!Array.isArray(w.synonyms)) w.synonyms = [];
+        if (!Array.isArray(w.related)) w.related = [];
+        if (!Array.isArray(w.extraExamples)) w.extraExamples = [];
+        if (!w.forms) w.forms = {};
+        ensureSrs(w);
+      });
     });
-  }));
+  });
+
   save();
   bindEvents();
   renderAll();
   populateLessonTargets();
   updateAutoPlayUI();
-  showBookLibrary();
+  updateDirectionLabel();
+
+  // ✅ اگر کتاب فعال و درس معتبره، مستقیم برو به اپ
+  const activeBook = getBook();
+  if (activeBook && state.activeLessonId && activeBook.lessons.find(l => l.id === state.activeLessonId)) {
+    showMainApp();
+  } else {
+    showBookLibrary();
+  }
 }
 
 init();
