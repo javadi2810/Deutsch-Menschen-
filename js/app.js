@@ -9,7 +9,7 @@ const LEGACY_KEYS = ['german-vocab-v2', 'german_vocab_app_data_v11', 'german-voc
 const AUTOPLAY_KEY = 'german-vocab-autoplay';
 
 let state = { books: [], activeBookId: null, activeLessonId: null, lastLessonByBook: {}, quizHistory: [] };
-let practice = { active: false, queue: [], index: 0, ratings: {} };
+let practice = { active: false, queue: [], index: 0, ratings: {}, _isTransitioning: false };
 let quizState = { mode: null, questions: [], index: 0, correct: 0, wrong: 0, wrongWords: [], answered: false, startedAt: 0 };
 let storyEditId = null;
 let currentStoryId = null;
@@ -48,17 +48,11 @@ function toast(msg, type){
 function normalizeGerman(str){
   return String(str || '')
     .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
     .replace(/[.,!?;:'"«»„“”\-–—]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/\s+/g, ' ').trim();
 }
-function germanEquals(a, b){
-  return normalizeGerman(a) === normalizeGerman(b);
-}
+function germanEquals(a, b){ return normalizeGerman(a) === normalizeGerman(b); }
 
 function speak(text, audioUrl){
   if (currentAudio) {
@@ -66,24 +60,19 @@ function speak(text, audioUrl){
     currentAudio = null;
   }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
-
   if (audioUrl && audioUrl.trim()) {
     try {
       const directUrl = toDirectAudioUrl(audioUrl);
       if (directUrl) {
         currentAudio = new Audio(directUrl);
-        currentAudio.play().catch(err => {
-          console.warn('خطا در پخش فایل صوتی، استفاده از TTS:', err);
-          speakTTS(text);
-        });
+        currentAudio.play().catch(() => speakTTS(text));
         currentAudio.addEventListener('ended', () => { currentAudio = null; });
         return;
       }
-    } catch(e) { console.warn(e); }
+    } catch(e) {}
   }
   speakTTS(text);
 }
-
 function speakTTS(text){
   if (!('speechSynthesis' in window)) { toast('مرورگر تلفظ پشتیبانی نمی‌کند', 'error'); return; }
   window.speechSynthesis.cancel();
@@ -212,18 +201,15 @@ function makeSampleLesson(){
   };
 }
 
-/* ✅ اطمینان از وجود فقط یک درس نمونه در کتاب */
 function ensureSingleSampleLesson(book) {
   if (!book) return;
   if (!Array.isArray(book.lessons)) book.lessons = [];
-  // همه درس‌های نمونه قبلی رو حذف کن
   book.lessons = book.lessons.filter(l => !l.isSample);
-  // فقط یک درس نمونه جدید اضافه کن
   book.lessons.unshift(makeSampleLesson());
 }
 
 /* ============================================================
-   AUTO PLAY
+   AUTO PLAY & DIRECTION
    ============================================================ */
 function updateAutoPlayUI(){
   const t1 = document.getElementById('autoPlayToggle');
@@ -241,10 +227,6 @@ function toggleAutoPlay(){
   updateAutoPlayUI();
   toast(autoPlayWord ? '🔊 پخش خودکار روشن شد' : '🔇 پخش خودکار خاموش شد', autoPlayWord ? 'success' : 'warning');
 }
-
-/* ============================================================
-   PRACTICE DIRECTION
-   ============================================================ */
 function updateDirectionLabel(){
   const lbl = document.getElementById('directionLabel');
   if (lbl) lbl.textContent = practiceDirection === 'de-fa' ? 'آلمانی → فارسی' : 'فارسی → آلمانی';
@@ -338,16 +320,10 @@ function normalizeBook(raw, fallbackName){
 }
 
 /* ============================================================
-   DEFAULT DATA
+   DEFAULT DATA / MIGRATION / LOAD / SAVE
    ============================================================ */
 function defaultData(){
-  const book = {
-    id: uid(),
-    name: 'Menschen',
-    level: 'A1.1',
-    coverImage: '',
-    lessons: []
-  };
+  const book = { id: uid(), name: 'Menschen', level: 'A1.1', coverImage: '', lessons: [] };
   ensureSingleSampleLesson(book);
   return {
     books: [book],
@@ -357,13 +333,8 @@ function defaultData(){
     quizHistory: []
   };
 }
-
-/* ============================================================
-   MIGRATION
-   ============================================================ */
 function tryMigrateLegacy(){
   const currentRaw = localStorage.getItem(STORAGE_KEY);
-  // ✅ اگر STORAGE_KEY وجود داره (حتی اگه books خالی باشه)، legacy رو چک نکن
   if (currentRaw !== null) {
     try {
       const d = JSON.parse(currentRaw);
@@ -434,14 +405,10 @@ function load(){
   const migrated = tryMigrateLegacy();
   if (migrated) {
     migrated.books.forEach(b => {
-      // ✅ فقط اگه کتاب هیچ درسی نداره، درس نمونه اضافه کن
-      if (!Array.isArray(b.lessons) || !b.lessons.length) {
-        ensureSingleSampleLesson(b);
-      }
+      if (!Array.isArray(b.lessons) || !b.lessons.length) ensureSingleSampleLesson(b);
     });
     return migrated;
   }
-  // ✅ اگر STORAGE_KEY وجود داره ولی books خالیه (همه کتاب‌ها حذف شده)، default نساز
   const currentRaw = localStorage.getItem(STORAGE_KEY);
   if (currentRaw !== null) {
     try {
@@ -453,7 +420,6 @@ function load(){
       }
     } catch(e){}
   }
-  // فقط اگه STORAGE_KEY اصلاً وجود نداره (اولین اجرا)، default بساز
   return defaultData();
 }
 function save(){
@@ -481,7 +447,6 @@ function getLessonById(lessonId){
 }
 function getWords(){ const l = getLesson(); return l ? l.words : []; }
 function getStories(){ const l = getLesson(); return l ? l.stories : []; }
-
 function getDueWords(book){
   book = book || getBook();
   if (!book) return [];
@@ -542,21 +507,18 @@ function undoReviewWord(w){
   s.lastRating = null;
   save();
 }
-
 function highlightExample(sentenceDe, wordDe){
   if (!sentenceDe || !wordDe) return esc(sentenceDe || '');
   const escaped = wordDe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const parts = sentenceDe.split(new RegExp(`(${escaped})`, 'gi'));
   return parts.map(part => {
-    if (part.toLowerCase() === wordDe.toLowerCase()) {
-      return `<span class="ex-highlight">${esc(part)}</span>`;
-    }
+    if (part.toLowerCase() === wordDe.toLowerCase()) return `<span class="ex-highlight">${esc(part)}</span>`;
     return esc(part);
   }).join('');
 }
 
 /* ============================================================
-   BOOK LIBRARY
+   BOOK LIBRARY / MAIN APP / TITLE / BANNER
    ============================================================ */
 function showBookLibrary(){
   document.getElementById('bookLibraryScreen').classList.remove('hidden');
@@ -575,21 +537,14 @@ function updateAppTitle(){
   const book = getBook();
   const el = document.getElementById('appTitle');
   if (!el) return;
-  if (book) {
-    el.textContent = '📖 ' + book.name + (book.level ? ' — ' + book.level : '');
-  } else {
-    el.textContent = '🎓 German Vocab Pro';
-  }
+  if (book) el.textContent = '📖 ' + book.name + (book.level ? ' — ' + book.level : '');
+  else el.textContent = '🎓 German Vocab Pro';
 }
-
 function updateReviewBanner(){
   const banner = document.getElementById('reviewBanner');
   if (!banner) return;
   const due = getDueWords();
-  if (due.length === 0) {
-    banner.classList.add('hidden');
-    return;
-  }
+  if (due.length === 0) { banner.classList.add('hidden'); return; }
   banner.classList.remove('hidden');
   banner.innerHTML = `
     <div class="review-banner-inner">
@@ -603,7 +558,6 @@ function updateReviewBanner(){
   const btn = document.getElementById('startDailyReviewBtn');
   if (btn) btn.addEventListener('click', startDailyReview);
 }
-
 function startDailyReview(){
   const due = getDueWords();
   if (!due.length) { toast('کلمه‌ای برای مرور نیست!', 'warning'); return; }
@@ -612,6 +566,7 @@ function startDailyReview(){
   practice.queue = shuffle(words);
   practice.index = 0;
   practice.ratings = {};
+  practice._isTransitioning = false;
   switchTab('practice');
   document.getElementById('practiceFolderView').classList.add('hidden');
   document.getElementById('practiceSession').classList.remove('hidden');
@@ -708,7 +663,6 @@ function renderBookLibrary(){
         state.activeLessonId = nb?.lessons[0]?.id || null;
       }
       save();
-      // ✅ legacy رو پاک کن تا کتاب حذف‌شده برنگرده
       LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
       renderBookLibrary();
       toast(`🗑 «${book.name}» حذف شد`, 'success');
@@ -719,23 +673,153 @@ function renderBookLibrary(){
 function openBook(bookId){
   const book = state.books.find(b => b.id === bookId);
   if (!book) return;
-  // ✅ اگر تمرین فعاله، خارج شو
   if (practice.active) exitPractice();
-
   state.activeBookId = bookId;
-  // ✅ آخرین درس این کتاب رو بازیابی کن
   const savedLessonId = state.lastLessonByBook && state.lastLessonByBook[bookId];
-  if (savedLessonId && book.lessons.find(l => l.id === savedLessonId)) {
-    state.activeLessonId = savedLessonId;
-  } else {
-    state.activeLessonId = book.lessons[0]?.id || null;
-  }
+  if (savedLessonId && book.lessons.find(l => l.id === savedLessonId)) state.activeLessonId = savedLessonId;
+  else state.activeLessonId = book.lessons[0]?.id || null;
   save();
   showMainApp();
   renderAll();
   populateLessonTargets();
 }
 
+/* ============================================================
+   BOOK PICKER
+   ============================================================ */
+function openBookPicker(){
+  const modal = document.getElementById('modalBookPicker');
+  if (!modal) return;
+  renderBookPickerGrid();
+  modal.classList.add('active');
+  document.body.classList.add('locked');
+}
+function closeBookPicker(){
+  const modal = document.getElementById('modalBookPicker');
+  if (modal) modal.classList.remove('active');
+  document.body.classList.remove('locked');
+}
+function renderBookPickerGrid(){
+  const grid = document.getElementById('bookPickerGrid');
+  if (!grid) return;
+  if (!state.books.length) {
+    grid.innerHTML = `<div class="empty-library" style="grid-column:1/-1;padding:30px;">
+      <div class="empty-icon">📚</div>
+      <div>هنوز کتابی نداری</div>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = state.books.map(book => {
+    const coverImage = safeImageSrc(book.coverImage);
+    const level = book.level || 'A1.1';
+    const totalLessons = (book.lessons || []).length;
+    const totalWords = (book.lessons || []).reduce((s, l) => s + ((l.words || []).length), 0);
+    const isActive = book.id === state.activeBookId;
+    return `<div class="book-card-library" data-picker-book-id="${esc(book.id)}" style="${isActive ? 'border-color:var(--accent);' : ''}">
+      ${isActive ? `<div style="position:absolute;top:10px;left:10px;background:var(--accent);color:#000;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:800;z-index:6;">✓ فعال</div>` : ''}
+      <div class="book-cover-wrap">
+        ${coverImage
+          ? `<img src="${esc(coverImage)}" alt="${esc(book.name)}">`
+          : `<div class="book-cover-placeholder">
+              <div class="book-icon">📖</div>
+              <div class="book-name">${esc(book.name)}</div>
+            </div>`}
+        <span class="book-level-badge">${esc(level)}</span>
+      </div>
+      <div class="book-card-body">
+        <h3 class="book-card-title">${esc(book.name)}</h3>
+        <div class="book-card-stats">
+          <span class="book-stat"><span class="stat-icon">📝</span> ${totalWords} کلمه</span>
+          <span class="book-stat"><span class="stat-icon">📚</span> ${totalLessons} درس</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('[data-picker-book-id]').forEach(card => {
+    card.addEventListener('click', () => {
+      const bookId = card.dataset.pickerBookId;
+      closeBookPicker();
+      openBook(bookId);
+      toast('📖 کتاب باز شد', 'success');
+    });
+  });
+}
+
+/* ============================================================
+   GLOBAL SEARCH
+   ============================================================ */
+function openGlobalSearch(){
+  const book = getBook();
+  if (!book) { toast('اول یک کتاب انتخاب کن', 'warning'); return; }
+  const modal = document.getElementById('modalGlobalSearch');
+  const nameEl = document.getElementById('globalSearchBookName');
+  if (nameEl) nameEl.textContent = book.name;
+  const input = document.getElementById('globalSearchInput');
+  if (input) input.value = '';
+  const results = document.getElementById('globalSearchResults');
+  if (results) results.innerHTML = `<div class="global-search-empty">شروع به تایپ کن...</div>`;
+  modal.classList.add('active');
+  document.body.classList.add('locked');
+  setTimeout(() => { if (input) input.focus(); }, 100);
+}
+function closeGlobalSearch(){
+  const modal = document.getElementById('modalGlobalSearch');
+  if (modal) modal.classList.remove('active');
+  document.body.classList.remove('locked');
+}
+function searchAllWords(query){
+  const results = document.getElementById('globalSearchResults');
+  if (!results) return;
+  const book = getBook();
+  if (!book) return;
+  const q = (query || '').trim().toLowerCase();
+  if (!q) {
+    results.innerHTML = `<div class="global-search-empty">شروع به تایپ کن...</div>`;
+    return;
+  }
+  const matches = [];
+  (book.lessons || []).forEach(lesson => {
+    (lesson.words || []).forEach(word => {
+      const de = (word.de || '').toLowerCase();
+      const fa = (word.fa || '').toLowerCase();
+      const art = (word.art || '').toLowerCase();
+      if (de.includes(q) || fa.includes(q) || art.includes(q)) matches.push({ word, lesson });
+    });
+  });
+  if (!matches.length) {
+    results.innerHTML = `<div class="global-search-empty">❌ هیچ کلمه‌ای پیدا نشد</div>`;
+    return;
+  }
+  results.innerHTML = `
+    <div class="global-search-stats">✅ ${matches.length} نتیجه در ${new Set(matches.map(m => m.lesson.id)).size} درس</div>
+    ${matches.slice(0, 100).map(m => {
+      const w = m.word;
+      const artClass = articleClass(w.art);
+      return `<div class="global-search-item" data-go-word="${esc(w.id)}" data-go-lesson="${esc(m.lesson.id)}">
+        <div class="gs-word">
+          ${w.art && w.art !== '–' ? `<span class="gs-art ${artClass}">${esc(w.art)}</span>` : ''}
+          <span>${esc(w.de)}</span>
+        </div>
+        <div class="gs-meaning">${esc(w.fa)}</div>
+        <div class="gs-location">📚 ${esc(m.lesson.title)}</div>
+      </div>`;
+    }).join('')}
+  `;
+  results.querySelectorAll('[data-go-word]').forEach(item => {
+    item.addEventListener('click', () => {
+      const wordId = item.dataset.goWord;
+      const lessonId = item.dataset.goLesson;
+      closeGlobalSearch();
+      if (state.activeLessonId !== lessonId) {
+        if (practice.active) exitPractice();
+        state.activeLessonId = lessonId;
+        save();
+        renderAll();
+      }
+      setTimeout(() => openWordView(wordId), 200);
+    });
+  });
+}
 /* ============================================================
    IMPORT BOOK POPUP
    ============================================================ */
@@ -820,10 +904,7 @@ function confirmNewBookFromImport(){
       newBooks.push(nb);
     });
   }
-  newBooks.forEach(nb => {
-    // ✅ فقط یک درس نمونه
-    ensureSingleSampleLesson(nb);
-  });
+  newBooks.forEach(nb => ensureSingleSampleLesson(nb));
   newBooks.forEach(nb => state.books.push(nb));
   state.activeBookId = newBooks[0].id;
   state.activeLessonId = newBooks[0].lessons[0]?.id;
@@ -866,7 +947,7 @@ function confirmReplaceBook(){
     pendingBookData.data.forEach(b => { sourceLessons = sourceLessons.concat(b.lessons); });
   }
   const newLessons = sourceLessons
-    .filter(l => !l.isSample)  // ✅ درس‌های نمونه قدیمی رو حذف کن
+    .filter(l => !l.isSample)
     .map(l => ({
       id: uid(),
       title: l.title || 'درس',
@@ -874,7 +955,6 @@ function confirmReplaceBook(){
       stories: (l.stories || []).map(s => ({ ...s, id: s.id || uid() })),
       isSample: false
     }));
-  // ✅ فقط یک درس نمونه
   const sampleLesson = makeSampleLesson();
   targetBook.lessons = [sampleLesson, ...newLessons];
   targetBook.coverImage = sourceCover;
@@ -941,14 +1021,9 @@ function openWordView(wordId){
 
   const formsKeys = Object.keys(forms).filter(k => forms[k] && String(forms[k]).trim());
   if (formsKeys.length) {
-    html += `<div class="word-view-section">
-      <h4>🔤 صرف فعل</h4>
-      <div class="conjugation-grid">`;
+    html += `<div class="word-view-section"><h4>🔤 صرف فعل</h4><div class="conjugation-grid">`;
     formsKeys.forEach(key => {
-      html += `<div class="conj-row">
-        <span class="conj-label">${esc(formLabels[key] || key)}</span>
-        <span class="conj-value">${esc(forms[key])}</span>
-      </div>`;
+      html += `<div class="conj-row"><span class="conj-label">${esc(formLabels[key] || key)}</span><span class="conj-value">${esc(forms[key])}</span></div>`;
     });
     html += `</div></div>`;
   }
@@ -1041,15 +1116,10 @@ function openWordView(wordId){
     btn.addEventListener('click', () => speak(btn.dataset.wvExtra, btn.dataset.wvExtraAudio));
   });
   modal.addEventListener('click', e => {
-    if (e.target === modal) {
-      modal.classList.remove('active');
-      document.body.classList.remove('locked');
-    }
+    if (e.target === modal) { modal.classList.remove('active'); document.body.classList.remove('locked'); }
   }, { once: true });
 
-  if (autoPlayWord) {
-    setTimeout(() => speakTTS(word.de), 200);
-  }
+  if (autoPlayWord) setTimeout(() => speakTTS(word.de), 200);
 }
 
 /* ============================================================
@@ -1072,20 +1142,12 @@ function openWordEdit(wordId){
   }).join('\n');
 
   let html = `
-    <div class="word-edit-header">
-      <h3>✏️ ویرایش کامل لغت</h3>
-      <button class="word-edit-close" id="weClose">✕</button>
-    </div>
-
+    <div class="word-edit-header"><h3>✏️ ویرایش کامل لغت</h3><button class="word-edit-close" id="weClose">✕</button></div>
     <div class="word-edit-form-group">
       <h4>📝 اطلاعات اصلی</h4>
       <div class="word-edit-row">
-        <div class="word-edit-field">
-          <label>کلمه آلمانی *</label>
-          <input id="weDe" value="${esc(word.de || '')}" dir="ltr">
-        </div>
-        <div class="word-edit-field">
-          <label>نوع کلمه</label>
+        <div class="word-edit-field"><label>کلمه آلمانی *</label><input id="weDe" value="${esc(word.de || '')}" dir="ltr"></div>
+        <div class="word-edit-field"><label>نوع کلمه</label>
           <select id="weArt">
             <option value="–" ${word.art === '–' ? 'selected' : ''}>–</option>
             <option value="der" ${word.art === 'der' ? 'selected' : ''}>der</option>
@@ -1098,78 +1160,25 @@ function openWordEdit(wordId){
         </div>
       </div>
       <div class="word-edit-row">
-        <div class="word-edit-field">
-          <label>جمع</label>
-          <input id="wePlural" value="${esc(word.plural || '')}" dir="ltr">
-        </div>
-        <div class="word-edit-field">
-          <label>ترجمه فارسی *</label>
-          <input id="weFa" value="${esc(word.fa || '')}">
-        </div>
+        <div class="word-edit-field"><label>جمع</label><input id="wePlural" value="${esc(word.plural || '')}" dir="ltr"></div>
+        <div class="word-edit-field"><label>ترجمه فارسی *</label><input id="weFa" value="${esc(word.fa || '')}"></div>
       </div>
     </div>
-
     <div class="word-edit-form-group">
       <h4>📌 جمله مثال</h4>
-      <div class="word-edit-field">
-        <label>جمله آلمانی</label>
-        <input id="weEx" value="${esc(word.ex || '')}" dir="ltr">
-      </div>
-      <div class="word-edit-field">
-        <label>ترجمه جمله</label>
-        <input id="weExMean" value="${esc(word.exMean || '')}">
-      </div>
-      <div class="word-edit-field">
-        <label>🎵 لینک صوتی جمله</label>
-        <input id="weExAudio" value="${esc(word.exAudio || '')}" dir="ltr">
-      </div>
+      <div class="word-edit-field"><label>جمله آلمانی</label><input id="weEx" value="${esc(word.ex || '')}" dir="ltr"></div>
+      <div class="word-edit-field"><label>ترجمه جمله</label><input id="weExMean" value="${esc(word.exMean || '')}"></div>
+      <div class="word-edit-field"><label>🎵 لینک صوتی جمله</label><input id="weExAudio" value="${esc(word.exAudio || '')}" dir="ltr"></div>
     </div>
-
     <div class="word-edit-form-group">
       <h4>🔤 صرف فعل</h4>
-      ${Object.keys(formLabels).map(key => `
-        <div class="word-edit-field">
-          <label>${formLabels[key]}</label>
-          <input id="weForm_${key}" value="${esc(forms[key] || '')}" dir="ltr">
-        </div>
-      `).join('')}
+      ${Object.keys(formLabels).map(key => `<div class="word-edit-field"><label>${formLabels[key]}</label><input id="weForm_${key}" value="${esc(forms[key] || '')}" dir="ltr"></div>`).join('')}
     </div>
-
-    <div class="word-edit-form-group">
-      <h4>🔗 مترادف‌ها (با کاما جدا کن)</h4>
-      <div class="word-edit-field">
-        <input id="weSynonyms" value="${esc(synonyms)}" dir="ltr" placeholder="toll, super, klasse">
-      </div>
-    </div>
-
-    <div class="word-edit-form-group">
-      <h4>📎 کلمات مرتبط (با کاما جدا کن)</h4>
-      <div class="word-edit-field">
-        <input id="weRelated" value="${esc(related)}" dir="ltr" placeholder="Apfel, Obst">
-      </div>
-    </div>
-
-    <div class="word-edit-form-group">
-      <h4>📚 جملات بیشتر (هر خط: آلمانی | فارسی)</h4>
-      <div class="word-edit-field">
-        <textarea id="weExtraExamples" dir="ltr" placeholder="Ich esse einen Apfel. | من یک سیب می‌خورم.">${esc(extraExamples)}</textarea>
-      </div>
-    </div>
-
-    <div class="word-edit-form-group">
-      <h4>📝 یادداشت</h4>
-      <div class="word-edit-field">
-        <textarea id="weNote">${esc(word.note || '')}</textarea>
-      </div>
-    </div>
-
-    <div class="word-edit-form-group">
-      <h4>💡 نکات (هر خط یک نکته)</h4>
-      <div class="word-edit-field">
-        <textarea id="weNotes">${esc(notes)}</textarea>
-      </div>
-    </div>
-
+    <div class="word-edit-form-group"><h4>🔗 مترادف‌ها</h4><div class="word-edit-field"><input id="weSynonyms" value="${esc(synonyms)}" dir="ltr" placeholder="toll, super, klasse"></div></div>
+    <div class="word-edit-form-group"><h4>📎 کلمات مرتبط</h4><div class="word-edit-field"><input id="weRelated" value="${esc(related)}" dir="ltr" placeholder="Apfel, Obst"></div></div>
+    <div class="word-edit-form-group"><h4>📚 جملات بیشتر (هر خط: آلمانی | فارسی)</h4><div class="word-edit-field"><textarea id="weExtraExamples" dir="ltr">${esc(extraExamples)}</textarea></div></div>
+    <div class="word-edit-form-group"><h4>📝 یادداشت</h4><div class="word-edit-field"><textarea id="weNote">${esc(word.note || '')}</textarea></div></div>
+    <div class="word-edit-form-group"><h4>💡 نکات (هر خط یک نکته)</h4><div class="word-edit-field"><textarea id="weNotes">${esc(notes)}</textarea></div></div>
     <div class="word-edit-actions">
       <button class="btn btn-primary" id="weSave">💾 ذخیره تغییرات</button>
       <button class="btn" id="weCancel">لغو</button>
@@ -1218,9 +1227,7 @@ function openWordEdit(wordId){
     toast('✅ تغییرات ذخیره شد', 'success');
   });
 
-  modal.addEventListener('click', e => {
-    if (e.target === modal) closeWordEdit();
-  }, { once: true });
+  modal.addEventListener('click', e => { if (e.target === modal) closeWordEdit(); }, { once: true });
 }
 function closeWordEdit(){
   document.getElementById('wordEditModal').classList.remove('active');
@@ -1257,18 +1264,8 @@ function populateLessonTargets(){
 }
 
 /* ============================================================
-   RENDER: BOOK / LESSON SELECT
+   RENDER: LESSON SELECT
    ============================================================ */
-function renderBookSelect(){
-  const sel = document.getElementById('bookSelect');
-  if (!sel) return;
-  sel.innerHTML = state.books.map(b =>
-    `<option value="${b.id}" ${b.id===state.activeBookId?'selected':''}>${esc(b.name)} — ${esc(b.level)}</option>`
-  ).join('');
-  const delBtn = document.getElementById('delBookBtn');
-  if (delBtn) delBtn.disabled = state.books.length === 0;
-  updateAppTitle();
-}
 function renderLessonSelect(){
   const b = getBook();
   const sel = document.getElementById('lessonSelect');
@@ -1348,17 +1345,11 @@ function renderWordTable(){
     </tr>`;
   }).join('');
   cont.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr>
-      <th>Deutsch</th><th>🔊</th><th>Artikel</th>
-      <th>Plural</th><th>فارسی</th>
-    </tr></thead>
+    <thead><tr><th>Deutsch</th><th>🔊</th><th>Artikel</th><th>Plural</th><th>فارسی</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
   cont.querySelectorAll('[data-speak]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      speak(btn.dataset.speak, btn.dataset.audio);
-    });
+    btn.addEventListener('click', e => { e.stopPropagation(); speak(btn.dataset.speak, btn.dataset.audio); });
   });
   cont.querySelectorAll('tbody tr').forEach(tr => {
     tr.addEventListener('click', e => {
@@ -1387,11 +1378,9 @@ function renderCards(){
   if (filter === 'has-example') words = words.filter(w => w.ex);
   else if (filter === 'no-example') words = words.filter(w => !w.ex);
   else if (filter !== 'all') words = words.filter(w => normalizeStatus(w) === filter);
-  if (cardSortMode === 'alpha') {
-    words.sort((a, b) => a.de.localeCompare(b.de, 'de'));
-  } else if (cardSortMode === 'random') {
-    words = shuffle(words);
-  } else if (cardSortMode === 'status') {
+  if (cardSortMode === 'alpha') words.sort((a, b) => a.de.localeCompare(b.de, 'de'));
+  else if (cardSortMode === 'random') words = shuffle(words);
+  else if (cardSortMode === 'status') {
     const order = { bad: 0, new: 1, learning: 2, good: 3 };
     words.sort((a, b) => (order[normalizeStatus(a)] || 0) - (order[normalizeStatus(b)] || 0));
   }
@@ -1452,10 +1441,7 @@ function renderCards(){
     });
   });
   container.querySelectorAll('[data-card-more]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      openWordView(btn.dataset.cardMore);
-    });
+    btn.addEventListener('click', e => { e.stopPropagation(); openWordView(btn.dataset.cardMore); });
   });
   container.querySelectorAll('[data-card-speak]').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); speakTTS(btn.dataset.cardSpeak); });
@@ -1548,18 +1534,12 @@ function buildFolderMenu(){
 function enterTheaterMode(){
   document.body.classList.add('practice-theater');
   const btn = document.getElementById('practiceFullscreenBtn');
-  if (btn) {
-    btn.textContent = '✕ خروج';
-    btn.title = 'بستن حالت بزرگ';
-  }
+  if (btn) { btn.textContent = '✕ خروج'; btn.title = 'بستن حالت بزرگ'; }
 }
 function exitTheaterMode(){
   document.body.classList.remove('practice-theater');
   const btn = document.getElementById('practiceFullscreenBtn');
-  if (btn) {
-    btn.textContent = '⛶ بزرگ';
-    btn.title = 'نمایش بزرگ';
-  }
+  if (btn) { btn.textContent = '⛶ بزرگ'; btn.title = 'نمایش بزرگ'; }
 }
 function toggleTheaterMode(){
   if (document.body.classList.contains('practice-theater')) exitTheaterMode();
@@ -1604,6 +1584,7 @@ function startPractice(folderType){
   practice.queue = shuffle(words);
   practice.index = 0;
   practice.ratings = {};
+  practice._isTransitioning = false;
   document.getElementById('practiceFolderView').classList.add('hidden');
   document.getElementById('practiceSession').classList.remove('hidden');
   showCurrentPracticeCard();
@@ -1618,9 +1599,8 @@ function showCurrentPracticeCard(){
   const w = practice.queue[practice.index];
   document.getElementById('practiceCounter').textContent = `${practice.index + 1} / ${practice.queue.length}`;
   document.getElementById('practiceProgress').style.width = ((practice.index / practice.queue.length) * 100) + '%';
-  document.getElementById('flashcardInner').classList.remove('flipped');
 
-  // ✅ اعمال جهت کارت
+  // ✅ اول محتوا رو عوض کن
   if (practiceDirection === 'de-fa') {
     document.getElementById('fcArt').textContent = w.art && w.art !== '–' ? w.art : '';
     document.getElementById('fcArt').className = 'fc-art art ' + articleClass(w.art);
@@ -1628,7 +1608,6 @@ function showCurrentPracticeCard(){
     document.getElementById('fcMeaning').textContent = w.fa;
     document.getElementById('fcExample').innerHTML = w.ex ? `📌 ${esc(w.ex)}${w.exMean ? `<br><small>${esc(w.exMean)}</small>` : ''}` : '';
   } else {
-    // فارسی → آلمانی
     document.getElementById('fcArt').textContent = '';
     document.getElementById('fcArt').className = 'fc-art';
     document.getElementById('fcWord').textContent = w.fa;
@@ -1636,27 +1615,58 @@ function showCurrentPracticeCard(){
     document.getElementById('fcExample').innerHTML = w.exMean ? `📌 ${esc(w.exMean)}${w.ex ? `<br><small dir="ltr">${esc(w.ex)}</small>` : ''}` : (w.ex ? `📌 <span dir="ltr">${esc(w.ex)}</span>` : '');
   }
 
+  const speakBtn = document.getElementById('fcSpeakBtn');
+  if (speakBtn) {
+    if (practiceDirection === 'fa-de') speakBtn.style.display = 'none';
+    else speakBtn.style.display = '';
+  }
+
   const prevBtn = document.getElementById('prevPracticeBtn');
   if (prevBtn) prevBtn.disabled = practice.index === 0;
 
-  // ✅ صدا فقط در جهت de-fa و فقط اگر کارت نچرخیده
+  // ✅ مطمئن شو کارت رو نشون داده می‌شه (بعد از تغییر محتوا)
+  const inner = document.getElementById('flashcardInner');
+  if (inner && inner.classList.contains('flipped')) {
+    inner.classList.remove('flipped');
+  }
+
+  // ✅ پخش صدا فقط بعد از تاخیر کوتاه
   if (autoPlayWord && practiceDirection === 'de-fa') {
     setTimeout(() => {
-      const inner = document.getElementById('flashcardInner');
-      if (inner && !inner.classList.contains('flipped')) {
-        speakTTS(w.de);
-      }
-    }, 200);
+      const innerEl = document.getElementById('flashcardInner');
+      if (innerEl && !innerEl.classList.contains('flipped')) speakTTS(w.de);
+    }, 350);
   }
 }
 
+/* ============================================================
+   ⭐ rateCurrent — با رفع مشکل پشت کارت بعدی
+   ============================================================ */
 function rateCurrent(rating){
+  if (practice._isTransitioning) return;
+  practice._isTransitioning = true;
+
   const w = practice.queue[practice.index];
   reviewWord(w, rating);
   practice.ratings[practice.index] = rating;
-  practice.index++;
-  showCurrentPracticeCard();
-  renderStats();
+
+  const inner = document.getElementById('flashcardInner');
+  const wasFlipped = inner && inner.classList.contains('flipped');
+
+  // ✅ اگه پشت کارت دیده می‌شه، اول برگردونش
+  if (wasFlipped) {
+    inner.classList.remove('flipped');
+  }
+
+  // ✅ همیشه یه تاخیر کوتاه برای هماهنگی با انیمیشن
+  const delay = wasFlipped ? 400 : 150;
+
+  setTimeout(() => {
+    practice.index++;
+    showCurrentPracticeCard();
+    renderStats();
+    practice._isTransitioning = false;
+  }, delay);
 }
 
 function exitPractice(){
@@ -1666,6 +1676,7 @@ function exitPractice(){
 
   practice.active = false;
   practice.ratings = {};
+  practice._isTransitioning = false;
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   if (currentAudio) { try { currentAudio.pause(); } catch(e){} currentAudio = null; }
   const folderView = document.getElementById('practiceFolderView');
@@ -1683,30 +1694,16 @@ function getQuizModeStats(mode){
   const history = (state.quizHistory || []).filter(h =>
     h.lessonId === state.activeLessonId && h.mode === mode
   );
-  if (!history.length) {
-    return { attempts: 0, bestPct: 0, lastPct: 0, lastDate: null, totalWordsTested: 0 };
-  }
+  if (!history.length) return { attempts: 0, bestPct: 0, lastPct: 0, lastDate: null, totalWordsTested: 0 };
   let bestPct = 0;
-  let totalWordsTested = 0;
   let last = history[history.length - 1];
-  history.forEach(h => {
-    if (h.pct > bestPct) bestPct = h.pct;
-    totalWordsTested += h.total || 0;
-  });
-  return {
-    attempts: history.length,
-    bestPct,
-    lastPct: last.pct,
-    lastDate: last.date,
-    totalWordsTested
-  };
+  history.forEach(h => { if (h.pct > bestPct) bestPct = h.pct; });
+  return { attempts: history.length, bestPct, lastPct: last.pct, lastDate: last.date };
 }
 
 function renderModeStatsBadge(mode){
   const s = getQuizModeStats(mode);
-  if (s.attempts === 0) {
-    return `<div class="quiz-mode-stats none">🆕 هنوز کار نکردی</div>`;
-  }
+  if (s.attempts === 0) return `<div class="quiz-mode-stats none">🆕 هنوز کار نکردی</div>`;
   return `<div class="quiz-mode-stats done">
     <span class="qms-attempts">🔁 ${s.attempts} بار</span>
     <span class="qms-best">🏆 ${s.bestPct}%</span>
@@ -1721,24 +1718,20 @@ function pickAdaptiveWords(words, count){
   const learning = words.filter(w => normalizeStatus(w) === 'learning');
   const good = words.filter(w => normalizeStatus(w) === 'good');
   const fresh = words.filter(w => normalizeStatus(w) === 'new');
-  
   const nBad = Math.min(bad.length, Math.ceil(count * 0.5));
   const nLearning = Math.min(learning.length, Math.ceil(count * 0.3));
   const nGood = Math.min(good.length, Math.ceil(count * 0.1));
   const nFresh = Math.min(fresh.length, count - nBad - nLearning - nGood);
-  
   let picked = [
     ...shuffle(bad).slice(0, nBad),
     ...shuffle(learning).slice(0, nLearning),
     ...shuffle(good).slice(0, nGood),
     ...shuffle(fresh).slice(0, nFresh)
   ];
-  
   if (picked.length < count) {
     const remaining = words.filter(w => !picked.find(p => p.id === w.id));
     picked = picked.concat(shuffle(remaining).slice(0, count - picked.length));
   }
-  
   return shuffle(picked).slice(0, count);
 }
 
@@ -1751,13 +1744,10 @@ function renderQuizHome(){
   const nounCount = words.filter(w => ['der','die','das'].includes(w.art)).length;
   const pluralCount = words.filter(w => w.plural && w.plural !== '–').length;
   const due = getDueWords();
-
   const lessonHistory = (state.quizHistory || [])
     .filter(h => h.lessonId === state.activeLessonId)
-    .slice(-10)
-    .reverse();
+    .slice(-10).reverse();
 
-  // ✅ بخش وضعیت کلی
   const modes = ['mean', 'sentence', 'typing', 'listening', 'article', 'plural'];
   const tested = modes.filter(m => getQuizModeStats(m).attempts > 0);
   const notTested = modes.filter(m => getQuizModeStats(m).attempts === 0);
@@ -1771,30 +1761,17 @@ function renderQuizHome(){
           <strong>هنوز هیچ آزمونی از این درس کار نکردی!</strong>
           <div class="qo-sub">با انتخاب یکی از حالت‌های زیر شروع کن</div>
         </div>
-      </div>
-    `;
+      </div>`;
   } else {
     overviewHtml = `
       <div class="quiz-overview">
-        <div class="qo-row">
-          <span class="qo-label">📊 کل آزمون‌ها:</span>
-          <span class="qo-value">${totalAttempts} بار</span>
-        </div>
-        <div class="qo-row">
-          <span class="qo-label">✅ کار شده:</span>
-          <span class="qo-value qo-done">${tested.length} حالت</span>
-        </div>
+        <div class="qo-row"><span class="qo-label">📊 کل آزمون‌ها:</span><span class="qo-value">${totalAttempts} بار</span></div>
+        <div class="qo-row"><span class="qo-label">✅ کار شده:</span><span class="qo-value qo-done">${tested.length} حالت</span></div>
         ${notTested.length ? `
-        <div class="qo-row">
-          <span class="qo-label">⏳ هنوز کار نشده:</span>
-          <span class="qo-value qo-pending">${notTested.length} حالت</span>
-        </div>
-        <div class="qo-pending-list">
-          ${notTested.map(m => `<span class="qo-pending-chip">${quizModeLabel(m)}</span>`).join('')}
-        </div>
+        <div class="qo-row"><span class="qo-label">⏳ هنوز کار نشده:</span><span class="qo-value qo-pending">${notTested.length} حالت</span></div>
+        <div class="qo-pending-list">${notTested.map(m => `<span class="qo-pending-chip">${quizModeLabel(m)}</span>`).join('')}</div>
         ` : `<div class="qo-all-done">🎉 همه حالت‌ها رو کار کردی!</div>`}
-      </div>
-    `;
+      </div>`;
   }
 
   container.innerHTML = `
@@ -1808,8 +1785,7 @@ function renderQuizHome(){
           <button class="btn btn-warning btn-lg" id="quizDailyReviewBtn" style="width:100%;color:#000;">
             📅 شروع مرور روزانه (${due.length} کلمه)
           </button>
-        </div>
-      ` : ''}
+        </div>` : ''}
       ${overviewHtml}
       <div class="quiz-mode-grid">
         <div class="quiz-mode-card mode-mean" data-quiz-mode="mean">
@@ -1842,24 +1818,21 @@ function renderQuizHome(){
             <div class="mode-title">جنسیت اسم</div>
             <div class="mode-desc">${nounCount} اسم<br>der / die / das</div>
             ${renderModeStatsBadge('article')}
-          </div>
-        ` : ''}
+          </div>` : ''}
         ${pluralCount >= 2 ? `
           <div class="quiz-mode-card mode-plural" data-quiz-mode="plural">
             <span class="mode-icon">📚</span>
             <div class="mode-title">جمع اسم</div>
             <div class="mode-desc">${pluralCount} اسم<br>جمع درست رو انتخاب کن</div>
             ${renderModeStatsBadge('plural')}
-          </div>
-        ` : ''}
+          </div>` : ''}
       </div>
       ${badCount > 0 ? `
         <div style="text-align:center;margin-top:16px;">
           <button class="btn btn-danger btn-lg" id="quizBadBtn" style="width:100%;">
             ❌ آزمون فقط «بلد نیستم»ها (${badCount} کلمه)
           </button>
-        </div>
-      ` : ''}
+        </div>` : ''}
     </div>
     ${lessonHistory.length ? `
       <div class="panel" style="margin-top:16px;">
@@ -1868,11 +1841,8 @@ function renderQuizHome(){
           ${lessonHistory.map(h => {
             const d = new Date(h.date);
             let dateStr = '';
-            try {
-              dateStr = d.toLocaleDateString('fa-IR') + ' ' + d.toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'});
-            } catch(e) {
-              dateStr = d.toLocaleString();
-            }
+            try { dateStr = d.toLocaleDateString('fa-IR') + ' ' + d.toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'}); }
+            catch(e) { dateStr = d.toLocaleString(); }
             return `<div class="quiz-history-item">
               <span class="qh-mode">${quizModeLabel(h.mode)}</span>
               <span class="qh-score" style="color:${h.pct>=70?'var(--accent)':h.pct>=50?'var(--warning)':'var(--danger)'}">${h.pct}%</span>
@@ -1881,8 +1851,7 @@ function renderQuizHome(){
             </div>`;
           }).join('')}
         </div>
-      </div>
-    ` : ''}
+      </div>` : ''}
   `;
 
   container.querySelectorAll('[data-quiz-mode]').forEach(card => {
@@ -1900,10 +1869,7 @@ function startQuizMode(mode, onlyBad){
   if (mode === 'sentence') words = words.filter(w => w.ex && w.ex.trim());
   if (mode === 'article') words = words.filter(w => ['der','die','das'].includes(w.art));
   if (mode === 'plural') words = words.filter(w => w.plural && w.plural !== '–');
-  if (words.length < 2) {
-    toast('حداقل ۲ کلمه لازمه', 'warning');
-    return;
-  }
+  if (words.length < 2) { toast('حداقل ۲ کلمه لازمه', 'warning'); return; }
 
   quizState.mode = mode;
   quizState.questions = [];
@@ -1957,10 +1923,7 @@ function startQuizMode(mode, onlyBad){
     });
   }
 
-  if (!quizState.questions.length) {
-    toast('سوالی ساخته نشد', 'error');
-    return;
-  }
+  if (!quizState.questions.length) { toast('سوالی ساخته نشد', 'error'); return; }
 
   quizState.questions = shuffle(quizState.questions).slice(0, 20);
   document.getElementById('quizHome').classList.add('hidden');
@@ -1970,10 +1933,7 @@ function startQuizMode(mode, onlyBad){
 }
 
 function renderQuizQuestionNew(){
-  if (quizState.index >= quizState.questions.length) {
-    renderQuizReportNew();
-    return;
-  }
+  if (quizState.index >= quizState.questions.length) { renderQuizReportNew(); return; }
   const q = quizState.questions[quizState.index];
   const total = quizState.questions.length;
   const progress = (quizState.index / total * 100);
@@ -1996,8 +1956,7 @@ function renderQuizQuestionNew(){
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
-      </div>
-    `;
+      </div>`;
   } else if (q.type === 'sentence') {
     questionHtml = `
       <div class="quiz-question-box">
@@ -2010,8 +1969,7 @@ function renderQuizQuestionNew(){
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
-      </div>
-    `;
+      </div>`;
   } else if (q.type === 'typing') {
     const isListening = q.mode === 'listening';
     questionHtml = `
@@ -2022,9 +1980,7 @@ function renderQuizQuestionNew(){
         ${isListening ? `
           <button class="quiz-listen-btn" id="quizListenBtn">🔊</button>
           <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;">برای پخش دوباره کلیک کن</div>
-        ` : `
-          <div class="quiz-word" style="color:var(--accent);">${esc(q.word.fa)}</div>
-        `}
+        ` : `<div class="quiz-word" style="color:var(--accent);">${esc(q.word.fa)}</div>`}
         <input type="text" class="quiz-typing-input" id="quizTypingInput" placeholder="آلمانی رو تایپ کن..." dir="ltr" autocomplete="off" autocorrect="off">
         <div style="text-align:center;">
           <button class="quiz-hint-toggle" id="quizHintBtn">💡 نمایش راهنما</button>
@@ -2035,8 +1991,7 @@ function renderQuizQuestionNew(){
           </div>
         </div>
         <button class="btn btn-primary" id="quizCheckBtn" style="width:100%;margin-top:12px;padding:12px;">✅ بررسی جواب</button>
-      </div>
-    `;
+      </div>`;
   } else if (q.type === 'article') {
     questionHtml = `
       <div class="quiz-question-box">
@@ -2046,8 +2001,7 @@ function renderQuizQuestionNew(){
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt article-opt-${o}" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
-      </div>
-    `;
+      </div>`;
   } else if (q.type === 'plural') {
     questionHtml = `
       <div class="quiz-question-box">
@@ -2059,8 +2013,7 @@ function renderQuizQuestionNew(){
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
-      </div>
-    `;
+      </div>`;
   }
 
   session.innerHTML = `
@@ -2080,8 +2033,7 @@ function renderQuizQuestionNew(){
         <div class="quiz-progress-fill" style="width:${progress}%"></div>
       </div>
       ${questionHtml}
-    </div>
-  `;
+    </div>`;
 
   document.getElementById('quizExitBtn').addEventListener('click', backToQuizHome);
   const hintBtn = document.getElementById('quizHintBtn');
@@ -2093,7 +2045,6 @@ function renderQuizQuestionNew(){
     });
   }
 
-  // ✅ دکمه تغییر جهت در آزمون mean
   const flipDirBtn = document.getElementById('quizFlipDirBtn');
   if (flipDirBtn) {
     flipDirBtn.addEventListener('click', () => {
@@ -2103,15 +2054,13 @@ function renderQuizQuestionNew(){
       const allWords = getWords();
       if (practiceDirection === 'de-fa') {
         const others = allWords.filter(x => x.id !== w.id).map(x => x.fa).filter(Boolean);
-        const opts = shuffle([w.fa, ...shuffle(others).slice(0, 3)]);
         q.correct = w.fa;
-        q.options = opts;
+        q.options = shuffle([w.fa, ...shuffle(others).slice(0, 3)]);
         q.dir = 'de-fa';
       } else {
         const others = allWords.filter(x => x.id !== w.id).map(x => x.de).filter(Boolean);
-        const opts = shuffle([w.de, ...shuffle(others).slice(0, 3)]);
         q.correct = w.de;
-        q.options = opts;
+        q.options = shuffle([w.de, ...shuffle(others).slice(0, 3)]);
         q.dir = 'fa-de';
       }
       renderQuizQuestionNew();
@@ -2132,9 +2081,7 @@ function renderQuizQuestionNew(){
     }
     setTimeout(() => input.focus(), 100);
     checkBtn.addEventListener('click', () => checkTypingAnswer(q, input));
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') checkTypingAnswer(q, input);
-    });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkTypingAnswer(q, input); });
   } else {
     session.querySelectorAll('[data-qopt]').forEach(btn => {
       btn.addEventListener('click', () => answerChoice(q, btn.dataset.qopt));
@@ -2146,15 +2093,8 @@ function answerChoice(q, selected){
   if (quizState.answered) return;
   quizState.answered = true;
   const isCorrect = germanEquals(selected, q.correct);
-
-  if (isCorrect) {
-    quizState.correct++;
-    reviewWord(q.word, 'good');
-  } else {
-    quizState.wrong++;
-    quizState.wrongWords.push(q.word);
-    reviewWord(q.word, 'bad');
-  }
+  if (isCorrect) { quizState.correct++; reviewWord(q.word, 'good'); }
+  else { quizState.wrong++; quizState.wrongWords.push(q.word); reviewWord(q.word, 'bad'); }
 
   document.querySelectorAll('[data-qopt]').forEach(btn => {
     btn.disabled = true;
@@ -2180,20 +2120,10 @@ function checkTypingAnswer(q, input){
   if (quizState.answered) return;
   const userAnswer = (input.value || '').trim();
   const isCorrect = germanEquals(userAnswer, q.correct);
-
   quizState.answered = true;
   input.disabled = true;
-
-  if (isCorrect) {
-    quizState.correct++;
-    reviewWord(q.word, 'good');
-    input.classList.add('correct');
-  } else {
-    quizState.wrong++;
-    quizState.wrongWords.push(q.word);
-    reviewWord(q.word, 'bad');
-    input.classList.add('wrong');
-  }
+  if (isCorrect) { quizState.correct++; reviewWord(q.word, 'good'); input.classList.add('correct'); }
+  else { quizState.wrong++; quizState.wrongWords.push(q.word); reviewWord(q.word, 'bad'); input.classList.add('wrong'); }
 
   const fb = document.createElement('div');
   fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'wrong');
@@ -2202,7 +2132,6 @@ function checkTypingAnswer(q, input){
     : `❌ اشتباه — جواب درست: <strong style="direction:ltr;">${esc(q.correct)}</strong>
        <div style="font-size:12px;opacity:0.8;margin-top:6px;">جواب تو: <span dir="ltr">${esc(userAnswer || '(خالی)')}</span></div>`;
   document.getElementById('quizSession').appendChild(fb);
-
   document.getElementById('quizCheckBtn').style.display = 'none';
 
   const next = document.createElement('button');
@@ -2223,18 +2152,12 @@ function renderQuizReportNew(){
   else if (pct >= 50) { badge = 'average'; badgeText = '📚 خوب، ولی بیشتر تمرین کن'; }
   else { badge = 'weak'; badgeText = '💪 نیاز به تمرین بیشتر'; }
 
-  // ✅ ذخیره تاریخچه
   if (!state.quizHistory) state.quizHistory = [];
   state.quizHistory.push({
-    id: uid(),
-    date: Date.now(),
-    bookId: state.activeBookId,
-    lessonId: state.activeLessonId,
-    mode: quizState.mode,
-    correct: quizState.correct,
-    wrong: quizState.wrong,
-    total: total,
-    pct: pct
+    id: uid(), date: Date.now(),
+    bookId: state.activeBookId, lessonId: state.activeLessonId,
+    mode: quizState.mode, correct: quizState.correct, wrong: quizState.wrong,
+    total: total, pct: pct
   });
   if (state.quizHistory.length > 100) state.quizHistory = state.quizHistory.slice(-100);
   save();
@@ -2250,18 +2173,9 @@ function renderQuizReportNew(){
       <div style="font-size:14px;color:var(--muted);">${quizState.correct} از ${total} پاسخ درست</div>
     </div>
     <div class="quiz-report-stats">
-      <div class="quiz-report-stat correct-stat">
-        <span class="stat-num">${quizState.correct}</span>
-        <span class="stat-lbl">✅ درست</span>
-      </div>
-      <div class="quiz-report-stat wrong-stat">
-        <span class="stat-num">${quizState.wrong}</span>
-        <span class="stat-lbl">❌ اشتباه</span>
-      </div>
-      <div class="quiz-report-stat total-stat">
-        <span class="stat-num">${total}</span>
-        <span class="stat-lbl">📊 کل سوال</span>
-      </div>
+      <div class="quiz-report-stat correct-stat"><span class="stat-num">${quizState.correct}</span><span class="stat-lbl">✅ درست</span></div>
+      <div class="quiz-report-stat wrong-stat"><span class="stat-num">${quizState.wrong}</span><span class="stat-lbl">❌ اشتباه</span></div>
+      <div class="quiz-report-stat total-stat"><span class="stat-num">${total}</span><span class="stat-lbl">📊 کل سوال</span></div>
     </div>
     ${quizState.wrongWords.length ? `
       <div class="quiz-failed-section">
@@ -2271,31 +2185,23 @@ function renderQuizReportNew(){
             <div class="quiz-failed-item">
               <span class="de">${esc(w.de)}</span>
               <span class="fa">${esc(w.fa)}</span>
-            </div>
-          `).join('')}
+            </div>`).join('')}
         </div>
         <p style="font-size:12px;color:var(--muted);margin-top:10px;">این کلمات به پوشه «بلد نیستم» منتقل شدن.</p>
-      </div>
-    ` : `
+      </div>` : `
       <div style="text-align:center;padding:20px;color:var(--accent);font-size:16px;font-weight:700;">🎉 عالی! هیچ غلطی نداشتی</div>
     `}
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
       <button class="btn btn-primary btn-lg" id="quizBackBtn" style="width:100%;">🏠 بازگشت به منوی آزمون</button>
-      ${quizState.wrongWords.length ? `
-        <button class="btn btn-danger btn-lg" id="quizRetryWrongBtn" style="width:100%;">🔄 آزمون مجدد کلمات اشتباه</button>
-      ` : ''}
-    </div>
-  `;
+      ${quizState.wrongWords.length ? `<button class="btn btn-danger btn-lg" id="quizRetryWrongBtn" style="width:100%;">🔄 آزمون مجدد کلمات اشتباه</button>` : ''}
+    </div>`;
 
   document.getElementById('quizBackBtn').addEventListener('click', backToQuizHome);
   const retryBtn = document.getElementById('quizRetryWrongBtn');
   if (retryBtn) {
     retryBtn.addEventListener('click', () => {
       const wrongWords = quizState.wrongWords;
-      if (wrongWords.length < 2) {
-        toast('برای آزمون مجدد حداقل ۲ کلمه لازمه', 'warning');
-        return;
-      }
+      if (wrongWords.length < 2) { toast('برای آزمون مجدد حداقل ۲ کلمه لازمه', 'warning'); return; }
       quizState.mode = 'mean';
       quizState.questions = [];
       quizState.index = 0;
@@ -2370,22 +2276,17 @@ function renderStories(){
     btn.addEventListener('click', e => { e.stopPropagation(); loadStoryForEdit(btn.dataset.edit); });
   });
 }
-
 function highlightStoryWords(sentenceDe){
   const parts = sentenceDe.split(/(\s+|[.,!?;:()"'\[\]{}–—\-]+)/);
   return parts.map(part => {
-    if (!part || /^\s+$/.test(part) || /^[.,!?;:()"'\[\]{}–—\-]+$/.test(part)) {
-      return esc(part);
-    }
+    if (!part || /^\s+$/.test(part) || /^[.,!?;:()"'\[\]{}–—\-]+$/.test(part)) return esc(part);
     const clean = part.toLowerCase().replace(/[.,!?;:()"'\[\]{}–—]/g, '');
     const found = getWords().find(w =>
       w.de.toLowerCase() === clean ||
       (w.art && w.de.toLowerCase() === w.art.toLowerCase()) ||
       w.de.toLowerCase().startsWith(clean + ' ')
     );
-    if (found) {
-      return `<span class="story-word" data-word-id="${found.id}">${esc(part)}</span>`;
-    }
+    if (found) return `<span class="story-word" data-word-id="${found.id}">${esc(part)}</span>`;
     return esc(part);
   }).join('');
 }
@@ -2469,24 +2370,18 @@ function openStory(id){
 
   document.getElementById('storyReaderBody').innerHTML = html;
 
-  // ✅ اسکرول به بالا + نوار داستان فعال وسط
   const scrollBody = document.getElementById('storyScrollBody');
   if (scrollBody) scrollBody.scrollTop = 0;
   const activeNav = document.querySelector('.story-quick-nav-btn.active');
   if (activeNav) {
-    try {
-      activeNav.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    } catch(e) {}
+    try { activeNav.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } catch(e) {}
   }
 
   document.querySelectorAll('[data-jump-story]').forEach(btn => {
     btn.addEventListener('click', () => openStory(btn.dataset.jumpStory));
   });
   document.querySelectorAll('.story-word').forEach(span => {
-    span.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openWordView(span.dataset.wordId);
-    });
+    span.addEventListener('click', (e) => { e.stopPropagation(); openWordView(span.dataset.wordId); });
   });
   const toggleBtn = document.getElementById('toggleFa');
   if (toggleBtn) {
@@ -2532,14 +2427,8 @@ function goToAdjacentStory(direction, autoAdvance){
   }
   if (idx === -1) return false;
   let nextIdx = idx + direction;
-  if (nextIdx >= stories.length) {
-    if (!autoAdvance) return false;
-    nextIdx = 0;
-  }
-  if (nextIdx < 0) {
-    if (!autoAdvance) return false;
-    nextIdx = stories.length - 1;
-  }
+  if (nextIdx >= stories.length) { if (!autoAdvance) return false; nextIdx = 0; }
+  if (nextIdx < 0) { if (!autoAdvance) return false; nextIdx = stories.length - 1; }
   currentStoryId = stories[nextIdx].id;
   if (autoAdvance) repeatCounter = 0;
   openStory(currentStoryId);
@@ -2630,7 +2519,6 @@ function loadStoryForEdit(id){
   if (!foundStory) { toast('داستان پیدا نشد', 'error'); return; }
 
   storyEditId = id;
-
   if (foundLesson && state.activeLessonId !== foundLesson.id) {
     state.activeLessonId = foundLesson.id;
     save();
@@ -2655,17 +2543,14 @@ function loadStoryForEdit(id){
 function saveStory(){
   const title = document.getElementById('storyTitleInput').value.trim();
   if (!title) { toast('عنوان لازمه', 'error'); return; }
-
   const targetId = document.getElementById('storyTargetLesson').value;
   const target = getLessonById(targetId);
   if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
-
   const audio = document.getElementById('storyAudioInput').value.trim();
   const cover = document.getElementById('storyCoverInput').value.trim();
   const color = safeCoverColor(document.getElementById('storyColorInput').value);
   const lines = document.getElementById('storySentencesInput').value.split(/\r?\n/);
   const sentences = [];
-
   for (const line of lines) {
     if (!line.trim()) continue;
     const sep = line.indexOf('|');
@@ -2696,7 +2581,6 @@ function saveStory(){
       isEdit = true;
     }
   }
-
   if (!isEdit) {
     if (!Array.isArray(target.stories)) target.stories = [];
     target.stories.push({ id: uid(), title, audio, coverImage: cover, coverColor: color, sentences });
@@ -2705,13 +2589,11 @@ function saveStory(){
   save();
   resetStoryForm();
   renderAll(); populateLessonTargets();
-
   document.getElementById('storyTitleInput').value = '';
   document.getElementById('storyAudioInput').value = '';
   document.getElementById('storyCoverInput').value = '';
   document.getElementById('storyColorInput').value = '#6366f1';
   document.getElementById('storySentencesInput').value = '';
-
   toast(isEdit ? `✅ داستان «${title}» ویرایش شد` : `✅ داستان «${title}» به «${target.title}» اضافه شد`, 'success');
 }
 function resetStoryForm(){
@@ -2758,7 +2640,6 @@ function confirmDeleteBook(){
     state.activeLessonId = null;
   }
   save();
-  // ✅ legacy پاک بشه
   LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
   document.getElementById('modalDeleteBook').classList.remove('active');
   document.body.classList.remove('locked');
@@ -2773,35 +2654,20 @@ function confirmDeleteBook(){
 function addFullLessonFromJson(data, textareaEl, statusEl){
   const book = getBook();
   if (!book) { toast('اول یک کتاب انتخاب کن', 'error'); return; }
-
   const title = (data.title || data.lesson || data.lessonTitle || data.name || '').toString().trim();
   const words = (data.words || []).map(normalizeWord).filter(Boolean);
   const stories = (data.stories || []).map(normalizeStory).filter(Boolean);
-
-  if (!words.length && !stories.length) {
-    toast('نه لغتی نه داستانی برای اضافه کردن هست', 'warning');
-    return;
-  }
+  if (!words.length && !stories.length) { toast('نه لغتی نه داستانی برای اضافه کردن هست', 'warning'); return; }
 
   if (title) {
-    const newLesson = {
-      id: uid(),
-      title: title,
-      words: words,
-      stories: stories,
-      isSample: false
-    };
+    const newLesson = { id: uid(), title: title, words: words, stories: stories, isSample: false };
     if (!Array.isArray(book.lessons)) book.lessons = [];
     book.lessons.push(newLesson);
     state.activeLessonId = newLesson.id;
     save();
     renderAll(); populateLessonTargets();
     if (textareaEl) textareaEl.value = '';
-    if (statusEl) statusEl.innerHTML =
-      `<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">
-        ✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>
-        📝 ${words.length} لغت &nbsp;•&nbsp; 📖 ${stories.length} داستان
-      </div>`;
+    if (statusEl) statusEl.innerHTML = `<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>📝 ${words.length} لغت &nbsp;•&nbsp; 📖 ${stories.length} داستان</div>`;
     toast(`✅ درس «${newLesson.title}» اضافه شد`, 'success');
     return;
   }
@@ -2811,21 +2677,15 @@ function addFullLessonFromJson(data, textareaEl, statusEl){
   if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
   if (!Array.isArray(target.words)) target.words = [];
   if (!Array.isArray(target.stories)) target.stories = [];
-
   let addedW = 0, dupW = 0, addedS = 0;
   words.forEach(w => {
     if (target.words.some(x => x.de.toLowerCase() === w.de.toLowerCase())) { dupW++; return; }
     target.words.push(w); addedW++;
   });
-  stories.forEach(s => {
-    target.stories.push(s); addedS++;
-  });
-
-  save();
-  renderAll(); populateLessonTargets();
+  stories.forEach(s => { target.stories.push(s); addedS++; });
+  save(); renderAll(); populateLessonTargets();
   if (textareaEl) textareaEl.value = '';
-  if (statusEl) statusEl.innerHTML =
-    `<div style="color:var(--accent);font-size:13px;">✅ ${addedW} لغت و ${addedS} داستان به «${esc(target.title)}» اضافه شد${dupW ? ` (${dupW} تکراری رد شد)` : ''}</div>`;
+  if (statusEl) statusEl.innerHTML = `<div style="color:var(--accent);font-size:13px;">✅ ${addedW} لغت و ${addedS} داستان به «${esc(target.title)}» اضافه شد${dupW ? ` (${dupW} تکراری رد شد)` : ''}</div>`;
   toast(`✅ ${addedW} لغت + ${addedS} داستان اضافه شد`, 'success');
 }
 
@@ -2845,25 +2705,16 @@ function importFullBook(file){
       else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
       else if (Array.isArray(data) && data.length > 0 && data[0].words) {
         rawBooks = [{ name: file.name.replace('.json',''), level: 'A1.1', lessons: [{ title: 'درس 1', words: data }] }];
-      } else {
-        status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ فرمت کتاب شناسایی نشد</div>`;
-        return;
-      }
+      } else { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ فرمت کتاب شناسایی نشد</div>`; return; }
       const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
       if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`; return; }
-      newBooks.forEach(nb => {
-        ensureSingleSampleLesson(nb);
-        state.books.push(nb);
-      });
+      newBooks.forEach(nb => { ensureSingleSampleLesson(nb); state.books.push(nb); });
       state.activeBookId = newBooks[0].id;
       state.activeLessonId = newBooks[0].lessons[0]?.id;
       save(); renderAll(); populateLessonTargets();
       let totalLessons = 0, totalWords = 0;
       newBooks.forEach(nb => { totalLessons += nb.lessons.length; nb.lessons.forEach(l => totalWords += l.words.length); });
-      status.innerHTML = `<div style="background:rgba(16,185,129,0.1);border:1px solid var(--accent);border-radius:8px;padding:12px;font-size:13px;">
-        ✅ <b>${newBooks.length}</b> کتاب، <b>${totalLessons}</b> درس، <b>${totalWords}</b> کلمه اضافه شد
-        <br><small style="color:var(--muted);">🔒 درس نمونه به هر کتاب اضافه شد</small>
-      </div>`;
+      status.innerHTML = `<div style="background:rgba(16,185,129,0.1);border:1px solid var(--accent);border-radius:8px;padding:12px;font-size:13px;">✅ <b>${newBooks.length}</b> کتاب، <b>${totalLessons}</b> درس، <b>${totalWords}</b> کلمه اضافه شد</div>`;
       toast(`${newBooks.length} کتاب اضافه شد (با درس نمونه)`, 'success');
     } catch(err) {
       status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا: ${esc(err.message)}</div>`;
@@ -2886,14 +2737,12 @@ function replaceFullBook(file){
       else { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ فرمت شناسایی نشد</div>`; return; }
       const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
       if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`; return; }
-      newBooks.forEach(nb => {
-        ensureSingleSampleLesson(nb);
-      });
+      newBooks.forEach(nb => ensureSingleSampleLesson(nb));
       state.books = newBooks;
       state.activeBookId = newBooks[0].id;
       state.activeLessonId = newBooks[0].lessons[0]?.id;
       save(); renderAll(); populateLessonTargets();
-      status.innerHTML = `<div style="color:var(--accent);font-size:13px;">✅ ${newBooks.length} کتاب جایگزین شد (با درس نمونه)</div>`;
+      status.innerHTML = `<div style="color:var(--accent);font-size:13px;">✅ ${newBooks.length} کتاب جایگزین شد</div>`;
       toast('جایگزین شد (با درس نمونه)', 'success');
     } catch(err) {
       status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا: ${esc(err.message)}</div>`;
@@ -2904,7 +2753,6 @@ function replaceFullBook(file){
 function importJsonWords(){
   const raw = document.getElementById('jsonInput').value.trim();
   if (!raw) { toast('JSON خالیه', 'error'); return; }
-
   let data;
   try { data = JSON.parse(raw); }
   catch(e){ toast('JSON نامعتبر: ' + e.message, 'error'); return; }
@@ -2931,17 +2779,12 @@ function importJsonWords(){
     if (target.words.some(x => x.de.toLowerCase() === w.de.toLowerCase())) { dup++; return; }
     target.words.push(w); added++;
   });
-
-  save();
-  renderAll(); populateLessonTargets();
-
+  save(); renderAll(); populateLessonTargets();
   document.getElementById('jsonInput').value = '';
   document.getElementById('jsonPreview').innerHTML = '';
-
   const msg = `✅ ${added} اضافه${dup ? `، ${dup} تکراری` : ''}${skip ? `، ${skip} نامعتبر` : ''} به «${target.title}»`;
   toast(msg, added ? 'success' : 'warning');
-  document.getElementById('jsonPreview').innerHTML =
-    `<div style="color:var(--accent);font-size:13px;">${msg}</div>`;
+  document.getElementById('jsonPreview').innerHTML = `<div style="color:var(--accent);font-size:13px;">${msg}</div>`;
 }
 function validateJson(){
   const raw = document.getElementById('jsonInput').value.trim();
@@ -2959,11 +2802,9 @@ function validateJson(){
       <div style="color:var(--accent);">✅ آبجکت درس: «${esc(title || 'بدون عنوان')}»</div>
       <div style="color:var(--accent);">✅ ${words.length} لغت معتبر</div>
       <div style="color:var(--accent);">✅ ${stories.length} داستان معتبر</div>
-      ${title ? '<div style="color:var(--info);margin-top:4px;">با «اضافه» → درس جدید ساخته می‌شه</div>' : '<div style="color:var(--warning);margin-top:4px;">بدون title → به درس انتخاب‌شده اضافه می‌شه</div>'}
     </div>`;
     return;
   }
-
   let arr = Array.isArray(data) ? data : (data.words && Array.isArray(data.words) ? data.words : null);
   if (!arr) { preview.innerHTML = `<div style="color:var(--danger);">❌ باید آرایه لغات یا آبجکت درس باشد</div>`; return; }
   const valid = arr.map(normalizeWord).filter(Boolean);
@@ -2987,12 +2828,7 @@ function exportBook(){
 function exportLesson(){
   const l = getLesson(), b = getBook();
   if (!l) { toast('درسی انتخاب نشده', 'error'); return; }
-  const out = {
-    book: b ? b.name : '',
-    lesson: l.title,
-    words: l.words || [],
-    stories: l.stories || []
-  };
+  const out = { book: b ? b.name : '', lesson: l.title, words: l.words || [], stories: l.stories || [] };
   const safeName = (b ? b.name : 'book') + '-' + l.title;
   exportData(out, `${safeName}.json`);
   toast(`📥 درس «${l.title}» دانلود شد`, 'success');
@@ -3028,15 +2864,11 @@ function processLibraryImportData(data, fileName){
   else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
   else if (Array.isArray(data) && data.length > 0 && data[0].words) {
     rawBooks = [{ name: (fileName || 'کتاب جدید').replace('.json',''), level: 'A1.1', lessons: [{ title: 'درس 1', words: data }] }];
-  } else {
-    toast('❌ فرمت کتاب شناسایی نشد. باید کتاب کامل با lessons باشه.', 'error');
-    return;
-  }
+  } else { toast('❌ فرمت کتاب شناسایی نشد', 'error'); return; }
+
   const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
   if (!newBooks.length) { toast('❌ کتاب معتبری نبود', 'error'); return; }
-  newBooks.forEach(nb => {
-    ensureSingleSampleLesson(nb);
-  });
+  newBooks.forEach(nb => ensureSingleSampleLesson(nb));
   newBooks.forEach(nb => state.books.push(nb));
   state.activeBookId = newBooks[0].id;
   state.activeLessonId = newBooks[0].lessons[0]?.id;
@@ -3054,10 +2886,7 @@ function fetchLibraryFromUrl(){
   if (!url) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">آدرس لازمه</div>`; return; }
   status.innerHTML = `<div style="color:var(--info);font-size:13px;">⏳ در حال دریافت...</div>`;
   fetch(url)
-    .then(res => {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.text();
-    })
+    .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
     .then(text => {
       try {
         const data = JSON.parse(text);
@@ -3068,7 +2897,7 @@ function fetchLibraryFromUrl(){
       }
     })
     .catch(err => {
-      status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا در دریافت: ${esc(err.message)}<br><small>ممکنه CORS باشه. از روش فایل یا پیست استفاده کن.</small></div>`;
+      status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا: ${esc(err.message)}<br><small>ممکنه CORS باشه.</small></div>`;
     });
 }
 function addLibraryFromPaste(){
@@ -3143,12 +2972,10 @@ function processUploadedData(data, filename, status, forceActiveLesson){
   const book = getBook();
   if (!book) { toast('اول یک کتاب انتخاب کن', 'error'); return; }
   function show(html){ if (status) status.innerHTML = html; }
-
   function extractLessonTitle(obj){
     if (!obj) return '';
     return (obj.title || obj.lesson || obj.lessonTitle || obj.name || '').toString().trim();
   }
-
   function addNewLessonFromObject(lessonObj, fallbackTitle){
     const title = extractLessonTitle(lessonObj) || fallbackTitle || 'درس جدید';
     const nWords = Array.isArray(lessonObj.words) ? lessonObj.words.map(normalizeWord).filter(Boolean) : [];
@@ -3167,22 +2994,13 @@ function processUploadedData(data, filename, status, forceActiveLesson){
 
     if ((hasRootWords || hasRootStories) && !hasLessonsArray) {
       const newLesson = addNewLessonFromObject(data, 'درس جدید');
-      if (!newLesson) {
-        show(`<div style="color:var(--danger);font-size:13px;">❌ نه لغت معتبری داشت نه داستان معتبری</div>`);
-        toast('داده معتبری نبود', 'error');
-        return;
-      }
+      if (!newLesson) { show(`<div style="color:var(--danger);font-size:13px;">❌ داده معتبری نبود</div>`); return; }
       state.activeLessonId = newLesson.id;
-      save();
-      renderAll(); populateLessonTargets();
-      show(`<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">
-        ✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>
-        📝 ${newLesson.words.length} لغت &nbsp;•&nbsp; 📖 ${newLesson.stories.length} داستان
-      </div>`);
+      save(); renderAll(); populateLessonTargets();
+      show(`<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>📝 ${newLesson.words.length} لغت &nbsp;•&nbsp; 📖 ${newLesson.stories.length} داستان</div>`);
       toast(`✅ درس «${newLesson.title}» اضافه شد`, 'success');
       return;
     }
-
     if (Array.isArray(data.books)) {
       const booksData = data.books.map(b => normalizeBook(b)).filter(Boolean);
       if (!booksData.length) { show(`<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`); return; }
@@ -3190,7 +3008,6 @@ function processUploadedData(data, filename, status, forceActiveLesson){
       openImportBookPopup({ type: 'multi', data: booksData });
       return;
     }
-
     if (hasLessonsArray) {
       const bookData = {
         name: data.name || data.title || data.book || filename.replace('.json', ''),
@@ -3211,7 +3028,6 @@ function processUploadedData(data, filename, status, forceActiveLesson){
       (item.title || item.lesson || item.name) &&
       (Array.isArray(item.words) || Array.isArray(item.stories))
     );
-
     if (looksLikeLessons) {
       let addedLessons = 0, totalWords = 0, totalStories = 0;
       let lastLesson = null;
@@ -3233,7 +3049,6 @@ function processUploadedData(data, filename, status, forceActiveLesson){
       }
       return;
     }
-
     const targetId = forceActiveLesson ? state.activeLessonId : (document.getElementById('fileTargetLesson').value || state.activeLessonId);
     const target = getLessonById(targetId);
     if (!target) { show(`<div style="color:var(--danger);font-size:13px;">❌ درس مقصد انتخاب نشده</div>`); return; }
@@ -3272,7 +3087,7 @@ function processUploadedData(data, filename, status, forceActiveLesson){
 }
 
 /* ============================================================
-   TABS
+   TABS / RENDER ALL
    ============================================================ */
 function switchTab(name){
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -3287,7 +3102,6 @@ function switchTab(name){
   if (name === 'json' || name === 'manage' || name === 'manage-story') populateLessonTargets();
 }
 function renderAll(){
-  renderBookSelect();
   renderLessonSelect();
   renderStats();
   renderWordTable();
@@ -3343,10 +3157,7 @@ function openLessonModal(){
   const titleEl = document.getElementById('modalLessonTitle');
   if (input) input.value = '';
   if (titleEl) titleEl.textContent = '➕ درس جدید';
-  if (saveBtn) {
-    saveBtn.textContent = '💾 ذخیره';
-    delete saveBtn.dataset.editId;
-  }
+  if (saveBtn) { saveBtn.textContent = '💾 ذخیره'; delete saveBtn.dataset.editId; }
   const modal = document.getElementById('modalLesson');
   if (modal) modal.classList.add('active');
   document.body.classList.add('locked');
@@ -3355,47 +3166,26 @@ function openLessonModal(){
 function openEditLessonModal(){
   const l = getLesson();
   if (!l) { toast('درسی انتخاب نشده', 'error'); return; }
-  if (l.isSample) {
-    toast('🔒 عنوان درس نمونه قابل ویرایش نیست. یه درس جدید بساز.', 'warning');
-    return;
-  }
+  if (l.isSample) { toast('🔒 عنوان درس نمونه قابل ویرایش نیست', 'warning'); return; }
   const input = document.getElementById('lessonTitleInput');
   const saveBtn = document.getElementById('saveLessonBtn');
   const titleEl = document.getElementById('modalLessonTitle');
   if (input) input.value = l.title || '';
   if (titleEl) titleEl.textContent = '✏️ ویرایش نام درس';
-  if (saveBtn) {
-    saveBtn.textContent = '💾 ذخیره تغییرات';
-    saveBtn.dataset.editId = l.id;
-  }
+  if (saveBtn) { saveBtn.textContent = '💾 ذخیره تغییرات'; saveBtn.dataset.editId = l.id; }
   document.getElementById('modalLesson').classList.add('active');
   document.body.classList.add('locked');
   setTimeout(() => { if (input) { input.focus(); input.select(); } }, 100);
 }
 
 /* ============================================================
-   EVENTS
+   ⭐ EVENTS — با رفع مشکل Space در جستجو
    ============================================================ */
 function bindEvents(){
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => switchTab(t.dataset.tab));
   });
 
-  const bookSel = document.getElementById('bookSelect');
-  if (bookSel) bookSel.addEventListener('change', e => {
-    if (practice.active) exitPractice();
-    state.activeBookId = e.target.value;
-    const b = getBook();
-    if (b && b.lessons.length) {
-      const saved = state.lastLessonByBook && state.lastLessonByBook[b.id];
-      if (saved && b.lessons.find(l => l.id === saved)) {
-        state.activeLessonId = saved;
-      } else {
-        state.activeLessonId = b.lessons[0].id;
-      }
-    }
-    save(); updateAppTitle(); renderAll();
-  });
   const lessonSel = document.getElementById('lessonSelect');
   if (lessonSel) lessonSel.addEventListener('change', e => {
     if (practice.active) exitPractice();
@@ -3403,28 +3193,19 @@ function bindEvents(){
     save(); renderAll();
   });
 
-  const addBookBtn = document.getElementById('addBookBtn');
-  if (addBookBtn) addBookBtn.addEventListener('click', openBookModal);
   const addLessonBtn = document.getElementById('addLessonBtn');
   if (addLessonBtn) addLessonBtn.addEventListener('click', openLessonModal);
   const editLessonBtn = document.getElementById('editLessonBtn');
   if (editLessonBtn) editLessonBtn.addEventListener('click', openEditLessonModal);
-  const delBookBtn = document.getElementById('delBookBtn');
-  if (delBookBtn) delBookBtn.addEventListener('click', openDeleteBookModal);
 
   const delLessonBtn = document.getElementById('delLessonBtn');
   if (delLessonBtn) delLessonBtn.addEventListener('click', () => {
     const l = getLesson(), b = getBook();
     if (!l) { toast('درسی انتخاب نشده', 'warning'); return; }
     if (!b) { toast('کتابی انتخاب نشده', 'warning'); return; }
-
-    if (l.isSample) {
-      toast('🔒 درس نمونه قابل حذف نیست. می‌تونید ویرایشش کنید یا یه درس جدید بسازید.', 'error');
-      return;
-    }
-
+    if (l.isSample) { toast('🔒 درس نمونه قابل حذف نیست', 'error'); return; }
     if (b.lessons.length <= 1) {
-      if (!confirm(`«${l.title}» تنها درس این کتابه.\nاگه حذفش کنی، یه درس خالی جدید جاش ساخته می‌شه.\n\nادامه بدی؟`)) return;
+      if (!confirm(`«${l.title}» تنها درس این کتابه.\nحذف بشه و یه درس خالی جدید ساخته بشه؟`)) return;
       const emptyLesson = { id: uid(), title: 'Lektion 1', words: [], stories: [], isSample: false };
       b.lessons = [emptyLesson];
       state.activeLessonId = emptyLesson.id;
@@ -3432,17 +3213,13 @@ function bindEvents(){
       toast('🗑 درس حذف و یه درس خالی جدید ساخته شد', 'success');
       return;
     }
-
     const wordCount = (l.words || []).length;
     const storyCount = (l.stories || []).length;
-    const msg = `⚠️ حذف درس «${l.title}»\n\nاین درس شامل:\n• ${wordCount} لغت\n• ${storyCount} داستان\n\nبرگشت‌پذیر نیست. مطمئنی؟`;
-    if (!confirm(msg)) return;
-
+    if (!confirm(`⚠️ حذف درس «${l.title}»\n\n${wordCount} لغت • ${storyCount} داستان\n\nبرگشت‌پذیر نیست. مطمئنی؟`)) return;
     const idx = b.lessons.findIndex(x => x.id === l.id);
     b.lessons = b.lessons.filter(x => x.id !== l.id);
     const nextIdx = Math.min(idx, b.lessons.length - 1);
     state.activeLessonId = b.lessons[nextIdx].id;
-
     save(); renderAll(); populateLessonTargets();
     toast(`🗑 درس «${l.title}» حذف شد`, 'success');
   });
@@ -3474,13 +3251,9 @@ function bindEvents(){
   if (flashcardStage) flashcardStage.addEventListener('click', () => {
     const inner = document.getElementById('flashcardInner');
     inner.classList.toggle('flipped');
-    // ✅ اگر کارت برگشت، صدا رو قطع کن
     if (inner.classList.contains('flipped')) {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
-      if (currentAudio) {
-        try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){}
-        currentAudio = null;
-      }
+      if (currentAudio) { try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){} currentAudio = null; }
     }
   });
 
@@ -3507,15 +3280,11 @@ function bindEvents(){
   const autoPlayToggleSession = document.getElementById('autoPlayToggleSession');
   if (autoPlayToggleSession) autoPlayToggleSession.addEventListener('click', toggleAutoPlay);
 
-  // ✅ دکمه قطع صدا
   const muteAudioBtn = document.getElementById('muteAudioBtn');
   if (muteAudioBtn) {
     muteAudioBtn.addEventListener('click', () => {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
-      if (currentAudio) {
-        try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){}
-        currentAudio = null;
-      }
+      if (currentAudio) { try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){} currentAudio = null; }
       if (autoPlayWord) {
         autoPlayWord = false;
         try { localStorage.setItem(AUTOPLAY_KEY, 'false'); } catch(e){}
@@ -3527,7 +3296,6 @@ function bindEvents(){
     });
   }
 
-  // ✅ دکمه‌های جهت / تئاتر / منوی پوشه / ریست
   const flipDirBtn = document.getElementById('flipDirectionBtn');
   if (flipDirBtn) flipDirBtn.addEventListener('click', togglePracticeDirection);
   const flipDirFolderBtn = document.getElementById('flipDirectionFolderBtn');
@@ -3707,13 +3475,7 @@ function bindEvents(){
       if (isLibrary) { renderBookLibrary(); toast(`✅ «${name}» ویرایش شد`, 'success'); }
       else { renderAll(); toast('✅ ویرایش شد', 'success'); }
     } else {
-      const nb = {
-        id: uid(),
-        name,
-        level,
-        coverImage,
-        lessons: []
-      };
+      const nb = { id: uid(), name, level, coverImage, lessons: [] };
       ensureSingleSampleLesson(nb);
       state.books.push(nb);
       state.activeBookId = nb.id;
@@ -3722,7 +3484,7 @@ function bindEvents(){
       document.getElementById('modalBook').classList.remove('active');
       document.body.classList.remove('locked');
       if (isLibrary) { renderBookLibrary(); toast(`✅ «${name}» اضافه شد (با درس نمونه)`, 'success'); }
-      else { renderAll(); toast('✅ ذخیره شد (با درس نمونه)', 'success'); }
+      else { renderAll(); toast('✅ ذخیره شد', 'success'); }
     }
   });
   const saveLessonBtn = document.getElementById('saveLessonBtn');
@@ -3737,15 +3499,13 @@ function bindEvents(){
       document.body.classList.remove('locked');
       return;
     }
-
     const editId = saveLessonBtn.dataset.editId;
-
     if (editId) {
       const target = b.lessons.find(x => x.id === editId);
       if (!target) { toast('درس پیدا نشد', 'error'); return; }
       if (target.isSample) { toast('🔒 درس نمونه قابل ویرایش نیست', 'error'); return; }
       if ((b.lessons || []).some(l => l.id !== editId && l.title.trim().toLowerCase() === title.toLowerCase())) {
-        if (!confirm(`درسی با عنوان «${title}» قبلاً هست.\nادامه بدی و نامش رو یکسان کنی؟`)) return;
+        if (!confirm(`درسی با عنوان «${title}» قبلاً هست. ادامه؟`)) return;
       }
       target.title = title;
       save();
@@ -3756,9 +3516,8 @@ function bindEvents(){
       toast(`✅ نام درس به «${title}» تغییر کرد`, 'success');
       return;
     }
-
     if ((b.lessons || []).some(l => l.title.trim().toLowerCase() === title.toLowerCase())) {
-      if (!confirm(`درسی با عنوان «${title}» قبلاً هست.\nادامه بدی و یکی دیگه با همین عنوان بسازی؟`)) return;
+      if (!confirm(`درسی با عنوان «${title}» قبلاً هست. بازم بسازی؟`)) return;
     }
     const nl = { id: uid(), title, words: [], stories: [], isSample: false };
     if (!Array.isArray(b.lessons)) b.lessons = [];
@@ -3768,11 +3527,6 @@ function bindEvents(){
     document.getElementById('modalLesson').classList.remove('active');
     document.body.classList.remove('locked');
     renderAll(); populateLessonTargets();
-    const sel = document.getElementById('lessonSelect');
-    if (sel) {
-      sel.value = nl.id;
-      sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
     toast(`✅ درس «${title}» اضافه شد`, 'success');
   });
   const lessonTitleInput = document.getElementById('lessonTitleInput');
@@ -3786,7 +3540,6 @@ function bindEvents(){
     });
   }
 
-  // ✅ دکمه‌های کتابخانه
   const libraryAddBookBtn = document.getElementById('libraryAddBookBtn');
   if (libraryAddBookBtn) libraryAddBookBtn.addEventListener('click', openBookModal);
   const libraryImportBtn = document.getElementById('libraryImportBtn');
@@ -3794,7 +3547,24 @@ function bindEvents(){
   const backToLibraryBtn = document.getElementById('backToLibraryBtn');
   if (backToLibraryBtn) backToLibraryBtn.addEventListener('click', showBookLibrary);
 
-  // ✅ مودال ورودی کتابخانه
+  const changeBookBtn = document.getElementById('changeBookBtn');
+  if (changeBookBtn) changeBookBtn.addEventListener('click', openBookPicker);
+  const globalSearchBtn = document.getElementById('globalSearchBtn');
+  if (globalSearchBtn) globalSearchBtn.addEventListener('click', openGlobalSearch);
+  const closeGlobalSearchBtn = document.getElementById('closeGlobalSearchBtn');
+  if (closeGlobalSearchBtn) closeGlobalSearchBtn.addEventListener('click', closeGlobalSearch);
+  const globalSearchInput = document.getElementById('globalSearchInput');
+  if (globalSearchInput) {
+    globalSearchInput.addEventListener('input', e => searchAllWords(e.target.value));
+  }
+
+  const closeBookPickerBtn = document.getElementById('closeBookPickerBtn');
+  if (closeBookPickerBtn) closeBookPickerBtn.addEventListener('click', closeBookPicker);
+  const bookPickerAddBtn = document.getElementById('bookPickerAddBtn');
+  if (bookPickerAddBtn) bookPickerAddBtn.addEventListener('click', () => { closeBookPicker(); openBookModal(); });
+  const bookPickerImportBtn = document.getElementById('bookPickerImportBtn');
+  if (bookPickerImportBtn) bookPickerImportBtn.addEventListener('click', () => { closeBookPicker(); openLibraryImportModal(); });
+
   const cancelLibraryImportBtn = document.getElementById('cancelLibraryImportBtn');
   if (cancelLibraryImportBtn) cancelLibraryImportBtn.addEventListener('click', closeLibraryImportModal);
 
@@ -3869,8 +3639,16 @@ function bindEvents(){
 
   setupFileDropZone();
 
-  // ✅ Escape
+  /* ⭐ FIX: Space در input ها کار کنه، فقط برای تمرین بلاک بشه */
   document.addEventListener('keydown', e => {
+    const target = e.target;
+    const isTyping = target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    );
+
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
       const sr = document.getElementById('storyReaderModal');
@@ -3881,15 +3659,22 @@ function bindEvents(){
       if (we && we.classList.contains('active')) closeWordEdit();
       const libImp = document.getElementById('modalLibraryImport');
       if (libImp && libImp.classList.contains('active')) closeLibraryImportModal();
+      const bp = document.getElementById('modalBookPicker');
+      if (bp && bp.classList.contains('active')) closeBookPicker();
+      const gs = document.getElementById('modalGlobalSearch');
+      if (gs && gs.classList.contains('active')) closeGlobalSearch();
       if (practice.active) exitPractice();
       if (document.body.classList.contains('practice-theater')) exitTheaterMode();
       const menu = document.getElementById('practiceFolderMenu');
       if (menu) menu.classList.add('hidden');
       document.body.classList.remove('locked');
     }
-    if (e.key === ' ' && practice.active) {
+
+    // ✅ Space فقط وقتی توی فیلد تایپ نیستیم، کارت رو بچرخونه
+    if (e.key === ' ' && practice.active && !isTyping) {
       e.preventDefault();
       const inner = document.getElementById('flashcardInner');
+      if (!inner) return;
       inner.classList.toggle('flipped');
       if (inner.classList.contains('flipped')) {
         if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -3912,25 +3697,17 @@ function init(){
 
   if (b && b.lessons.length) {
     const saved = state.lastLessonByBook[state.activeBookId];
-    if (saved && b.lessons.find(l => l.id === saved)) {
-      state.activeLessonId = saved;
-    } else if (!state.activeLessonId || !b.lessons.find(l => l.id === state.activeLessonId)) {
-      state.activeLessonId = b.lessons[0].id;
-    }
+    if (saved && b.lessons.find(l => l.id === saved)) state.activeLessonId = saved;
+    else if (!state.activeLessonId || !b.lessons.find(l => l.id === state.activeLessonId)) state.activeLessonId = b.lessons[0].id;
   }
 
-  // ✅ اطمینان از وجود فقط یک درس نمونه + آماده‌سازی کلمات
   state.books.forEach(bk => {
-    if (!Array.isArray(bk.lessons) || !bk.lessons.length) {
-      ensureSingleSampleLesson(bk);
-    }
-    // حذف درس‌های نمونه تکراری
+    if (!Array.isArray(bk.lessons) || !bk.lessons.length) ensureSingleSampleLesson(bk);
     const samples = bk.lessons.filter(l => l.isSample);
     if (samples.length > 1) {
       const firstSample = samples[0];
       bk.lessons = bk.lessons.filter(l => !l.isSample || l === firstSample);
     }
-    // آماده‌سازی کلمات
     bk.lessons.forEach(l => {
       if (!Array.isArray(l.words)) l.words = [];
       if (!Array.isArray(l.stories)) l.stories = [];
@@ -3953,7 +3730,6 @@ function init(){
   updateAutoPlayUI();
   updateDirectionLabel();
 
-  // ✅ اگر کتاب فعال و درس معتبره، مستقیم برو به اپ
   const activeBook = getBook();
   if (activeBook && state.activeLessonId && activeBook.lessons.find(l => l.id === state.activeLessonId)) {
     showMainApp();

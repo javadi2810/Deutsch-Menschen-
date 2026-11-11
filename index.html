@@ -30,7 +30,11 @@
 <div id="mainApp" class="main-app hidden">
 
 <header>
-  <button class="header-back-btn" id="backToLibraryBtn">⬅️ کتابخانه</button>
+  <div class="header-top-bar">
+    <button class="header-back-btn" id="backToLibraryBtn">📚 کتابخانه</button>
+    <button class="header-action-btn" id="changeBookBtn" title="تغییر کتاب">📖 تغییر کتاب</button>
+    <button class="header-action-btn" id="globalSearchBtn" title="جستجوی سراسری">🔍 جستجو</button>
+  </div>
   <h1 id="appTitle">🎓 German Vocab Pro</h1>
   <p>کارت + داستان + فلش‌کارت + آزمون + SRS + JSON</p>
   <div id="reviewBanner" class="review-banner hidden"></div>
@@ -39,25 +43,17 @@
 <div class="container">
 
   <div class="panel">
-    <h3>📚 کتاب و درس</h3>
+    <h3>📚 درس</h3>
     <div class="row">
-      <div style="flex:2;min-width:0;">
-        <label>کتاب</label>
-        <select id="bookSelect"></select>
-      </div>
-      <div style="flex:2;min-width:0;">
+      <div style="flex:1;min-width:0;">
         <label>درس</label>
         <select id="lessonSelect"></select>
       </div>
       <div class="row tight" style="align-self:flex-end;flex:0 0 auto;">
-        <button class="btn btn-sm" id="addBookBtn" title="کتاب جدید">➕</button>
-        <button class="btn btn-sm btn-danger" id="delBookBtn" title="حذف کتاب">🗑</button>
+        <button class="btn btn-sm btn-primary" id="addLessonBtn" title="درس جدید">➕</button>
+        <button class="btn btn-sm" id="editLessonBtn" title="ویرایش نام درس" style="background:var(--warning);color:#000;">✏️</button>
+        <button class="btn btn-sm btn-danger" id="delLessonBtn" title="حذف درس">🗑</button>
       </div>
-    </div>
-    <div class="row tight" style="margin-top:8px;flex-wrap:wrap;">
-      <button class="btn btn-sm btn-primary" id="addLessonBtn">➕ درس جدید</button>
-      <button class="btn btn-sm" id="editLessonBtn" style="background:var(--warning);color:#000;">✏️ ویرایش نام درس</button>
-      <button class="btn btn-sm btn-danger" id="delLessonBtn">🗑 حذف درس</button>
     </div>
     <div id="lessonStatsBox" style="margin-top:12px;">
       <div class="stats-grid" id="statsGrid"></div>
@@ -126,7 +122,6 @@
 
   <!-- TAB PRACTICE -->
   <div id="tab-practice" class="tab-content hidden">
-    <!-- Folder View -->
     <div id="practiceFolderView">
       <div class="panel">
         <h3>🎯 انتخاب پوشه تمرین</h3>
@@ -149,7 +144,6 @@
       </div>
     </div>
 
-    <!-- Practice Session -->
     <div id="practiceSession" class="hidden">
       <div class="panel practice-panel">
         <button class="practice-theater-close" id="practiceTheaterClose" title="بستن">✕</button>
@@ -196,7 +190,6 @@
       </div>
     </div>
 
-    <!-- Folder Drawer -->
     <div class="practice-folder-menu hidden" id="practiceFolderMenu">
       <div class="practice-folder-menu-head">
         <strong>📁 پوشه‌ها</strong>
@@ -596,6 +589,36 @@
       <button class="btn btn-danger" id="confirmReplaceBookBtn" style="flex:1;">🔄 جایگزین کن</button>
       <button class="btn" id="cancelReplaceBookBtn">لغو</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL GLOBAL SEARCH -->
+<div class="modal-overlay" id="modalGlobalSearch">
+  <div class="modal-box" style="max-width:700px;">
+    <h3>🔍 جستجوی سراسری در کتاب</h3>
+    <p class="muted" style="font-size:12px;margin-bottom:12px;">
+      در تمام لغات همه درس‌های کتاب «<strong id="globalSearchBookName"></strong>» جستجو می‌کنه
+    </p>
+    <input id="globalSearchInput" placeholder="🔍 کلمه آلمانی یا معنی فارسی..." autocomplete="off">
+    <div id="globalSearchResults" style="margin-top:14px;max-height:60vh;overflow-y:auto;"></div>
+    <div class="row tight" style="margin-top:14px;justify-content:center;">
+      <button class="btn" id="closeGlobalSearchBtn">بستن</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: BOOK PICKER -->
+<div class="modal-overlay" id="modalBookPicker">
+  <div class="modal-box" style="max-width:900px;">
+    <div class="book-picker-head">
+      <h3 style="margin:0;">📚 انتخاب کتاب</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" id="bookPickerAddBtn">➕ کتاب جدید</button>
+        <button class="btn btn-sm" id="bookPickerImportBtn">📥 افزودن از JSON</button>
+        <button class="btn btn-sm" id="closeBookPickerBtn">✕</button>
+      </div>
+    </div>
+    <div id="bookPickerGrid" class="book-cards-grid" style="margin-top:14px;"></div>
   </div>
 </div>
 
