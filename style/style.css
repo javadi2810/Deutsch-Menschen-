@@ -2021,6 +2021,7 @@ body.practice-theater .practice-panel {
     0 25px 70px rgba(0, 0, 0, 0.6),
     0 0 60px rgba(124, 131, 247, 0.22);
   animation: theaterIn 0.4s var(--ease-spring);
+  padding:50px 14px 14px;
 }
 
 @keyframes theaterIn {
@@ -4038,7 +4039,8 @@ body.practice-theater #practiceFullscreenBtn {
     width: calc(100vw - 16px);
     max-height: calc(100dvh - 16px);
     border-radius: 16px;
-    padding: 14px;
+    padding:50px 14px 14px;
+   
   }
   body.practice-theater .flashcard-stage {
     height: 220px;
@@ -4131,7 +4133,7 @@ body.practice-theater #practiceFullscreenBtn {
   body.practice-theater .practice-panel {
     width: min(640px, calc(100vw - 40px));
     max-height: calc(100vh - 16px);
-    padding: 12px 16px;
+    padding:50px 14px 14px;
   }
   body.practice-theater .flashcard-stage { height: 180px; margin: 8px auto; }
   body.practice-theater .fc-word { font-size: 26px; }
@@ -4160,4 +4162,4 @@ body.practice-theater #practiceFullscreenBtn {
   .flashcard-inner {
     transition-duration: 0.15s !important;
   }
-}
+}practice-panel
