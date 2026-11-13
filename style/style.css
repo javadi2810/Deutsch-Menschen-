@@ -1,6 +1,5 @@
 /* ============================================================
    🎨 GERMAN VOCAB PRO — FULL STYLESHEET
-   Dark + Light + responsive کامل برای موبایل
    ============================================================ */
 
 /* ============================================================
@@ -1079,7 +1078,6 @@ tr:hover td { background: var(--hover-bg); cursor: pointer; }
 [data-theme="dark"] .word-card-fa { color: var(--accent); }
 [data-theme="light"] .word-card-fa { color: #059669; }
 
-/* synonyms/related section */
 .word-card-chips-section {
   display: flex;
   flex-direction: column;
@@ -1937,7 +1935,7 @@ body.practice-theater .practice-theater-close { display: flex; }
 .story-card-wrapper:hover .story-del-btn { opacity: 1; }
 
 /* ============================================================
-   STORY READER
+   STORY READER — طراحی نهایی و شیک
    ============================================================ */
 .story-reader-modal {
   position: fixed;
@@ -1972,67 +1970,83 @@ body.practice-theater .practice-theater-close { display: flex; }
 
 .story-reader-close {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 2px;
+  left: 2px;
   background: var(--danger);
   color: #fff;
   border: none;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   cursor: pointer;
   font-size: 18px;
   z-index: 10;
 }
 
-.story-reader-title {
-  margin: 0 0 12px;
-  padding: 0 44px 0 4px;
-  font-size: clamp(15px, 4vw, 20px);
-  line-height: 1.5;
-  word-break: break-word;
-  flex-shrink: 0;
-  font-weight: 800;
+/* ⭐ هدر: نوار سبز و عنوان کنار هم (خواهر و برادر!) */
+.story-reader-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
-[data-theme="dark"] .story-reader-title { color: #c7d2fe; }
-[data-theme="light"] .story-reader-title { color: #4f46e5; }
 
 .content-reader-type-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px 12px;
   border-radius: var(--radius-pill);
   font-size: 11px;
   font-weight: 800;
-  margin-bottom: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  order: 1; /* اول در RTL یعنی سمت راست */
 }
 .content-reader-type-badge.type-story { background: rgba(52, 211, 153, 0.18); color: var(--accent); }
 .content-reader-type-badge.type-letter-formal { background: rgba(96, 165, 250, 0.18); color: var(--info); }
 .content-reader-type-badge.type-letter-informal { background: rgba(251, 191, 36, 0.18); color: var(--warning); }
 .content-reader-type-badge.type-dialogue { background: rgba(192, 132, 252, 0.18); color: var(--purple); }
 
+.story-reader-title {
+  margin: 0;
+  padding: 0;
+  font-size: clamp(16px, 4vw, 20px);
+  line-height: 1.4;
+  font-weight: 900;
+  text-align: left;  /* عنوان سمت چپ */
+  flex: 1;
+  word-break: break-word;
+  order: 2; /* دوم در RTL یعنی سمت چپ */
+}
+[data-theme="dark"] .story-reader-title { color: #c7d2fe; }
+[data-theme="light"] .story-reader-title { color: #4f46e5; }
+
+/* ⭐ اسکرول‌بار افقی مخفی */
 .story-quick-nav {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding: 8px 0 10px;
-  margin-bottom: 8px;
+  padding: 6px 0 8px;
+  margin-bottom: 4px;
   flex-shrink: 0;
-  scrollbar-width: thin;
   scroll-behavior: smooth;
+  scrollbar-width: none;
 }
-.story-quick-nav::-webkit-scrollbar { height: 5px; }
-.story-quick-nav::-webkit-scrollbar-track { background: transparent; }
-.story-quick-nav::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
+.story-quick-nav::-webkit-scrollbar { display: none; }
 
 .story-quick-nav-btn {
   flex-shrink: 0;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: rgba(13, 18, 36, 0.65);
   color: var(--muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
   transition: all 0.2s var(--ease-out);
   max-width: 180px;
@@ -2052,17 +2066,33 @@ body.practice-theater .practice-theater-close { display: flex; }
   font-weight: 800;
 }
 
+/* ⭐ اسکرول‌بار عمودی نازک */
 .story-reader-body-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-left: 10px;
-  padding-right: 4px;
+  padding-left: 12px;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
 }
+.story-reader-body-scroll::-webkit-scrollbar { width: 4px; }
+.story-reader-body-scroll::-webkit-scrollbar-track { background: transparent; }
+.story-reader-body-scroll::-webkit-scrollbar-thumb {
+  background: rgba(124, 131, 247, 0.5);
+  border-radius: 10px;
+}
+.story-reader-body-scroll::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
+/* ⭐ ظاهر جمله‌ها */
 .story-sentence {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border-soft);
+  padding: 12px 8px;
+  border-bottom: 1px dashed var(--border-soft);
+  transition: background 0.2s;
+}
+.story-sentence:hover {
+  background: rgba(124, 131, 247, 0.03);
+  border-radius: 8px;
 }
 .story-sentence:last-child { border-bottom: none; }
 
@@ -2148,7 +2178,7 @@ body.practice-theater .practice-theater-close { display: flex; }
 }
 
 /* ============================================================
-   🎵 AUDIO PLAYER — استایل اصلی
+   🎵 AUDIO PLAYER (فقط اسلایدر صدا عریض‌تر)
    ============================================================ */
 .audio-player {
   border-radius: var(--radius-sm);
@@ -2282,7 +2312,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   line-height: 1;
 }
 .audio-volume {
-  width: 44px;
+  width: 75px;
   height: 3px;
   -webkit-appearance: none;
   appearance: none;
@@ -2393,7 +2423,6 @@ body.practice-theater .practice-theater-close { display: flex; }
   flex-shrink: 0;
   margin-left: auto;
 }
-
 /* ============================================================
    WORD VIEW / EDIT
    ============================================================ */
@@ -2491,7 +2520,13 @@ body.practice-theater .practice-theater-close { display: flex; }
 [data-theme="light"] .word-view-art.der { color: #2563eb; }
 [data-theme="light"] .word-view-art.die { color: #dc2626; }
 [data-theme="light"] .word-view-art.das { color: #059669; }
-.word-view-plural { font-size: 15px; color: var(--muted); }
+.word-view-plural {
+  font-size: 15px;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .word-view-ipa { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 8px; direction: ltr; }
 
 .word-view-fa {
@@ -2599,9 +2634,13 @@ body.practice-theater .practice-theater-close { display: flex; }
   font-size: 13px;
   flex: 1;
   word-break: break-word;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 [data-theme="dark"] .conj-value { color: #93c5fd; }
 [data-theme="light"] .conj-value { color: #4f46e5; }
+.conj-value .de-speak-btn { margin: 0; }
 
 .chips-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -2610,7 +2649,11 @@ body.practice-theater .practice-theater-close { display: flex; }
   font-size: 12px;
   font-weight: 700;
   direction: ltr;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
+.chip .de-speak-btn { margin: 0 -2px 0 2px; }
 .chip.synonym {
   background: rgba(52, 211, 153, 0.12);
   color: var(--accent);
@@ -2787,7 +2830,7 @@ body.practice-theater .practice-theater-close { display: flex; }
 .wt-word { font-size: 26px; font-weight: 900; }
 [data-theme="dark"] .wt-word { color: #93c5fd; }
 [data-theme="light"] .wt-word { color: #4f46e5; }
-.wt-plural { font-size: 13px; color: var(--muted); }
+.wt-plural { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
 .wt-fa {
   font-size: 18px;
   color: var(--accent);
@@ -2854,6 +2897,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   text-align: center;
   cursor: pointer;
   transition: all 0.35s;
+  position: relative;
 }
 [data-theme="dark"] .quiz-mode-card {
   background: linear-gradient(135deg, rgba(13, 18, 36, 0.9) 0%, rgba(28, 38, 68, 0.82) 100%);
@@ -2905,7 +2949,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   font-weight: 800;
   font-size: 12px;
 }
-.quiz-session-header .quiz-score { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.quiz-session-header .quiz-score { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
 .quiz-session-header .correct-count { color: var(--accent); font-weight: 800; }
 .quiz-session-header .wrong-count { color: var(--danger); font-weight: 800; }
 
@@ -3120,7 +3164,13 @@ body.practice-theater .practice-theater-close { display: flex; }
 }
 [data-theme="dark"] .quiz-failed-item { background: rgba(0, 0, 0, 0.32); }
 [data-theme="light"] .quiz-failed-item { background: #ffffff; }
-.quiz-failed-item .de { font-weight: 800; direction: ltr; }
+.quiz-failed-item .de {
+  font-weight: 800;
+  direction: ltr;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 [data-theme="dark"] .quiz-failed-item .de { color: #93c5fd; }
 [data-theme="light"] .quiz-failed-item .de { color: #4f46e5; }
 .quiz-failed-item .fa { color: var(--accent); font-weight: 700; }
@@ -3156,6 +3206,57 @@ body.practice-theater .practice-theater-close { display: flex; }
 .quiz-mode-stats.none { color: var(--muted); opacity: 0.7; font-style: italic; }
 .quiz-mode-stats .qms-attempts { background: rgba(96, 165, 250, 0.18); color: #93c5fd; padding: 2px 9px; border-radius: var(--radius-pill); }
 .quiz-mode-stats .qms-best { background: rgba(52, 211, 153, 0.18); color: var(--accent); padding: 2px 9px; border-radius: var(--radius-pill); }
+
+.quiz-word-with-speak,
+.quiz-sentence-with-speak {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  direction: ltr;
+}
+.quiz-sentence-with-speak { flex-direction: row; }
+
+/* ============================================================
+   ⭐ بلندگوی سراسری آلمانی (de-speak)
+   ============================================================ */
+.de-speak-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1.5px solid rgba(124, 131, 247, 0.4);
+  background: rgba(124, 131, 247, 0.12);
+  color: var(--primary);
+  cursor: pointer;
+  transition: all 0.22s var(--ease-spring);
+  padding: 0;
+  flex-shrink: 0;
+  vertical-align: middle;
+  margin: 0 3px;
+}
+[data-theme="light"] .de-speak-btn {
+  background: #f1f5f9;
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #475569;
+}
+.de-speak-btn:hover {
+  transform: scale(1.12);
+  background: rgba(124, 131, 247, 0.3);
+  border-color: var(--primary);
+  color: #fff;
+}
+[data-theme="light"] .de-speak-btn:hover { color: #1e293b; }
+.de-speak-btn.playing-speak {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  animation: pulse-red 1s;
+}
+.de-speak-xs { width: 20px; height: 20px; font-size: 10px; border-width: 1px; }
+.de-speak-sm { width: 24px; height: 24px; font-size: 12px; }
+.de-speak-md { width: 30px; height: 30px; font-size: 14px; }
+.de-speak-lg { width: 38px; height: 38px; font-size: 18px; border-width: 2px; }
 
 /* ============================================================
    DROP ZONE
@@ -3417,7 +3518,7 @@ body.practice-theater .practice-theater-close { display: flex; }
 [data-theme="dark"] .global-search-item { background: rgba(13, 18, 36, 0.5); }
 [data-theme="light"] .global-search-item { background: #f8fafc; }
 .global-search-item:hover { background: var(--hover-bg); transform: translateX(-2px); }
-.gs-word { font-weight: 800; display: flex; gap: 6px; align-items: baseline; }
+.gs-word { font-weight: 800; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 [data-theme="dark"] .gs-word { color: #93c5fd; }
 [data-theme="light"] .gs-word { color: #4f46e5; }
 .gs-meaning { color: var(--accent); font-size: 13px; margin-top: 3px; }
@@ -3538,7 +3639,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   .fa { font-size: 11px; max-width: 70px; line-height: 1.3; }
   td.art { font-size: 11px; }
   td.plural-cell { font-size: 10px; max-width: 60px; word-break: break-word; }
-  .sound-cell { width: 30px; padding: 2px !important; }
+  .sound-cell { width: 40px; padding: 2px !important; }
   .speak-btn { font-size: 12px; padding: 4px 6px; border-radius: 6px; }
 
   .cards-grid { grid-template-columns: 1fr; gap: 10px; margin: 10px 0; }
@@ -3546,7 +3647,6 @@ body.practice-theater .practice-theater-close { display: flex; }
   .word-card-header { padding-bottom: 8px; gap: 6px; }
   .word-card-de { font-size: 20px; }
   .word-card-art { font-size: 14px; }
-  .word-speak-inline { font-size: 14px; padding: 6px 8px; border-radius: 8px; }
   .word-more-btn { width: 30px; height: 30px; font-size: 18px; border-radius: 8px; }
   .word-type-badge { font-size: 9px; padding: 2px 7px; }
   .word-card-fa { font-size: 15px; }
@@ -3592,7 +3692,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   .story-reader-modal { padding: 6px; }
   .story-reader-content { padding: 12px; border-radius: 12px; }
   .story-reader-close { width: 30px; height: 30px; font-size: 16px; top: 6px; left: 6px; }
-  .story-reader-title { font-size: 15px; padding-left: 36px; }
+  .story-reader-title { font-size: 15px; padding-left: 36px; margin: -2px 0 6px; }
   .story-quick-nav { padding: 6px 0 8px; gap: 4px; }
   .story-quick-nav-btn { font-size: 10px; padding: 5px 10px; }
   .reader-sentence .sentence-de-text { font-size: 13px; }
@@ -3616,7 +3716,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   .audio-play-btn { width: 26px; height: 26px; font-size: 11px; }
   .audio-nav-btn { padding: 2px 5px; font-size: 10px; height: 22px; }
   .audio-time { font-size: 7px; }
-  .audio-volume { width: 40px; }
+  .audio-volume { width: 65px; }
   .audio-speed-btn, .audio-download-btn { font-size: 8px; height: 22px; }
   .audio-player-label { font-size: 9px; }
   .audio-nav-btn .repeat-badge { width: 9px; height: 9px; font-size: 6px; }
@@ -3665,9 +3765,42 @@ body.practice-theater .practice-theater-close { display: flex; }
   .conj-label { min-width: 65px; font-size: 11px; }
   .conj-value { font-size: 12px; }
 
-  .quiz-mode-grid { grid-template-columns: 1fr; gap: 8px; }
-  .quiz-mode-card { padding: 14px; border-radius: 12px; }
-  .quiz-mode-card .mode-icon { font-size: 28px; margin-bottom: 4px; }
+  /* ⭐ کارت‌های آزمون — بزرگ‌تر و خواناتر در موبایل */
+  .quiz-mode-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .quiz-mode-card {
+    padding: 22px 18px 20px;
+    border-radius: 16px;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  .quiz-mode-card .mode-icon {
+    font-size: 42px;
+    margin-bottom: 10px;
+  }
+  .quiz-mode-card .mode-title {
+    font-size: 16px;
+    font-weight: 900;
+    margin-bottom: 6px;
+  }
+  .quiz-mode-card .mode-desc {
+    font-size: 12px;
+    line-height: 1.5;
+    opacity: 0.85;
+  }
+  .quiz-mode-stats {
+    margin-top: 10px;
+    padding-top: 10px;
+    font-size: 11px;
+  }
+
   .quiz-word { font-size: clamp(20px, 6vw, 26px); margin: 12px 0; }
   .quiz-sentence { font-size: 14px; padding: 12px; }
   .quiz-options { gap: 6px; margin-top: 10px; }
@@ -3732,6 +3865,15 @@ body.practice-theater .practice-theater-close { display: flex; }
   .import-info-row { font-size: 11px; padding: 3px 0; }
   #importBookInfo { padding: 8px; font-size: 11px; }
   .auto-play-toggle { font-size: 10px; padding: 5px 9px; }
+
+  /* ⭐ بلندگوی سراسری در موبایل */
+  .de-speak-xs { width: 18px; height: 18px; font-size: 9px; }
+  .de-speak-sm { width: 22px; height: 22px; font-size: 11px; }
+  .de-speak-md { width: 28px; height: 28px; font-size: 13px; }
+  .de-speak-lg { width: 34px; height: 34px; font-size: 16px; }
+
+  .quiz-word-with-speak,
+  .quiz-sentence-with-speak { gap: 8px; flex-wrap: wrap; }
 }
 
 /* ============================================================
@@ -3794,6 +3936,20 @@ body.practice-theater .practice-theater-close { display: flex; }
   body.practice-theater .flashcard-stage { height: 190px; }
   body.practice-theater .fc-word { font-size: 22px; }
   body.practice-theater .fc-meaning { font-size: 17px; }
+
+  /* ⭐ کارت‌های آزمون در موبایل خیلی کوچک */
+  .quiz-mode-card {
+    padding: 18px 14px;
+    min-height: 100px;
+  }
+  .quiz-mode-card .mode-icon { font-size: 36px; }
+  .quiz-mode-card .mode-title { font-size: 14px; }
+  .quiz-mode-card .mode-desc { font-size: 11px; }
+
+  .de-speak-xs { width: 16px; height: 16px; font-size: 8px; }
+  .de-speak-sm { width: 20px; height: 20px; font-size: 10px; }
+  .de-speak-md { width: 26px; height: 26px; font-size: 12px; }
+  .de-speak-lg { width: 30px; height: 30px; font-size: 14px; }
 }
 
 /* ============================================================
@@ -3839,20 +3995,14 @@ body.practice-theater .practice-theater-close { display: flex; }
   }
 }
 
-
-
-
-
 /* ============================================================
    📱 جدول لغات — بهینه‌سازی موبایل
    ============================================================ */
 @media (max-width: 640px) {
-  /* حذف کامل padding اضافی از panel */
   #tab-list .panel {
     padding: 8px 6px !important;
   }
 
-  /* جدول: حذف حاشیه‌های اضافی */
   #wordTableContainer .table-wrap {
     border-radius: 8px;
     margin: 6px 0;
@@ -3864,20 +4014,17 @@ body.practice-theater .practice-theater-close { display: flex; }
     width: 100%;
   }
 
-  /* هدر جدول: padding کم */
   #wordTableContainer th {
     padding: 6px 2px !important;
     font-size: 9px !important;
   }
 
-  /* سلول‌ها: padding کم */
   #wordTableContainer td {
     padding: 6px 2px !important;
     font-size: 11px !important;
     line-height: 1.35;
   }
 
-  /* ستون کلمه آلمانی: فضای بیشتر */
   #wordTableContainer td.de {
     width: 32%;
     max-width: none !important;
@@ -3889,14 +4036,12 @@ body.practice-theater .practice-theater-close { display: flex; }
     overflow-wrap: anywhere;
   }
 
-  /* ستون آرتیکل: باریک */
   #wordTableContainer td.art {
     width: 12%;
     font-size: 10px !important;
     padding: 4px 1px !important;
   }
 
-  /* ستون جمع: باریک */
   #wordTableContainer td.plural-cell {
     width: 18%;
     max-width: none !important;
@@ -3907,7 +4052,6 @@ body.practice-theater .practice-theater-close { display: flex; }
     overflow-wrap: anywhere;
   }
 
-  /* ستون فارسی: فضای بیشتر */
   #wordTableContainer td.fa {
     width: 30%;
     max-width: none !important;
@@ -3918,9 +4062,8 @@ body.practice-theater .practice-theater-close { display: flex; }
     overflow-wrap: anywhere;
   }
 
-  /* ستون صدا: خیلی باریک */
   #wordTableContainer .sound-cell {
-    width: 28px !important;
+    width: 36px !important;
     padding: 2px !important;
   }
 
@@ -3965,7 +4108,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   }
 
   #wordTableContainer .sound-cell {
-    width: 24px !important;
+    width: 30px !important;
   }
 
   #wordTableContainer .speak-btn {

@@ -4,6 +4,7 @@
   const STORAGE_KEY = 'german-vocab-pro-v4';
   const LEGACY_KEYS = ['german-vocab-pro-v3', 'german-vocab-pro-v2', 'german-vocab-pro-v1', 'german-vocab-v2', 'german_vocab_app_data_v11', 'german-vocab-pro'];
   const AUTOPLAY_KEY = 'german-vocab-autoplay';
+  const AUTOPLAY_QUIZ_KEY = 'german-vocab-autoplay-quiz';
   const THEME_KEY = 'german-vocab-theme';
 
   let state = { books: [], activeBookId: null, activeLessonId: null, lastLessonByBook: {}, quizHistory: [], articleHistory: [] };
@@ -25,6 +26,12 @@
   try {
     const saved = localStorage.getItem(AUTOPLAY_KEY);
     if (saved !== null) autoPlayWord = saved === 'true';
+  } catch (e) { }
+
+  let autoPlayQuiz = false;
+  try {
+    const savedQuiz = localStorage.getItem(AUTOPLAY_QUIZ_KEY);
+    if (savedQuiz !== null) autoPlayQuiz = savedQuiz === 'true';
   } catch (e) { }
 
   let currentTheme = 'dark';
@@ -99,6 +106,7 @@
     speakTTS(text);
   }
   function speakTTS(text) {
+    if (!text || !String(text).trim()) return;
     if (!('speechSynthesis' in window)) { toast('مرورگر تلفظ پشتیبانی نمی‌کند', 'error'); return; }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
@@ -106,6 +114,30 @@
     u.rate = 0.9;
     window.speechSynthesis.speak(u);
   }
+
+  /* ⭐ دکمه بلندگوی آلمانی — فقط برای متن آلمانی */
+  function germanSpeakBtn(text, opts) {
+    if (!text || !String(text).trim()) return '';
+    opts = opts || {};
+    const size = opts.size || 'md';
+    const title = opts.title || 'پخش تلفظ آلمانی';
+    return `<button type="button" class="de-speak-btn de-speak-${size}" data-de-speak="${esc(text)}" title="${esc(title)}">🔊</button>`;
+  }
+  function wireGermanSpeakButtons(container) {
+    if (!container) return;
+    container.querySelectorAll('[data-de-speak]').forEach(btn => {
+      if (btn._wired) return;
+      btn._wired = true;
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        e.preventDefault();
+        speakTTS(btn.dataset.deSpeak);
+        btn.classList.add('playing-speak');
+        setTimeout(() => btn.classList.remove('playing-speak'), 600);
+      });
+    });
+  }
+
   function articleClass(a) {
     if (['der', 'die', 'das'].includes(a)) return a;
     if (a === 'Verb') return 'verb';
@@ -175,7 +207,6 @@
     return m[mode] || mode;
   }
 
-  /* ⭐ تابع مرکزی جستجو — همه فیلدها را چک می‌کند */
   function wordMatchesSearch(w, search) {
     if (!search) return true;
     const s = search.toLowerCase().trim();
@@ -411,6 +442,23 @@
     updateAutoPlayUI();
     toast(autoPlayWord ? '🔊 پخش خودکار روشن' : '🔇 پخش خودکار خاموش', autoPlayWord ? 'success' : 'warning');
   }
+  function updateAutoPlayQuizUI() {
+    const btn = document.getElementById('quizAutoPlayToggle');
+    const lbl = document.getElementById('quizAutoPlayLabel');
+    if (btn) btn.classList.toggle('on', autoPlayQuiz);
+    if (lbl) lbl.textContent = autoPlayQuiz ? '🔊 پخش خودکار لغت: روشن' : '🔇 پخش خودکار لغت: خاموش';
+  }
+  function toggleAutoPlayQuiz() {
+    autoPlayQuiz = !autoPlayQuiz;
+    try { localStorage.setItem(AUTOPLAY_QUIZ_KEY, String(autoPlayQuiz)); } catch (e) { }
+    updateAutoPlayQuizUI();
+    const sessionBtn = document.getElementById('quizAutoPlayToggleSession');
+    const sessionLbl = document.getElementById('quizAutoPlayLabelSession');
+    if (sessionBtn) sessionBtn.classList.toggle('on', autoPlayQuiz);
+    if (sessionLbl) sessionLbl.textContent = autoPlayQuiz ? '🔊 خودکار' : '🔇 خودکار';
+    toast(autoPlayQuiz ? '🔊 پخش خودکار آزمون روشن' : '🔇 پخش خودکار آزمون خاموش', autoPlayQuiz ? 'success' : 'warning');
+  }
+
   function updateDirectionLabel() {
     const lbl = document.getElementById('directionLabel');
     if (lbl) lbl.textContent = practiceDirection === 'de-fa' ? 'آلمانی → فارسی' : 'فارسی → آلمانی';
@@ -558,13 +606,14 @@
     const showAudio = options.showAudio !== false;
     const extraClass = options.className || '';
     const highlighted = highlightClickableWords(sentenceDe);
+    // ⭐ بلندگو فقط وقتی متن آلمانی جمله واقعاً وجود داره
     let audioBtnHtml = '';
-    if (showAudio) {
+    if (showAudio && sentenceDe && String(sentenceDe).trim()) {
       const hasAudio = audioUrl && audioUrl.trim();
       audioBtnHtml = `<button class="sentence-speak-btn ${hasAudio ? 'has-audio' : ''}" 
       data-sentence-speak="${esc(sentenceDe)}" 
       data-sentence-audio="${esc(audioUrl || '')}" 
-      title="${hasAudio ? 'پخش فایل صوتی' : 'تلفظ TTS'}">
+      title="${hasAudio ? 'پخش فایل صوتی' : 'تلفظ آلمانی'}">
       ${hasAudio ? '🎵' : '🔊'}
     </button>`;
     }
@@ -845,9 +894,7 @@
     renderAll();
     populateLessonTargets();
   }
-  /* ============================================================
-     BOOK PICKER
-     ============================================================ */
+
   function openBookPicker() {
     const modal = document.getElementById('modalBookPicker');
     if (!modal) return;
@@ -897,9 +944,6 @@
     });
   }
 
-  /* ============================================================
-     GLOBAL SEARCH
-     ============================================================ */
   function openGlobalSearch() {
     const book = getBook();
     if (!book) { toast('اول یک کتاب انتخاب کن', 'warning'); return; }
@@ -938,18 +982,22 @@
     <div class="global-search-stats">✅ ${matches.length} نتیجه در ${new Set(matches.map(m => m.lesson.id)).size} درس</div>
     ${matches.slice(0, 100).map(m => {
       const w = m.word;
+      const wordFull = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
       return `<div class="global-search-item" data-go-word="${esc(w.id)}" data-go-lesson="${esc(m.lesson.id)}">
         <div class="gs-word">
           ${w.art && w.art !== '–' ? `<span class="gs-art ${articleClass(w.art)}">${esc(w.art)}</span>` : ''}
           <span>${esc(w.de)}</span>
+          ${germanSpeakBtn(wordFull, { size: 'sm', title: 'پخش تلفظ آلمانی' })}
         </div>
         <div class="gs-meaning">${esc(w.fa)}</div>
         <div class="gs-location">📚 ${esc(m.lesson.title)}</div>
       </div>`;
     }).join('')}
   `;
+    wireGermanSpeakButtons(results);
     results.querySelectorAll('[data-go-word]').forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', e => {
+        if (e.target.closest('[data-de-speak]')) return;
         const wordId = item.dataset.goWord;
         const lessonId = item.dataset.goLesson;
         closeGlobalSearch();
@@ -964,9 +1012,6 @@
     });
   }
 
-  /* ============================================================
-     POPULATE TARGETS
-     ============================================================ */
   function populateLessonTargets() {
     const selectors = ['wordTargetLesson', 'storyTargetLesson', 'jsonTargetLesson', 'fileTargetLesson'];
     const b = getBook();
@@ -987,9 +1032,6 @@
     });
   }
 
-  /* ============================================================
-     RENDER: LESSON SELECT
-     ============================================================ */
   function renderLessonSelect() {
     const b = getBook();
     const sel = document.getElementById('lessonSelect');
@@ -1001,9 +1043,6 @@
     updateAppTitle();
   }
 
-  /* ============================================================
-     RENDER: STATS
-     ============================================================ */
   function renderStats() {
     const words = getWords();
     const now = Date.now();
@@ -1032,9 +1071,6 @@
     if (pt) pt.textContent = `${pct}٪ تسلط (${counts.good} از ${total})`;
   }
 
-  /* ============================================================
-     RENDER: WORD TABLE (با جستجوی کامل)
-     ============================================================ */
   function renderArticleQuickFilters() {
     const cont = document.getElementById('articleQuickFilters');
     if (!cont) return;
@@ -1059,6 +1095,7 @@
     });
   }
 
+  /* ⭐ جدول لغات: بلندگو کلمه + بلندگو جمله فقط اگه جمله آلمانی موجوده */
   function renderWordTable() {
     const search = (document.getElementById('searchBox').value || '').trim();
     const filter = document.getElementById('filterStatus').value;
@@ -1079,22 +1116,31 @@
       return;
     }
     const rows = words.map(w => {
-      const hasAudio = w.exAudio && w.exAudio.trim();
+      const wordFull = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+
+      // فقط دکمه بلندگوی کلمه رو می‌سازیم
+      const wordSpeak = `<button class="speak-btn" data-word-speak="${esc(wordFull)}" title="تلفظ کلمه آلمانی">🔊</button>`;
+
       return `<tr data-id="${w.id}">
       <td class="de">${esc(w.de)}</td>
-      <td class="sound-cell"><button class="speak-btn ${hasAudio ? 'has-audio' : ''}" data-speak="${esc(w.de)}" data-audio="${esc(w.exAudio || '')}">${hasAudio ? '🎵' : '🔊'}</button></td>
+      <td class="sound-cell">
+        ${wordSpeak}
+      </td>
       <td class="art ${articleClass(w.art)}">${esc(w.art || '–')}</td>
       <td class="plural-cell">${esc(w.plural || '–')}</td>
       <td class="fa">${esc(w.fa)}</td>
     </tr>`;
     }).join('');
+
     cont.innerHTML = `<div class="table-wrap"><table>
     <thead><tr><th>Deutsch</th><th>🔊</th><th>Artikel</th><th>Plural</th><th>فارسی</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
-    cont.querySelectorAll('[data-speak]').forEach(btn => {
-      btn.addEventListener('click', e => { e.stopPropagation(); speak(btn.dataset.speak, btn.dataset.audio); });
+
+    cont.querySelectorAll('[data-word-speak]').forEach(btn => {
+      btn.addEventListener('click', e => { e.stopPropagation(); speakTTS(btn.dataset.wordSpeak); });
     });
+
     cont.querySelectorAll('tbody tr').forEach(tr => {
       tr.addEventListener('click', e => {
         if (e.target.closest('button')) return;
@@ -1103,9 +1149,6 @@
     });
   }
 
-  /* ============================================================
-     RENDER: CARDS (با der/die/das بزرگ + جستجوی کامل)
-     ============================================================ */
   function renderCards() {
     const container = document.getElementById('cardsContainer');
     if (!container) return;
@@ -1137,6 +1180,7 @@
       const art = w.art && w.art !== '–' ? w.art : '';
       const artClass = articleClass(w.art);
       const wt = getWordType(w);
+      const wordFull = (art ? art + ' ' : '') + w.de;
       const allExamples = buildExamplesForCard(w);
       const displayExamples = allExamples.slice(0, 2);
       const totalExamples = allExamples.length;
@@ -1168,7 +1212,6 @@
         </div>` : ''}
       </div>` : '';
 
-      // ⭐ تعیین رنگ پس‌زمینه der/die/das
       let artBg = 'rgba(148,163,184,0.18)';
       let artColor = 'var(--muted)';
       if (art === 'der') { artBg = 'rgba(96,165,250,0.22)'; artColor = '#60a5fa'; }
@@ -1185,14 +1228,14 @@
         <div class="word-card-title">
           ${art ? `<span class="word-card-art ${artClass}" style="font-size:15px;font-weight:900;padding:4px 10px;background:${artBg};color:${artColor};border-radius:8px;display:inline-block;margin-right:4px;line-height:1.3;">${esc(art)}</span>` : ''}
           <span class="word-card-de">${esc(w.de)}</span>
-          <button class="word-speak-inline" data-card-speak="${esc(w.de)}" title="تلفظ">🔊</button>
+          ${germanSpeakBtn(wordFull, { size: 'sm', title: 'پخش تلفظ آلمانی' })}
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="word-type-badge ${wt.type}">${wt.icon} ${wt.label}</span>
           ${hasAnyExtra ? `<button class="word-more-btn" data-card-more="${w.id}" title="نمایش کامل">⋮</button>` : ''}
         </div>
       </div>
-      ${w.plural && w.plural !== '–' ? `<div class="word-card-plural-line"><span>📚 جمع:</span> <span class="pl-value">${esc(w.plural)}</span></div>` : ''}
+      ${w.plural && w.plural !== '–' ? `<div class="word-card-plural-line"><span>📚 جمع:</span> <span class="pl-value">${esc(w.plural)}</span>${germanSpeakBtn(w.plural, { size: 'sm', title: 'پخش جمع' })}</div>` : ''}
       <div class="word-card-fa">${esc(w.fa)}</div>
       ${chipsHtml}
       <div class="word-card-examples-list">
@@ -1221,9 +1264,6 @@
     container.querySelectorAll('[data-card-more]').forEach(btn => {
       btn.addEventListener('click', e => { e.stopPropagation(); openWordView(btn.dataset.cardMore); });
     });
-    container.querySelectorAll('[data-card-speak]').forEach(btn => {
-      btn.addEventListener('click', e => { e.stopPropagation(); speakTTS(btn.dataset.cardSpeak); });
-    });
     container.querySelectorAll('.word-card-chip').forEach(chip => {
       chip.addEventListener('click', e => {
         e.stopPropagation();
@@ -1245,11 +1285,9 @@
     });
     wireClickableWords(container);
     wireSentenceAudio(container);
+    wireGermanSpeakButtons(container);
   }
 
-  /* ============================================================
-     CLICKABLE WORDS
-     ============================================================ */
   function wireClickableWords(container) {
     container.querySelectorAll('.clickable-word').forEach(el => {
       el.addEventListener('click', e => {
@@ -1269,12 +1307,14 @@
     const lesson = result.lesson;
     const locationLabel = result.isActiveLesson ? '📖 این درس' : `📚 ${esc(lesson.title)}`;
     const hasEx = w.ex && w.ex.trim();
+    const wordFull = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
     content.innerHTML = `
     <button class="wt-close" id="wtClose">✕</button>
     <div class="wt-header">
       ${w.art && w.art !== '–' ? `<span class="wt-art ${articleClass(w.art)}">${esc(w.art)}</span>` : ''}
       <span class="wt-word">${esc(w.de)}</span>
-      ${w.plural && w.plural !== '–' ? `<span class="wt-plural">جمع: ${esc(w.plural)}</span>` : ''}
+      ${germanSpeakBtn(wordFull, { size: 'md', title: 'پخش تلفظ آلمانی' })}
+      ${w.plural && w.plural !== '–' ? `<span class="wt-plural">جمع: ${esc(w.plural)}${germanSpeakBtn(w.plural, { size: 'sm', title: 'پخش جمع' })}</span>` : ''}
     </div>
     <div class="wt-fa">${esc(w.fa)}</div>
     <div class="wt-location">${locationLabel}</div>
@@ -1292,7 +1332,7 @@
       modal.classList.remove('active');
       document.body.classList.remove('locked');
     });
-    document.getElementById('wtSpeak').addEventListener('click', () => speakTTS(w.de));
+    document.getElementById('wtSpeak').addEventListener('click', () => speakTTS(wordFull));
     document.getElementById('wtOpenFull').addEventListener('click', () => {
       modal.classList.remove('active');
       document.body.classList.remove('locked');
@@ -1307,14 +1347,12 @@
     });
     wireSentenceAudio(content);
     wireClickableWords(content);
+    wireGermanSpeakButtons(content);
     modal.addEventListener('click', e => {
       if (e.target === modal) { modal.classList.remove('active'); document.body.classList.remove('locked'); }
     }, { once: true });
   }
 
-  /* ============================================================
-     RENDER: FOLDERS
-     ============================================================ */
   function renderFolders() {
     const words = getWords();
     const now = Date.now();
@@ -1341,9 +1379,6 @@
     renderArticlePracticeGrid();
   }
 
-  /* ============================================================
-     ARTICLE SECTION
-     ============================================================ */
   function getArticleStats() {
     const words = getWords();
     const nouns = words.filter(w => ['der', 'die', 'das'].includes(w.art));
@@ -1447,9 +1482,6 @@
     toast(`🎯 ${label} — ${quizState.questions.length} کلمه`, 'success');
   }
 
-  /* ============================================================
-     PRACTICE FOLDER DRAWER
-     ============================================================ */
   function buildFolderMenu() {
     const words = getWords();
     const now = Date.now();
@@ -1484,9 +1516,6 @@
     });
   }
 
-  /* ============================================================
-     THEATER MODE
-     ============================================================ */
   function enterTheaterMode() {
     document.body.classList.add('practice-theater');
     document.getElementById('practiceFullscreenBtn').textContent = '✕ خروج';
@@ -1515,9 +1544,6 @@
     toast('♻️ تنظیمات ریست شد', 'success');
   }
 
-  /* ============================================================
-     PRACTICE
-     ============================================================ */
   function startPractice(folderType) {
     let words = getWords().slice();
     const now = Date.now();
@@ -1544,6 +1570,7 @@
       return;
     }
     const w = practice.queue[practice.index];
+    const wordFull = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
     document.getElementById('practiceCounter').textContent = `${practice.index + 1} / ${practice.queue.length}`;
     document.getElementById('practiceProgress').style.width = ((practice.index / practice.queue.length) * 100) + '%';
     if (practiceDirection === 'de-fa') {
@@ -1551,19 +1578,25 @@
       document.getElementById('fcArt').className = 'fc-art art ' + articleClass(w.art);
       document.getElementById('fcWord').textContent = w.de;
       document.getElementById('fcMeaning').textContent = w.fa;
-      document.getElementById('fcExample').innerHTML = w.ex ? `📌 ${esc(w.ex)}${w.exMean ? `<br><small>${esc(w.exMean)}</small>` : ''}` : '';
+      // جمله آلمانی با بلندگو فقط اگه جمله هست
+      document.getElementById('fcExample').innerHTML = (w.ex && w.ex.trim())
+        ? `<div class="fc-example-line">${germanSpeakBtn(w.ex, { size: 'sm', title: 'پخش جمله آلمانی' })}<span dir="ltr">${esc(w.ex)}</span></div>${w.exMean ? `<small>${esc(w.exMean)}</small>` : ''}`
+        : '';
     } else {
       document.getElementById('fcArt').textContent = '';
       document.getElementById('fcArt').className = 'fc-art';
       document.getElementById('fcWord').textContent = w.fa;
-      document.getElementById('fcMeaning').textContent = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
-      document.getElementById('fcExample').innerHTML = w.exMean ? `📌 ${esc(w.exMean)}${w.ex ? `<br><small dir="ltr">${esc(w.ex)}</small>` : ''}` : '';
+      document.getElementById('fcMeaning').innerHTML = `<div class="fc-meaning-with-speak">${germanSpeakBtn(wordFull, { size: 'md', title: 'پخش تلفظ آلمانی' })}<span>${esc(wordFull)}</span></div>`;
+      document.getElementById('fcExample').innerHTML = (w.ex && w.ex.trim())
+        ? `<div class="fc-example-line">${germanSpeakBtn(w.ex, { size: 'sm', title: 'پخش جمله آلمانی' })}<span dir="ltr">${esc(w.ex)}</span></div>${w.exMean ? `<small>${esc(w.exMean)}</small>` : ''}`
+        : (w.exMean ? `<small>${esc(w.exMean)}</small>` : '');
     }
     const speakBtn = document.getElementById('fcSpeakBtn');
     if (speakBtn) speakBtn.style.display = practiceDirection === 'fa-de' ? 'none' : '';
     document.getElementById('prevPracticeBtn').disabled = practice.index === 0;
     const inner = document.getElementById('flashcardInner');
     if (inner && inner.classList.contains('flipped')) inner.classList.remove('flipped');
+    if (inner) wireGermanSpeakButtons(inner);
     if (autoPlayWord && practiceDirection === 'de-fa') {
       setTimeout(() => {
         const innerEl = document.getElementById('flashcardInner');
@@ -1604,9 +1637,6 @@
     updateReviewBanner();
   }
 
-  /* ============================================================
-     QUIZ STATS
-     ============================================================ */
   function getQuizModeStats(mode) {
     const history = (state.quizHistory || []).filter(h =>
       h.lessonId === state.activeLessonId && h.mode === mode
@@ -1663,9 +1693,15 @@
     container.innerHTML = `
     <div class="panel">
       <h3 style="text-align:center;font-size:20px;margin-bottom:8px;">🎯 آزمون هوشمند</h3>
-      <p class="muted" style="text-align:center;font-size:13px;margin-bottom:20px;">
+      <p class="muted" style="text-align:center;font-size:13px;margin-bottom:12px;">
         ${due.length ? `<span style="color:var(--warning);">📅 ${due.length} کلمه برای مرور آماده‌ست</span>` : 'یکی از حالت‌های آزمون رو انتخاب کن'}
       </p>
+      <div class="row" style="margin-bottom:16px;justify-content:center;flex-wrap:wrap;gap:8px;">
+        <button class="auto-play-toggle ${autoPlayQuiz ? 'on' : ''}" id="quizAutoPlayToggle" type="button">
+          <span class="toggle-indicator"></span>
+          <span id="quizAutoPlayLabel">${autoPlayQuiz ? '🔊 پخش خودکار لغت: روشن' : '🔇 پخش خودکار لغت: خاموش'}</span>
+        </button>
+      </div>
       ${due.length ? `
         <div style="margin-bottom:16px;">
           <button class="btn btn-warning btn-lg" id="quizDailyReviewBtn" style="width:100%;color:#000;">
@@ -1742,8 +1778,8 @@
     });
     document.getElementById('quizBadBtn')?.addEventListener('click', () => startQuizMode('mean', true));
     document.getElementById('quizDailyReviewBtn')?.addEventListener('click', startDailyReview);
+    document.getElementById('quizAutoPlayToggle')?.addEventListener('click', toggleAutoPlayQuiz);
   }
-
   function startQuizMode(mode, onlyBad) {
     let words = getWords().slice();
     if (onlyBad) words = words.filter(w => normalizeStatus(w) === 'bad');
@@ -1811,23 +1847,32 @@
     quizState.answered = false;
     const session = document.getElementById('quizSession');
     let questionHtml = '';
+
     if (q.type === 'mean') {
       const showDe = (q.dir || 'de-fa') === 'de-fa';
+      const wordFull = (q.word.art && q.word.art !== '–' ? q.word.art + ' ' : '') + q.word.de;
       questionHtml = `
       <div class="quiz-question-box">
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">
           ${showDe ? 'معنی این کلمه چیه؟' : 'معادل آلمانی این کلمه چیه؟'}
         </div>
-        <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">${esc(showDe ? q.word.de : q.word.fa)}</div>
+        <div class="quiz-word-with-speak">
+          ${showDe ? germanSpeakBtn(wordFull, { size: 'lg', title: 'پخش تلفظ آلمانی' }) : ''}
+          <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);margin:0;">${esc(showDe ? q.word.de : q.word.fa)}</div>
+        </div>
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
       </div>`;
     } else if (q.type === 'sentence') {
+      const sentenceDe = q.word.ex || '';
       questionHtml = `
       <div class="quiz-question-box">
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">کدوم کلمه توی جای خالی میاد؟</div>
-        <div class="quiz-sentence">"${esc(q.masked)}"</div>
+        <div class="quiz-sentence-with-speak">
+          ${sentenceDe ? germanSpeakBtn(sentenceDe, { size: 'md', title: 'پخش جمله کامل آلمانی' }) : ''}
+          <div class="quiz-sentence" style="margin:0;">"${esc(q.masked)}"</div>
+        </div>
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
@@ -1846,21 +1891,29 @@
         <button class="btn btn-primary" id="quizCheckBtn" style="width:100%;margin-top:12px;padding:12px;">✅ بررسی جواب</button>
       </div>`;
     } else if (q.type === 'article') {
+      // ⭐ فقط خود اسم خونده می‌شه (بدون آرتیکل) تا جواب لو نره
       questionHtml = `
       <div class="quiz-question-box">
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">آرتیکل درست چیه؟</div>
-        <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">${esc(q.word.de)}</div>
+        <div class="quiz-word-with-speak">
+          ${germanSpeakBtn(q.word.de, { size: 'lg', title: 'پخش تلفظ آلمانی (بدون آرتیکل)' })}
+          <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);margin:0;">${esc(q.word.de)}</div>
+        </div>
         <div style="text-align:center;color:var(--muted);font-size:13px;margin-top:6px;">${esc(q.word.fa)}</div>
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt article-opt-${o}" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
       </div>`;
     } else if (q.type === 'plural') {
+      // ⭐ فقط خود اسم مفرد خونده می‌شه (بدون آرتیکل) تا جواب لو نره
       questionHtml = `
       <div class="quiz-question-box">
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">جمع این اسم چیه؟</div>
-        <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">
-          ${q.word.art && q.word.art !== '–' ? `<span style="opacity:0.7;font-size:0.6em;">${esc(q.word.art)}</span> ` : ''}${esc(q.word.de)}
+        <div class="quiz-word-with-speak">
+          ${germanSpeakBtn(q.word.de, { size: 'lg', title: 'پخش تلفظ آلمانی (مفرد)' })}
+          <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);margin:0;">
+            ${q.word.art && q.word.art !== '–' ? `<span style="opacity:0.7;font-size:0.6em;">${esc(q.word.art)}</span> ` : ''}${esc(q.word.de)}
+          </div>
         </div>
         <div style="text-align:center;color:var(--muted);font-size:13px;margin-top:6px;">${esc(q.word.fa)}</div>
       </div>
@@ -1876,6 +1929,10 @@
           <span style="color:var(--muted);">${Math.round(progress)}٪</span>
         </div>
         <div class="quiz-score">
+          <button class="auto-play-toggle ${autoPlayQuiz ? 'on' : ''}" id="quizAutoPlayToggleSession" type="button" style="padding:4px 10px;font-size:11px;">
+            <span class="toggle-indicator" style="width:26px;height:14px;"></span>
+            <span id="quizAutoPlayLabelSession">${autoPlayQuiz ? '🔊 خودکار' : '🔇 خودکار'}</span>
+          </button>
           <span class="correct-count">✅ ${quizState.correct}</span>
           <span class="wrong-count">❌ ${quizState.wrong}</span>
           <button class="btn btn-sm" id="quizExitBtn">⬅️ خروج</button>
@@ -1887,6 +1944,7 @@
       ${questionHtml}
     </div>`;
     document.getElementById('quizExitBtn').addEventListener('click', backToQuizHome);
+    document.getElementById('quizAutoPlayToggleSession')?.addEventListener('click', toggleAutoPlayQuiz);
     if (q.type === 'typing') {
       const input = document.getElementById('quizTypingInput');
       const checkBtn = document.getElementById('quizCheckBtn');
@@ -1897,7 +1955,6 @@
           listenBtn.classList.add('playing');
           setTimeout(() => listenBtn.classList.remove('playing'), 1500);
         });
-        setTimeout(() => speakTTS(q.word.de), 300);
       }
       setTimeout(() => input.focus(), 100);
       checkBtn.addEventListener('click', () => checkTypingAnswer(q, input));
@@ -1906,6 +1963,25 @@
       session.querySelectorAll('[data-qopt]').forEach(btn => {
         btn.addEventListener('click', () => answerChoice(q, btn.dataset.qopt));
       });
+    }
+    wireGermanSpeakButtons(session);
+    /* ⭐ پخش خودکار فقط وقتی آلمانی توی سوال هست (بدون لو دادن جواب) */
+    if (autoPlayQuiz) {
+      setTimeout(() => {
+        if (q.type === 'mean') {
+          const showDe = (q.dir || 'de-fa') === 'de-fa';
+          if (showDe) {
+            const wordFull = (q.word.art && q.word.art !== '–' ? q.word.art + ' ' : '') + q.word.de;
+            speakTTS(wordFull);
+          }
+        } else if (q.type === 'article' || q.type === 'plural') {
+          speakTTS(q.word.de);  // فقط اسم، بدون آرتیکل — جواب لو نمی‌ره
+        } else if (q.type === 'sentence') {
+          speakTTS(q.word.ex || q.word.de);
+        } else if (q.type === 'typing' && q.mode === 'listening') {
+          speakTTS(q.word.de);
+        }
+      }, 400);
     }
   }
 
@@ -2000,11 +2076,14 @@
       <div class="quiz-failed-section">
         <h4>⚠️ کلمات اشتباه (${quizState.wrongWords.length})</h4>
         <div class="quiz-failed-list">
-          ${quizState.wrongWords.map(w => `
+          ${quizState.wrongWords.map(w => {
+      const full = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+      return `
             <div class="quiz-failed-item">
-              <span class="de">${w.art && w.art !== '–' ? esc(w.art) + ' ' : ''}${esc(w.de)}</span>
+              <span class="de">${esc(full)}${germanSpeakBtn(full, { size: 'sm', title: 'پخش تلفظ آلمانی' })}</span>
               <span class="fa">${esc(w.fa)}</span>
-            </div>`).join('')}
+            </div>`;
+    }).join('')}
         </div>
       </div>` : `
       <div style="text-align:center;padding:20px;color:var(--accent);font-size:16px;font-weight:700;">🎉 عالی!</div>
@@ -2013,6 +2092,7 @@
       <button class="btn btn-primary btn-lg" id="quizBackBtn" style="width:100%;">🏠 بازگشت به منوی آزمون</button>
       ${quizState.wrongWords.length ? `<button class="btn btn-danger btn-lg" id="quizRetryWrongBtn" style="width:100%;">🔄 آزمون مجدد کلمات اشتباه</button>` : ''}
     </div>`;
+    wireGermanSpeakButtons(report);
     document.getElementById('quizBackBtn').addEventListener('click', backToQuizHome);
     const retryBtn = document.getElementById('quizRetryWrongBtn');
     if (retryBtn) {
@@ -2054,9 +2134,6 @@
     renderQuizHome();
   }
 
-  /* ============================================================
-     GRAMMAR
-     ============================================================ */
   function renderGrammar() {
     const cont = document.getElementById('grammarList');
     if (!cont) return;
@@ -2096,10 +2173,9 @@
   `).join('');
     wireClickableWords(cont);
     wireSentenceAudio(cont);
+    wireGermanSpeakButtons(cont);
   }
-  /* ============================================================
-     STORIES / LETTERS / DIALOGUES
-     ============================================================ */
+
   function renderContentTabs() {
     const cont = document.getElementById('contentTabs');
     if (!cont) return;
@@ -2280,8 +2356,12 @@
     const hasPrev = currentIdx > 0;
     const hasNext = currentIdx < navItems.length - 1;
 
-    let html = `<div class="content-reader-type-badge type-${data.type}">${data.typeLabel}</div>`;
-    html += `<h2 class="story-reader-title">${esc(data.title)}</h2>`;
+     let html = `
+      <div class="story-reader-header-row">
+        <div class="content-reader-type-badge type-${data.type}">${data.typeLabel}</div>
+        <h2 class="story-reader-title">${esc(data.title)}</h2>
+      </div>
+    `;
 
     if (navItems.length > 1) {
       html += `<div class="story-quick-nav">`;
@@ -2364,6 +2444,7 @@
 
     wireClickableWords(body);
     wireSentenceAudio(body);
+    wireGermanSpeakButtons(body);
 
     const toggleBtn = document.getElementById('toggleFa');
     if (toggleBtn) {
@@ -2389,9 +2470,6 @@
     }
   }
 
-  /* ============================================================
-     AUDIO PLAYER
-     ============================================================ */
   function setupCustomAudioPlayer(root) {
     const audioEl = root.querySelector('[data-audio]');
     const playBtn = root.querySelector('[data-play-btn]');
@@ -2538,9 +2616,6 @@
     return true;
   }
 
-  /* ============================================================
-     WORD VIEW
-     ============================================================ */
   function openWordView(wordId) {
     const word = getWords().find(w => w.id === wordId);
     if (!word) { toast('کلمه پیدا نشد', 'error'); return; }
@@ -2559,6 +2634,7 @@
     const contextExamples = word.contextExamples || [];
     const formLabels = { present: 'حال', past: 'گذشته', perfect: 'ماضی نقلی', future: 'آینده', imperative: 'امری', participle: 'اسم مفعول' };
     const allExamples = buildExamplesForCard(word);
+    const wordFull = (word.art && word.art !== '–' ? word.art + ' ' : '') + word.de;
 
     let html = `
     <button class="word-view-close" id="wvClose">✕</button>
@@ -2567,7 +2643,8 @@
     <div class="word-view-header">
       ${word.art && word.art !== '–' ? `<span class="word-view-art ${articleClass(word.art)}">${esc(word.art)}</span>` : ''}
       <span class="word-view-de">${esc(word.de)}</span>
-      ${word.plural && word.plural !== '–' ? `<span class="word-view-plural">جمع: ${esc(word.plural)}</span>` : ''}
+      ${germanSpeakBtn(wordFull, { size: 'md', title: 'پخش تلفظ آلمانی' })}
+      ${word.plural && word.plural !== '–' ? `<span class="word-view-plural">جمع: ${esc(word.plural)}${germanSpeakBtn(word.plural, { size: 'sm', title: 'پخش جمع' })}</span>` : ''}
     </div>
     ${word.ipa ? `<div class="word-view-ipa">🔊 ${esc(word.ipa)}</div>` : ''}
     <div class="word-view-fa">${esc(word.fa)}</div>
@@ -2600,26 +2677,29 @@
     if (formsKeys.length) {
       html += `<div class="word-view-section"><h4>🔤 صرف فعل</h4><div class="conjugation-grid">`;
       formsKeys.forEach(key => {
-        html += `<div class="conj-row"><span class="conj-label">${esc(formLabels[key] || key)}</span><span class="conj-value">${esc(forms[key])}</span></div>`;
+        html += `<div class="conj-row"><span class="conj-label">${esc(formLabels[key] || key)}</span><span class="conj-value">${esc(forms[key])}${germanSpeakBtn(forms[key], { size: 'sm', title: 'پخش' })}</span></div>`;
       });
       html += `</div></div>`;
     }
     if (collocations.length) {
       html += `<div class="word-view-section" style="border-right-color:var(--info);">
       <h4>🔗 ترکیب‌های رایج</h4>
-      <div class="chips-list">${collocations.map(c => `<span class="chip collocation">${esc(c.de || c)}${c.fa ? ' — ' + esc(c.fa) : ''}</span>`).join('')}</div>
+      <div class="chips-list">${collocations.map(c => {
+        const de = c.de || c;
+        return `<span class="chip collocation">${esc(de)}${c.fa ? ' — ' + esc(c.fa) : ''}${germanSpeakBtn(de, { size: 'xs', title: 'پخش' })}</span>`;
+      }).join('')}</div>
     </div>`;
     }
     if (synonyms.length) {
       html += `<div class="word-view-section" style="border-right-color:var(--accent);">
       <h4>🔗 مترادف‌ها</h4>
-      <div class="chips-list">${synonyms.map(s => `<span class="chip synonym">${esc(s)}</span>`).join('')}</div>
+      <div class="chips-list">${synonyms.map(s => `<span class="chip synonym">${esc(s)}${germanSpeakBtn(s, { size: 'xs', title: 'پخش' })}</span>`).join('')}</div>
     </div>`;
     }
     if (related.length) {
       html += `<div class="word-view-section" style="border-right-color:var(--purple);">
       <h4>📎 کلمات مرتبط</h4>
-      <div class="chips-list">${related.map(s => `<span class="chip related">${esc(s)}</span>`).join('')}</div>
+      <div class="chips-list">${related.map(s => `<span class="chip related">${esc(s)}${germanSpeakBtn(s, { size: 'xs', title: 'پخش' })}</span>`).join('')}</div>
     </div>`;
     }
     if (contextExamples.length) {
@@ -2677,18 +2757,16 @@
       renderAll(); populateLessonTargets();
       toast('حذف شد', 'success');
     });
-    document.getElementById('wvSpeak').addEventListener('click', () => speakTTS(word.de));
+    document.getElementById('wvSpeak').addEventListener('click', () => speakTTS(wordFull));
     wireClickableWords(content);
     wireSentenceAudio(content);
+    wireGermanSpeakButtons(content);
     modal.addEventListener('click', e => {
       if (e.target === modal) { modal.classList.remove('active'); document.body.classList.remove('locked'); }
     }, { once: true });
-    if (autoPlayWord) setTimeout(() => speakTTS(word.de), 200);
+    if (autoPlayWord) setTimeout(() => speakTTS(wordFull), 200);
   }
 
-  /* ============================================================
-     WORD EDIT
-     ============================================================ */
   function openWordEdit(wordId) {
     const word = getWords().find(w => w.id === wordId);
     if (!word) { toast('کلمه پیدا نشد', 'error'); return; }
@@ -2807,9 +2885,6 @@
     modal.addEventListener('click', e => { if (e.target === modal) close(); }, { once: true });
   }
 
-  /* ============================================================
-     STORY EDIT
-     ============================================================ */
   function loadContentForEdit(id, kind) {
     const book = getBook();
     if (!book) return;
@@ -2975,9 +3050,6 @@
     document.getElementById('cancelStoryEditBtn').style.display = 'none';
   }
 
-  /* ============================================================
-     EXPORT
-     ============================================================ */
   function exportData(data, filename) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -3003,9 +3075,6 @@
     toast('دانلود شد', 'success');
   }
 
-  /* ============================================================
-     IMPORT
-     ============================================================ */
   function processLibraryImportData(data, fileName) {
     let rawBooks = [];
     if (data.books && Array.isArray(data.books)) rawBooks = data.books;
@@ -3209,9 +3278,6 @@
   </div>`;
   }
 
-  /* ============================================================
-     IMPORT BOOK POPUP
-     ============================================================ */
   function openImportBookPopup(pending) {
     pendingBookData = pending;
     let booksCount = 0, lessonsCount = 0, wordsCount = 0, storiesCount = 0, firstBookName = '';
@@ -3529,9 +3595,6 @@
     toast('فرمت نامعتبر', 'error');
   }
 
-  /* ============================================================
-     TABS / RENDER ALL
-     ============================================================ */
   function switchTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
@@ -3542,7 +3605,7 @@
     if (name === 'stories') { renderContentTabs(); renderContentGrid(); }
     if (name === 'list') { renderWordTable(); renderArticleQuickFilters(); }
     if (name === 'cards') renderCards();
-    if (name === 'quiz') renderQuizHome();
+    if (name === 'quiz') { renderQuizHome(); updateAutoPlayQuizUI(); }
     if (name === 'json' || name === 'manage' || name === 'manage-story') populateLessonTargets();
   }
 
@@ -3562,9 +3625,6 @@
     updateDirectionLabel();
   }
 
-  /* ============================================================
-     MODAL HELPERS
-     ============================================================ */
   function openBookModal() {
     editingBookId = null;
     document.getElementById('bookModalTitle').textContent = '📚 کتاب جدید';
@@ -3613,9 +3673,6 @@
     setTimeout(() => { document.getElementById('lessonTitleInput').focus(); document.getElementById('lessonTitleInput').select(); }, 100);
   }
 
-  /* ============================================================
-     EVENTS
-     ============================================================ */
   function bindEvents() {
     document.querySelectorAll('.tab').forEach(t => {
       t.addEventListener('click', () => switchTab(t.dataset.tab));
@@ -3665,7 +3722,9 @@
     document.getElementById('exitPractice')?.addEventListener('click', exitPractice);
 
     const flashcardStage = document.getElementById('flashcardStage');
-    if (flashcardStage) flashcardStage.addEventListener('click', () => {
+    if (flashcardStage) flashcardStage.addEventListener('click', (e) => {
+      if (e.target.closest('[data-de-speak]')) return;
+      if (e.target.closest('.clickable-word')) return;
       const inner = document.getElementById('flashcardInner');
       inner.classList.toggle('flipped');
       if (inner.classList.contains('flipped')) {
@@ -3675,7 +3734,10 @@
     });
     document.getElementById('fcSpeakBtn')?.addEventListener('click', () => {
       const w = practice.queue[practice.index];
-      if (w) speak(w.de, w.exAudio);
+      if (w) {
+        const full = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+        speak(full, w.exAudio);
+      }
     });
     document.querySelectorAll('[data-rate]').forEach(btn => {
       btn.addEventListener('click', () => rateCurrent(btn.dataset.rate));
@@ -3999,9 +4061,6 @@
     });
   }
 
-  /* ============================================================
-     INIT
-     ============================================================ */
   function init() {
     applyTheme(currentTheme);
     state = load();
@@ -4050,6 +4109,7 @@
     renderAll();
     populateLessonTargets();
     updateAutoPlayUI();
+    updateAutoPlayQuizUI();
     updateDirectionLabel();
 
     const activeBook = getBook();
