@@ -115,7 +115,16 @@
     window.speechSynthesis.speak(u);
   }
 
-  /* ⭐ دکمه بلندگوی آلمانی — فقط برای متن آلمانی */
+  /* ⭐ تابع جدید: فقط برای der/die/das آرتیکل رو برمی‌گردونه */
+  function getFullGermanWord(w) {
+    if (!w || !w.de) return '';
+    if (['der', 'die', 'das'].includes(w.art)) {
+      return w.art + ' ' + w.de;
+    }
+    return w.de;
+  }
+
+  /* ⭐ دکمه بلندگوی سراسری آلمانی */
   function germanSpeakBtn(text, opts) {
     if (!text || !String(text).trim()) return '';
     opts = opts || {};
@@ -606,7 +615,6 @@
     const showAudio = options.showAudio !== false;
     const extraClass = options.className || '';
     const highlighted = highlightClickableWords(sentenceDe);
-    // ⭐ بلندگو فقط وقتی متن آلمانی جمله واقعاً وجود داره
     let audioBtnHtml = '';
     if (showAudio && sentenceDe && String(sentenceDe).trim()) {
       const hasAudio = audioUrl && audioUrl.trim();
@@ -982,7 +990,7 @@
     <div class="global-search-stats">✅ ${matches.length} نتیجه در ${new Set(matches.map(m => m.lesson.id)).size} درس</div>
     ${matches.slice(0, 100).map(m => {
       const w = m.word;
-      const wordFull = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+      const wordFull = getFullGermanWord(w);
       return `<div class="global-search-item" data-go-word="${esc(w.id)}" data-go-lesson="${esc(m.lesson.id)}">
         <div class="gs-word">
           ${w.art && w.art !== '–' ? `<span class="gs-art ${articleClass(w.art)}">${esc(w.art)}</span>` : ''}
@@ -1095,7 +1103,7 @@
     });
   }
 
-  /* ⭐ جدول لغات: بلندگو کلمه + بلندگو جمله فقط اگه جمله آلمانی موجوده */
+  /* ⭐ جدول لغات: فقط دکمه کلمه (با تابع اصلاح‌شده) */
   function renderWordTable() {
     const search = (document.getElementById('searchBox').value || '').trim();
     const filter = document.getElementById('filterStatus').value;
@@ -1116,31 +1124,23 @@
       return;
     }
     const rows = words.map(w => {
-      const wordFull = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
-
-      // فقط دکمه بلندگوی کلمه رو می‌سازیم
+      const wordFull = getFullGermanWord(w);
       const wordSpeak = `<button class="speak-btn" data-word-speak="${esc(wordFull)}" title="تلفظ کلمه آلمانی">🔊</button>`;
-
       return `<tr data-id="${w.id}">
       <td class="de">${esc(w.de)}</td>
-      <td class="sound-cell">
-        ${wordSpeak}
-      </td>
+      <td class="sound-cell">${wordSpeak}</td>
       <td class="art ${articleClass(w.art)}">${esc(w.art || '–')}</td>
       <td class="plural-cell">${esc(w.plural || '–')}</td>
       <td class="fa">${esc(w.fa)}</td>
     </tr>`;
     }).join('');
-
     cont.innerHTML = `<div class="table-wrap"><table>
     <thead><tr><th>Deutsch</th><th>🔊</th><th>Artikel</th><th>Plural</th><th>فارسی</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
-
     cont.querySelectorAll('[data-word-speak]').forEach(btn => {
       btn.addEventListener('click', e => { e.stopPropagation(); speakTTS(btn.dataset.wordSpeak); });
     });
-
     cont.querySelectorAll('tbody tr').forEach(tr => {
       tr.addEventListener('click', e => {
         if (e.target.closest('button')) return;
@@ -1180,7 +1180,7 @@
       const art = w.art && w.art !== '–' ? w.art : '';
       const artClass = articleClass(w.art);
       const wt = getWordType(w);
-      const wordFull = (art ? art + ' ' : '') + w.de;
+      const wordFull = getFullGermanWord(w);
       const allExamples = buildExamplesForCard(w);
       const displayExamples = allExamples.slice(0, 2);
       const totalExamples = allExamples.length;
@@ -1307,7 +1307,7 @@
     const lesson = result.lesson;
     const locationLabel = result.isActiveLesson ? '📖 این درس' : `📚 ${esc(lesson.title)}`;
     const hasEx = w.ex && w.ex.trim();
-    const wordFull = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+    const wordFull = getFullGermanWord(w);
     content.innerHTML = `
     <button class="wt-close" id="wtClose">✕</button>
     <div class="wt-header">
@@ -1478,6 +1478,7 @@
     document.getElementById('quizHome').classList.add('hidden');
     document.getElementById('quizSession').classList.remove('hidden');
     document.getElementById('quizReport').classList.add('hidden');
+    document.getElementById('quizSession').classList.add('quiz-question-fullscreen'); // ⭐ فول‌اسکرین
     renderQuizQuestionNew();
     toast(`🎯 ${label} — ${quizState.questions.length} کلمه`, 'success');
   }
@@ -1570,7 +1571,7 @@
       return;
     }
     const w = practice.queue[practice.index];
-    const wordFull = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+    const wordFull = getFullGermanWord(w);
     document.getElementById('practiceCounter').textContent = `${practice.index + 1} / ${practice.queue.length}`;
     document.getElementById('practiceProgress').style.width = ((practice.index / practice.queue.length) * 100) + '%';
     if (practiceDirection === 'de-fa') {
@@ -1578,16 +1579,16 @@
       document.getElementById('fcArt').className = 'fc-art art ' + articleClass(w.art);
       document.getElementById('fcWord').textContent = w.de;
       document.getElementById('fcMeaning').textContent = w.fa;
-      // جمله آلمانی با بلندگو فقط اگه جمله هست
-      document.getElementById('fcExample').innerHTML = (w.ex && w.ex.trim())
+      document.getElementById('fcExample').innerHTML = w.ex
         ? `<div class="fc-example-line">${germanSpeakBtn(w.ex, { size: 'sm', title: 'پخش جمله آلمانی' })}<span dir="ltr">${esc(w.ex)}</span></div>${w.exMean ? `<small>${esc(w.exMean)}</small>` : ''}`
         : '';
     } else {
       document.getElementById('fcArt').textContent = '';
       document.getElementById('fcArt').className = 'fc-art';
       document.getElementById('fcWord').textContent = w.fa;
-      document.getElementById('fcMeaning').innerHTML = `<div class="fc-meaning-with-speak">${germanSpeakBtn(wordFull, { size: 'md', title: 'پخش تلفظ آلمانی' })}<span>${esc(wordFull)}</span></div>`;
-      document.getElementById('fcExample').innerHTML = (w.ex && w.ex.trim())
+      const meaningDe = getFullGermanWord(w);
+      document.getElementById('fcMeaning').innerHTML = `<div class="fc-meaning-with-speak">${germanSpeakBtn(meaningDe, { size: 'md', title: 'پخش تلفظ آلمانی' })}<span>${esc(meaningDe)}</span></div>`;
+      document.getElementById('fcExample').innerHTML = w.ex
         ? `<div class="fc-example-line">${germanSpeakBtn(w.ex, { size: 'sm', title: 'پخش جمله آلمانی' })}<span dir="ltr">${esc(w.ex)}</span></div>${w.exMean ? `<small>${esc(w.exMean)}</small>` : ''}`
         : (w.exMean ? `<small>${esc(w.exMean)}</small>` : '');
     }
@@ -1604,8 +1605,7 @@
       }, 350);
     }
   }
-
-  function rateCurrent(rating) {
+    function rateCurrent(rating) {
     if (practice._isTransitioning) return;
     practice._isTransitioning = true;
     const w = practice.queue[practice.index];
@@ -1780,6 +1780,7 @@
     document.getElementById('quizDailyReviewBtn')?.addEventListener('click', startDailyReview);
     document.getElementById('quizAutoPlayToggle')?.addEventListener('click', toggleAutoPlayQuiz);
   }
+
   function startQuizMode(mode, onlyBad) {
     let words = getWords().slice();
     if (onlyBad) words = words.filter(w => normalizeStatus(w) === 'bad');
@@ -1836,6 +1837,7 @@
     document.getElementById('quizHome').classList.add('hidden');
     document.getElementById('quizSession').classList.remove('hidden');
     document.getElementById('quizReport').classList.add('hidden');
+    document.getElementById('quizSession').classList.add('quiz-question-fullscreen'); // ⭐ فول‌اسکرین
     renderQuizQuestionNew();
   }
 
@@ -1846,11 +1848,10 @@
     const progress = (quizState.index / total * 100);
     quizState.answered = false;
     const session = document.getElementById('quizSession');
+    const wordFull = getFullGermanWord(q.word);
     let questionHtml = '';
-
     if (q.type === 'mean') {
       const showDe = (q.dir || 'de-fa') === 'de-fa';
-      const wordFull = (q.word.art && q.word.art !== '–' ? q.word.art + ' ' : '') + q.word.de;
       questionHtml = `
       <div class="quiz-question-box">
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">
@@ -1865,12 +1866,11 @@
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
       </div>`;
     } else if (q.type === 'sentence') {
-      const sentenceDe = q.word.ex || '';
       questionHtml = `
       <div class="quiz-question-box">
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">کدوم کلمه توی جای خالی میاد؟</div>
         <div class="quiz-sentence-with-speak">
-          ${sentenceDe ? germanSpeakBtn(sentenceDe, { size: 'md', title: 'پخش جمله کامل آلمانی' }) : ''}
+          ${germanSpeakBtn(q.word.ex || q.word.de, { size: 'md', title: 'پخش جمله کامل آلمانی' })}
           <div class="quiz-sentence" style="margin:0;">"${esc(q.masked)}"</div>
         </div>
       </div>
@@ -1891,7 +1891,6 @@
         <button class="btn btn-primary" id="quizCheckBtn" style="width:100%;margin-top:12px;padding:12px;">✅ بررسی جواب</button>
       </div>`;
     } else if (q.type === 'article') {
-      // ⭐ فقط خود اسم خونده می‌شه (بدون آرتیکل) تا جواب لو نره
       questionHtml = `
       <div class="quiz-question-box">
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">آرتیکل درست چیه؟</div>
@@ -1905,7 +1904,6 @@
         ${q.options.map(o => `<button class="quiz-opt article-opt-${o}" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
       </div>`;
     } else if (q.type === 'plural') {
-      // ⭐ فقط خود اسم مفرد خونده می‌شه (بدون آرتیکل) تا جواب لو نره
       questionHtml = `
       <div class="quiz-question-box">
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">جمع این اسم چیه؟</div>
@@ -1970,10 +1968,7 @@
       setTimeout(() => {
         if (q.type === 'mean') {
           const showDe = (q.dir || 'de-fa') === 'de-fa';
-          if (showDe) {
-            const wordFull = (q.word.art && q.word.art !== '–' ? q.word.art + ' ' : '') + q.word.de;
-            speakTTS(wordFull);
-          }
+          if (showDe) speakTTS(wordFull);
         } else if (q.type === 'article' || q.type === 'plural') {
           speakTTS(q.word.de);  // فقط اسم، بدون آرتیکل — جواب لو نمی‌ره
         } else if (q.type === 'sentence') {
@@ -2059,6 +2054,7 @@
     }
     save();
     document.getElementById('quizSession').classList.add('hidden');
+    document.getElementById('quizSession').classList.remove('quiz-question-fullscreen'); // ⭐ خارج شدن از فول‌اسکرین
     const report = document.getElementById('quizReport');
     report.classList.remove('hidden');
     report.innerHTML = `
@@ -2077,7 +2073,7 @@
         <h4>⚠️ کلمات اشتباه (${quizState.wrongWords.length})</h4>
         <div class="quiz-failed-list">
           ${quizState.wrongWords.map(w => {
-      const full = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+      const full = getFullGermanWord(w);
       return `
             <div class="quiz-failed-item">
               <span class="de">${esc(full)}${germanSpeakBtn(full, { size: 'sm', title: 'پخش تلفظ آلمانی' })}</span>
@@ -2115,6 +2111,7 @@
         quizState.questions = shuffle(quizState.questions);
         document.getElementById('quizReport').classList.add('hidden');
         document.getElementById('quizSession').classList.remove('hidden');
+        document.getElementById('quizSession').classList.add('quiz-question-fullscreen'); // ⭐ فول‌اسکرین دوباره
         renderQuizQuestionNew();
       });
     }
@@ -2130,6 +2127,7 @@
     quizState.wrongWords = [];
     document.getElementById('quizReport').classList.add('hidden');
     document.getElementById('quizSession').classList.add('hidden');
+    document.getElementById('quizSession').classList.remove('quiz-question-fullscreen'); // ⭐ خارج شدن از فول‌اسکرین
     document.getElementById('quizHome').classList.remove('hidden');
     renderQuizHome();
   }
@@ -2356,12 +2354,10 @@
     const hasPrev = currentIdx > 0;
     const hasNext = currentIdx < navItems.length - 1;
 
-     let html = `
-      <div class="story-reader-header-row">
-        <div class="content-reader-type-badge type-${data.type}">${data.typeLabel}</div>
-        <h2 class="story-reader-title">${esc(data.title)}</h2>
-      </div>
-    `;
+    let html = `<div class="story-reader-header-row">
+      <div class="content-reader-type-badge type-${data.type}">${data.typeLabel}</div>
+      <h2 class="story-reader-title">${esc(data.title)}</h2>
+    </div>`;
 
     if (navItems.length > 1) {
       html += `<div class="story-quick-nav">`;
@@ -2634,7 +2630,7 @@
     const contextExamples = word.contextExamples || [];
     const formLabels = { present: 'حال', past: 'گذشته', perfect: 'ماضی نقلی', future: 'آینده', imperative: 'امری', participle: 'اسم مفعول' };
     const allExamples = buildExamplesForCard(word);
-    const wordFull = (word.art && word.art !== '–' ? word.art + ' ' : '') + word.de;
+    const wordFull = getFullGermanWord(word);
 
     let html = `
     <button class="word-view-close" id="wvClose">✕</button>
@@ -3735,7 +3731,7 @@
     document.getElementById('fcSpeakBtn')?.addEventListener('click', () => {
       const w = practice.queue[practice.index];
       if (w) {
-        const full = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
+        const full = getFullGermanWord(w);
         speak(full, w.exAudio);
       }
     });

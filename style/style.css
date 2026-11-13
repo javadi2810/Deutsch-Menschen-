@@ -4128,3 +4128,108 @@ body.practice-theater .practice-theater-close { display: flex; }
     min-height: 20px;
   }
 }
+
+
+/* ============================================================
+   ⭐ نهایی: کاهش حاشیه‌ها و نازک کردن اسکرول‌بار در موبایل
+   ============================================================ */
+
+/* ۱. نازک کردن اسکرول‌بار کل صفحه (همه مرورگرها) */
+html, body {
+  scrollbar-width: thin; /* فایرفاکس */
+  scrollbar-color: var(--primary) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 4px !important; /* عرض اسکرول‌بار از ۹ پیکسل به ۴ پیکسل کاهش یافت */
+  height: 4px !important;
+}
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 131, 247, 0.5) !important;
+  border-radius: 10px !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary) !important;
+}
+
+/* ۲. کاهش حاشیه‌ها و پدینگ‌ها فقط در موبایل */
+@media (max-width: 640px) {
+  /* حاشیه کل صفحه */
+  body {
+    padding: 4px !important;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  
+  /* حاشیه‌های داخلی کانتینر اصلی */
+  .container {
+    padding: 0 4px !important;
+    margin: 6px auto !important;
+  }
+
+  /* حاشیه‌های هدر بالای صفحه */
+  header {
+    padding: 8px 6px 12px !important;
+  }
+
+  /* حاشیه‌های پنل‌ها (کارت‌های سفید/تیره اصلی) */
+  .panel {
+    padding: 10px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* حاشیه بخش کتابخانه */
+  .book-library-screen {
+    padding: 8px 4px !important;
+  }
+
+  /* فاصله بین تب‌ها (لغات، آزمون و...) */
+  .tabs {
+    padding: 4px !important;
+    margin-bottom: 8px !important;
+    gap: 3px !important;
+  }
+
+  /* حاشیه‌های مودال‌ها (پنجره‌هایی که باز می‌شن) */
+  .modal-overlay {
+    padding: 6px !important;
+  }
+  .modal-box {
+    padding: 14px !important;
+    margin: 10px 0 !important;
+    max-width: calc(100vw - 12px) !important;
+  }
+
+  /* حاشیه‌های مودال مشاهده لغت */
+  .word-view-content {
+    padding: 12px !important;
+    padding-top: 50px !important;
+    margin: 6px 0 !important;
+    max-width: calc(100vw - 12px) !important;
+  }
+
+  /* حاشیه‌های محیط خواندن داستان */
+  .story-reader-modal {
+    padding: 4px !important;
+  }
+  .story-reader-content {
+    padding: 10px !important;
+  }
+  .story-reader-body-scroll {
+    padding-left: 8px !important;
+    padding-right: 4px !important;
+  }
+  
+  /* اسکرول‌بار داستان در موبایل باز هم نازک‌تر */
+  .story-reader-body-scroll::-webkit-scrollbar {
+    width: 3px !important;
+  }
+
+  /* حاشیه‌های بخش تمرین (فلش‌کارت‌ها) */
+  .practice-top-bar {
+    padding: 6px 8px !important;
+    margin-bottom: 8px !important;
+  }
+}
