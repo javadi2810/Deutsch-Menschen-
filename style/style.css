@@ -3619,7 +3619,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   .book-card-delete { right: 6px; }
   .book-card-download { right: 37px; }
 
-  .panel { padding: 12px; margin-bottom: 10px; border-radius: 12px; }
+  .panel { padding: 10px; margin-bottom: 10px; border-radius: 12px; }
   .panel h3 { font-size: 13px; margin-bottom: 8px; }
 
   .tabs {
