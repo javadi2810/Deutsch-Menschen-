@@ -1,17 +1,11 @@
 (function(){
 'use strict';
 
-/* ============================================================
-   CONSTANTS
-   ============================================================ */
 const STORAGE_KEY = 'german-vocab-pro-v3';
 const LEGACY_KEYS = ['german-vocab-pro-v2', 'german-vocab-pro-v1', 'german-vocab-v2', 'german_vocab_app_data_v11', 'german-vocab-pro'];
 const AUTOPLAY_KEY = 'german-vocab-autoplay';
 const THEME_KEY = 'german-vocab-theme';
 
-/* ============================================================
-   STATE
-   ============================================================ */
 let state = { books: [], activeBookId: null, activeLessonId: null, lastLessonByBook: {}, quizHistory: [], articleHistory: [] };
 let practice = { active: false, queue: [], index: 0, ratings: {}, _isTransitioning: false };
 let quizState = { mode: null, questions: [], index: 0, correct: 0, wrong: 0, wrongWords: [], answered: false, startedAt: 0 };
@@ -33,9 +27,6 @@ try {
   if (saved !== null) autoPlayWord = saved === 'true';
 } catch(e){}
 
-/* ============================================================
-   THEME MANAGER
-   ============================================================ */
 let currentTheme = 'dark';
 try {
   const saved = localStorage.getItem(THEME_KEY);
@@ -59,16 +50,12 @@ function applyTheme(theme) {
   }
   try { localStorage.setItem(THEME_KEY, theme); } catch(e){}
 }
-
 function toggleTheme() {
   const next = currentTheme === 'dark' ? 'light' : 'dark';
   applyTheme(next);
   toast(next === 'light' ? '☀️ تم روشن فعال شد' : '🌙 تم تاریک فعال شد', 'success');
 }
 
-/* ============================================================
-   UTILITIES
-   ============================================================ */
 function uid(){ return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function esc(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
@@ -83,7 +70,6 @@ function toast(msg, type){
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.classList.remove('show'), 2800);
 }
-
 function normalizeGerman(str){
   return String(str || '')
     .toLowerCase()
@@ -120,7 +106,6 @@ function speakTTS(text){
   u.rate = 0.9;
   window.speechSynthesis.speak(u);
 }
-
 function articleClass(a){
   if (['der','die','das'].includes(a)) return a;
   if (a === 'Verb') return 'verb';
@@ -190,9 +175,6 @@ function quizModeLabel(mode){
   return m[mode] || mode;
 }
 
-/* ============================================================
-   NORMALIZERS
-   ============================================================ */
 function normalizeWord(raw){
   if (!raw || typeof raw !== 'object') return null;
   const de = (raw.de || raw.word || raw.german || raw.Wort || raw.Deutsch || '').toString().trim();
@@ -368,9 +350,6 @@ function normalizeBook(raw, fallbackName){
   };
 }
 
-/* ============================================================
-   SAMPLE LESSON
-   ============================================================ */
 function makeSampleLesson(){
   return {
     id: 'sample-' + uid(),
@@ -394,9 +373,6 @@ function ensureSampleLesson(book) {
   book.lessons.unshift(makeSampleLesson());
 }
 
-/* ============================================================
-   AUTO PLAY & DIRECTION
-   ============================================================ */
 function updateAutoPlayUI(){
   const t1 = document.getElementById('autoPlayToggle');
   const t2 = document.getElementById('autoPlayToggleSession');
@@ -424,9 +400,6 @@ function togglePracticeDirection(){
   toast(practiceDirection === 'de-fa' ? '🔄 جهت: آلمانی → فارسی' : '🔄 جهت: فارسی → آلمانی', 'success');
 }
 
-/* ============================================================
-   DEFAULT / LOAD / SAVE
-   ============================================================ */
 function defaultData(){
   const book = { id: uid(), name: 'Menschen', level: 'A1.1', coverImage: '', lessons: [] };
   ensureSampleLesson(book);
@@ -485,9 +458,6 @@ function save(){
   catch(e){ console.error(e); }
 }
 
-/* ============================================================
-   HELPERS
-   ============================================================ */
 function getBook(id){ return state.books.find(b => b.id === (id || state.activeBookId)); }
 function getLesson(id){
   const b = getBook();
@@ -561,9 +531,6 @@ function highlightClickableWords(sentenceDe) {
   }).join('');
 }
 
-/* ============================================================
-   SENTENCE WITH AUDIO
-   ============================================================ */
 function renderSentenceWithAudio(sentenceDe, sentenceFa, audioUrl, options) {
   options = options || {};
   const showAudio = options.showAudio !== false;
@@ -587,7 +554,6 @@ function renderSentenceWithAudio(sentenceDe, sentenceFa, audioUrl, options) {
     ${sentenceFa ? `<div class="sentence-fa">${esc(sentenceFa)}</div>` : ''}
   </div>`;
 }
-
 function wireSentenceAudio(container) {
   if (!container) return;
   container.querySelectorAll('[data-sentence-speak]').forEach(btn => {
@@ -599,9 +565,6 @@ function wireSentenceAudio(container) {
   });
 }
 
-/* ============================================================
-   BUILD EXAMPLES FOR CARD — حداقل ۲ جمله
-   ============================================================ */
 function buildExamplesForCard(w) {
   const examples = [];
   if (w.ex && w.ex.trim()) {
@@ -659,9 +622,6 @@ function generateAutoExamples(w) {
   return out;
 }
 
-/* ============================================================
-   SRS — با قاعده ۳ بار درست پشت سر هم
-   ============================================================ */
 const SRS_INTERVALS = { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 };
 function ensureSrs(w){
   if (!w.srs) w.srs = { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0, streak: 0 };
@@ -717,9 +677,6 @@ function undoReviewWord(w){
   save();
 }
 
-/* ============================================================
-   BOOK LIBRARY
-   ============================================================ */
 function showBookLibrary(){
   document.getElementById('bookLibraryScreen').classList.remove('hidden');
   document.getElementById('mainApp').classList.add('hidden');
@@ -866,8 +823,7 @@ function openBook(bookId){
   renderAll();
   populateLessonTargets();
 }
-
-/* ⬇️ ادامه در پیام ۲ (BOOK PICKER، GLOBAL SEARCH، POPULATE TARGETS، RENDER LESSON، STATS، WORD TABLE، CARDS، CLICKABLE WORDS، FOLDERS، ARTICLE، PRACTICE...) */
+// ⬇️ ادامه در پیام ۲
 
 
 /* ============================================================
@@ -1131,7 +1087,7 @@ function renderWordTable(){
 }
 
 /* ============================================================
-   RENDER: CARDS — حداقل ۲ جمله + مترادف/متضاد
+   RENDER: CARDS
    ============================================================ */
 function renderCards(){
   const container = document.getElementById('cardsContainer');
@@ -1364,7 +1320,7 @@ function renderFolders(){
 }
 
 /* ============================================================
-   ARTICLE SECTION — ساده (سه ردیف der/die/das + دو دکمه)
+   ARTICLE SECTION
    ============================================================ */
 function getArticleStats() {
   const words = getWords();
@@ -2028,9 +1984,8 @@ function renderQuizReportNew(){
               <span class="fa">${esc(w.fa)}</span>
             </div>`).join('')}
         </div>
-        <p style="font-size:12px;color:var(--muted);margin-top:10px;">این کلمات به پوشه «بلد نیستم» منتقل شدن.</p>
       </div>` : `
-      <div style="text-align:center;padding:20px;color:var(--accent);font-size:16px;font-weight:700;">🎉 عالی! هیچ غلطی نداشتی</div>
+      <div style="text-align:center;padding:20px;color:var(--accent);font-size:16px;font-weight:700;">🎉 عالی!</div>
     `}
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
       <button class="btn btn-primary btn-lg" id="quizBackBtn" style="width:100%;">🏠 بازگشت به منوی آزمون</button>
@@ -2120,8 +2075,7 @@ function renderGrammar(){
   wireClickableWords(cont);
   wireSentenceAudio(cont);
 }
-
-/* ⬇️ ادامه در پیام ۳ (STORIES، LETTERS، DIALOGUES، AUDIO PLAYER کامل، WORD VIEW، WORD EDIT، STORY EDIT، IMPORT/EXPORT، TABS، MODALS، EVENTS، INIT) */
+// ⬇️ ادامه در پیام ۳ (پایانی): STORIES، AUDIO PLAYER، WORD VIEW/EDIT، STORY EDIT، IMPORT/EXPORT، TABS، MODALS، EVENTS، INIT، })();
 /* ============================================================
    STORIES / LETTERS / DIALOGUES
    ============================================================ */
@@ -2295,7 +2249,6 @@ function renderContentReader(data){
     playerStyle = ` style="--player-cover-color:${coverColor}"`;
   }
 
-  // تشخیص نوع محتوا برای ناوبری
   let navItems = [];
   let navKind = 'story';
   if (data.type === 'story') { navItems = getStories(); navKind = 'story'; }
@@ -2309,7 +2262,6 @@ function renderContentReader(data){
   let html = `<div class="content-reader-type-badge type-${data.type}">${data.typeLabel}</div>`;
   html += `<h2 class="story-reader-title">${esc(data.title)}</h2>`;
 
-  // نوار ناوبری سریع بین محتواها
   if (navItems.length > 1) {
     html += `<div class="story-quick-nav">`;
     navItems.forEach((st, i) => {
@@ -2351,7 +2303,6 @@ function renderContentReader(data){
     <button class="btn btn-sm" id="toggleFa">👁 نمایش/پنهان ترجمه</button>
   </div>`;
 
-  // 🎵 کارت صوتی کامل با همه دکمه‌ها
   if (audio) {
     const downloadName = (data.title || 'audio').replace(/[\\/:*?"<>|]/g, '_') + '.mp3';
     html += `<div class="${playerClass}" data-audio-player${playerStyle}>
@@ -2382,7 +2333,6 @@ function renderContentReader(data){
 
   body.innerHTML = html;
 
-  // ناوبری سریع بین محتواها
   body.querySelectorAll('[data-jump-story]').forEach(btn => {
     btn.addEventListener('click', () => openContent(btn.dataset.jumpStory, btn.dataset.jumpKind));
   });
@@ -2419,7 +2369,7 @@ function renderContentReader(data){
 }
 
 /* ============================================================
-   AUDIO PLAYER — نسخه کامل با prev/next/loop ۵ حالته
+   AUDIO PLAYER — کامل با prev/next/loop ۵ حالته
    ============================================================ */
 function setupCustomAudioPlayer(root){
   const audioEl = root.querySelector('[data-audio]');
@@ -2544,10 +2494,9 @@ function goToAdjacentStory(direction, autoAdvance){
   const letters = getLetters();
   const dialogues = getDialogues();
   let list = [];
-  let kind = 'story';
-  if (stories.find(s => s.id === currentStoryId)) { list = stories; kind = 'story'; }
-  else if (letters.find(l => l.id === currentStoryId)) { list = letters; kind = 'letter'; }
-  else if (dialogues.find(d => d.id === currentStoryId)) { list = dialogues; kind = 'dialogue'; }
+  if (stories.find(s => s.id === currentStoryId)) list = stories;
+  else if (letters.find(l => l.id === currentStoryId)) list = letters;
+  else if (dialogues.find(d => d.id === currentStoryId)) list = dialogues;
   if (!list.length) return false;
   let idx = list.findIndex(s => s.id === currentStoryId);
   if (idx === -1) return false;
@@ -2838,7 +2787,7 @@ function openWordEdit(wordId){
 }
 
 /* ============================================================
-   STORY/CONTENT EDIT — load & save
+   STORY/CONTENT EDIT
    ============================================================ */
 function loadContentForEdit(id, kind){
   const book = getBook();
@@ -3239,6 +3188,163 @@ function validateJson(){
   </div>`;
 }
 
+/* ============================================================
+   IMPORT BOOK POPUP
+   ============================================================ */
+function openImportBookPopup(pending){
+  pendingBookData = pending;
+  let booksCount = 0, lessonsCount = 0, wordsCount = 0, storiesCount = 0, firstBookName = '';
+  if (pending.type === 'single') {
+    const b = pending.data;
+    booksCount = 1;
+    lessonsCount = b.lessons.length;
+    b.lessons.forEach(l => { wordsCount += l.words.length; storiesCount += l.stories.length; });
+    firstBookName = b.name;
+  } else if (pending.type === 'multi') {
+    booksCount = pending.data.length;
+    pending.data.forEach(b => {
+      lessonsCount += b.lessons.length;
+      b.lessons.forEach(l => { wordsCount += l.words.length; storiesCount += l.stories.length; });
+    });
+    firstBookName = pending.data[0]?.name || '';
+  }
+  const info = document.getElementById('importBookInfo');
+  info.innerHTML = `
+    <div class="import-info-row"><span class="label">📦 تعداد کتاب:</span><span class="value">${booksCount}</span></div>
+    <div class="import-info-row"><span class="label">📚 تعداد درس:</span><span class="value">${lessonsCount}</span></div>
+    <div class="import-info-row"><span class="label">📝 تعداد کلمات:</span><span class="value">${wordsCount}</span></div>
+    ${storiesCount ? `<div class="import-info-row"><span class="label">📖 تعداد داستان:</span><span class="value">${storiesCount}</span></div>` : ''}
+    ${firstBookName ? `<div class="import-info-row"><span class="label">🏷 نام:</span><span class="value">${esc(firstBookName)}${booksCount > 1 ? ' و ...' : ''}</span></div>` : ''}
+  `;
+  document.getElementById('modalImportBook').classList.add('active');
+  document.body.classList.add('locked');
+}
+
+function closeImportBookPopup(){
+  document.getElementById('modalImportBook').classList.remove('active');
+  document.body.classList.remove('locked');
+  pendingBookData = null;
+}
+
+function chooseImportAsNewBook(){
+  if (!pendingBookData) return;
+  document.getElementById('modalImportBook').classList.remove('active');
+  const data = pendingBookData;
+  if (data.type === 'single') {
+    document.getElementById('newBookNameInput').value = data.data.name || '';
+    document.getElementById('newBookLevelInput').value = data.data.level || 'A1.1';
+    document.getElementById('newBookCoverInput').value = data.data.coverImage || '';
+  } else {
+    document.getElementById('newBookNameInput').value = data.data[0]?.name || '';
+    document.getElementById('newBookLevelInput').value = data.data[0]?.level || 'A1.1';
+    document.getElementById('newBookCoverInput').value = data.data[0]?.coverImage || '';
+  }
+  let lessonsCount = 0, wordsCount = 0;
+  if (data.type === 'single') {
+    lessonsCount = data.data.lessons.length;
+    data.data.lessons.forEach(l => { wordsCount += l.words.length; });
+  } else {
+    data.data.forEach(b => {
+      lessonsCount += b.lessons.length;
+      b.lessons.forEach(l => { wordsCount += l.words.length; });
+    });
+  }
+  document.getElementById('newBookStatsPreview').innerHTML = `
+    <div>📚 ${lessonsCount} درس</div>
+    <div>📝 ${wordsCount} کلمه</div>
+  `;
+  document.getElementById('modalNewBookFromImport').classList.add('active');
+}
+
+function confirmNewBookFromImport(){
+  if (!pendingBookData) return;
+  const name = document.getElementById('newBookNameInput').value.trim();
+  const level = document.getElementById('newBookLevelInput').value;
+  const coverImage = safeImageSrc(document.getElementById('newBookCoverInput').value.trim());
+  if (!name) { toast('نام کتاب لازمه', 'error'); return; }
+  let newBooks = [];
+  if (pendingBookData.type === 'single') {
+    const b = { ...pendingBookData.data };
+    b.id = uid(); b.name = name; b.level = level; b.coverImage = coverImage;
+    newBooks = [b];
+  } else {
+    pendingBookData.data.forEach((b, idx) => {
+      const nb = { ...b };
+      nb.id = uid();
+      if (idx === 0) { nb.name = name; nb.level = level; nb.coverImage = coverImage; }
+      newBooks.push(nb);
+    });
+  }
+  newBooks.forEach(nb => ensureSampleLesson(nb));
+  newBooks.forEach(nb => state.books.push(nb));
+  state.activeBookId = newBooks[0].id;
+  state.activeLessonId = newBooks[0].lessons[0]?.id;
+  save();
+  document.getElementById('modalNewBookFromImport').classList.remove('active');
+  document.body.classList.remove('locked');
+  pendingBookData = null;
+  renderAll(); populateLessonTargets();
+  showBookLibrary();
+  toast(`✅ ${newBooks.length} کتاب اضافه شد (با درس نمونه)`, 'success');
+}
+
+function chooseImportAsReplace(){
+  if (!pendingBookData) return;
+  document.getElementById('modalImportBook').classList.remove('active');
+  if (!state.books.length) {
+    toast('کتابی برای جایگزینی وجود نداره', 'warning');
+    closeImportBookPopup();
+    return;
+  }
+  const sel = document.getElementById('replaceTargetSelect');
+  sel.innerHTML = state.books.map(b => {
+    const totalWords = (b.lessons || []).reduce((s, l) => s + ((l.words || []).length), 0);
+    return `<option value="${b.id}">${esc(b.name)} — ${esc(b.level)} (${totalWords} کلمه)</option>`;
+  }).join('');
+  document.getElementById('modalReplaceTargetBook').classList.add('active');
+}
+
+function confirmReplaceBook(){
+  if (!pendingBookData) return;
+  const targetId = document.getElementById('replaceTargetSelect').value;
+  const targetBook = state.books.find(b => b.id === targetId);
+  if (!targetBook) { toast('کتاب مقصد پیدا نشد', 'error'); return; }
+  let sourceLessons = [];
+  let sourceCover = targetBook.coverImage;
+  let sourceLevel = targetBook.level;
+  if (pendingBookData.type === 'single') {
+    sourceLessons = pendingBookData.data.lessons;
+    if (pendingBookData.data.coverImage) sourceCover = pendingBookData.data.coverImage;
+    if (pendingBookData.data.level) sourceLevel = pendingBookData.data.level;
+  } else {
+    pendingBookData.data.forEach(b => { sourceLessons = sourceLessons.concat(b.lessons); });
+  }
+  const newLessons = sourceLessons
+    .filter(l => !l.isSample)
+    .map(l => ({
+      id: uid(),
+      title: l.title || 'درس',
+      words: (l.words || []).map(w => ({ ...w, id: w.id || uid() })),
+      stories: (l.stories || []).map(s => ({ ...s, id: s.id || uid() })),
+      grammar: (l.grammar || []).map(g => ({ ...g, id: g.id || uid() })),
+      letters: (l.letters || []).map(x => ({ ...x, id: x.id || uid() })),
+      dialogues: (l.dialogues || []).map(d => ({ ...d, id: d.id || uid() })),
+      isSample: false
+    }));
+  const sampleLesson = makeSampleLesson();
+  targetBook.lessons = [sampleLesson, ...newLessons];
+  targetBook.coverImage = sourceCover;
+  targetBook.level = sourceLevel;
+  state.activeBookId = targetBook.id;
+  state.activeLessonId = sampleLesson.id;
+  save();
+  document.getElementById('modalReplaceTargetBook').classList.remove('active');
+  document.body.classList.remove('locked');
+  pendingBookData = null;
+  renderAll(); populateLessonTargets();
+  toast(`✅ «${targetBook.name}» جایگزین شد (درس نمونه حفظ شد)`, 'success');
+}
+
 function setupFileDropZone(){
   const zone = document.getElementById('bigDropZone');
   const input = document.getElementById('jsonFileInput');
@@ -3308,23 +3414,27 @@ function processUploadedData(data, filename, status, forceActiveLesson){
     return newLesson;
   }
 
-  // حالت ۱: کتاب کامل
   if (data && typeof data === 'object' && Array.isArray(data.books)) {
     const booksData = data.books.map(b => normalizeBook(b)).filter(Boolean);
     if (!booksData.length) { show(`<div style="color:var(--danger);">❌ کتاب معتبری نبود</div>`); return; }
-    processLibraryImportData(data, filename);
-    show(`<div style="color:var(--accent);">✅ ${booksData.length} کتاب اضافه شد</div>`);
+    show('');
+    openImportBookPopup({ type: 'multi', data: booksData });
     return;
   }
 
-  // حالت ۲: آبجکت کتاب با lessons
   if (data && typeof data === 'object' && Array.isArray(data.lessons)) {
-    processLibraryImportData(data, filename);
-    show(`<div style="color:var(--accent);">✅ کتاب اضافه شد</div>`);
+    const bookData = normalizeBook({
+      name: data.name || data.title || data.book || filename.replace('.json', ''),
+      level: data.level || 'A1.1',
+      coverImage: data.coverImage || '',
+      lessons: data.lessons
+    });
+    if (!bookData || !bookData.lessons.length) { show(`<div style="color:var(--danger);">❌ درس معتبری نبود</div>`); return; }
+    show('');
+    openImportBookPopup({ type: 'single', data: bookData });
     return;
   }
 
-  // حالت ۳: آبجکت تک درس (words/stories/grammar/...)
   if (data && typeof data === 'object' && (Array.isArray(data.words) || Array.isArray(data.stories) || Array.isArray(data.grammar))) {
     const newLesson = addNewLessonFromObject(data, 'درس جدید');
     if (!newLesson) { show(`<div style="color:var(--danger);">❌ داده معتبری نبود</div>`); return; }
@@ -3335,7 +3445,6 @@ function processUploadedData(data, filename, status, forceActiveLesson){
     return;
   }
 
-  // حالت ۴: آرایه درس‌ها
   if (Array.isArray(data)) {
     const looksLikeLessons = data.length > 0 && data.every(item =>
       item && typeof item === 'object' &&
@@ -3362,7 +3471,6 @@ function processUploadedData(data, filename, status, forceActiveLesson){
       }
       return;
     }
-    // آرایه لغات
     const targetId = forceActiveLesson ? state.activeLessonId : (document.getElementById('fileTargetLesson').value || state.activeLessonId);
     const target = getLessonById(targetId);
     if (!target) { show(`<div style="color:var(--danger);">❌ درس مقصد انتخاب نشده</div>`); return; }
@@ -3379,7 +3487,6 @@ function processUploadedData(data, filename, status, forceActiveLesson){
     return;
   }
 
-  // حالت ۵: آبجکت با words فقط
   if (data && typeof data === 'object' && Array.isArray(data.words)) {
     const targetId = forceActiveLesson ? state.activeLessonId : (document.getElementById('fileTargetLesson').value || state.activeLessonId);
     const target = getLessonById(targetId);
@@ -3402,7 +3509,7 @@ function processUploadedData(data, filename, status, forceActiveLesson){
 }
 
 /* ============================================================
-   TABS
+   TABS / RENDER ALL
    ============================================================ */
 function switchTab(name){
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -3825,6 +3932,22 @@ function bindEvents(){
     } catch(e) { status.innerHTML = `<div style="color:var(--danger);">❌ ${esc(e.message)}</div>`; }
   });
   document.getElementById('libImportPasteCancelBtn')?.addEventListener('click', () => document.getElementById('libImportPasteBox').classList.add('hidden'));
+
+  document.getElementById('importAsNewBookBtn')?.addEventListener('click', chooseImportAsNewBook);
+  document.getElementById('importAsReplaceBtn')?.addEventListener('click', chooseImportAsReplace);
+  document.getElementById('cancelImportBookBtn')?.addEventListener('click', closeImportBookPopup);
+  document.getElementById('confirmNewBookBtn')?.addEventListener('click', confirmNewBookFromImport);
+  document.getElementById('cancelNewBookBtn')?.addEventListener('click', () => {
+    document.getElementById('modalNewBookFromImport').classList.remove('active');
+    document.body.classList.remove('locked');
+    closeImportBookPopup();
+  });
+  document.getElementById('confirmReplaceBookBtn')?.addEventListener('click', confirmReplaceBook);
+  document.getElementById('cancelReplaceBookBtn')?.addEventListener('click', () => {
+    document.getElementById('modalReplaceTargetBook').classList.remove('active');
+    document.body.classList.remove('locked');
+    closeImportBookPopup();
+  });
 
   setupFileDropZone();
 
