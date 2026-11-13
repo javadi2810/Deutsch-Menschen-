@@ -13,6 +13,9 @@
 
 <!-- ============ BOOK LIBRARY ============ -->
 <div id="bookLibraryScreen" class="book-library-screen">
+  <div class="library-topbar">
+    <button class="theme-toggle-btn" id="themeToggleLibrary" title="تغییر تم">🌙</button>
+  </div>
   <div class="library-hero">
     <h1>📚 کتابخانه من</h1>
     <p>یک کتاب انتخاب کن یا کتاب جدید اضافه کن</p>
@@ -20,7 +23,7 @@
   <div class="library-container">
     <div class="library-actions">
       <button class="btn btn-primary btn-lg" id="libraryAddBookBtn">➕ کتاب جدید</button>
-      <button class="btn btn-lg" id="libraryImportBtn" style="background:var(--bg-3);">📥 افزودن کتاب از JSON</button>
+      <button class="btn btn-lg" id="libraryImportBtn">📥 افزودن کتاب از JSON</button>
     </div>
     <div id="bookCardsGrid" class="book-cards-grid"></div>
   </div>
@@ -31,9 +34,23 @@
 
 <header>
   <div class="header-top-bar">
-    <button class="header-back-btn" id="backToLibraryBtn">📚 کتابخانه</button>
-    <button class="header-action-btn" id="changeBookBtn" title="تغییر کتاب">📖 تغییر کتاب</button>
-    <button class="header-action-btn" id="globalSearchBtn" title="جستجوی سراسری">🔍 جستجو</button>
+    <button class="header-back-btn" id="backToLibraryBtn">
+      <span class="hbtn-icon">📚</span>
+      <span class="hbtn-text">کتابخانه</span>
+    </button>
+    <div class="header-actions-group">
+      <button class="header-action-btn" id="changeBookBtn" title="تغییر کتاب">
+        <span class="hbtn-icon">📖</span>
+        <span class="hbtn-text">تغییر کتاب</span>
+      </button>
+      <button class="header-action-btn" id="globalSearchBtn" title="جستجو">
+        <span class="hbtn-icon">🔍</span>
+        <span class="hbtn-text">جستجو</span>
+      </button>
+      <button class="header-action-btn header-theme-btn" id="themeToggleMain" title="تغییر تم">
+        <span class="hbtn-icon">🌙</span>
+      </button>
+    </div>
   </div>
   <h1 id="appTitle">🎓 German Vocab Pro</h1>
   <p>کارت + داستان + فلش‌کارت + آزمون + SRS + JSON</p>
@@ -69,10 +86,11 @@
     <button class="tab" data-tab="cards">📇 کارت‌ها</button>
     <button class="tab" data-tab="practice">🃏 تمرین</button>
     <button class="tab" data-tab="quiz">✅ آزمون</button>
+    <button class="tab" data-tab="grammar">📘 گرامر</button>
     <button class="tab" data-tab="stories">📖 داستان‌ها</button>
     <button class="tab" data-tab="json">📥 JSON</button>
     <button class="tab" data-tab="manage">➕ لغت جدید</button>
-    <button class="tab" data-tab="manage-story">➕ داستان جدید</button>
+    <button class="tab" data-tab="manage-story">➕ محتوای جدید</button>
   </div>
 
   <!-- TAB LIST -->
@@ -82,15 +100,28 @@
       <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <input id="searchBox" placeholder="🔍 جستجو..." style="flex:3;min-width:120px;">
         <select id="filterStatus" style="flex:1;min-width:100px;">
-          <option value="all">همه</option>
+          <option value="all">همه وضعیت‌ها</option>
           <option value="new">جدید</option>
           <option value="learning">در یادگیری</option>
           <option value="good">مسلط</option>
           <option value="bad">بلد نیستم</option>
         </select>
+        <select id="filterArticle" style="flex:1;min-width:100px;">
+          <option value="all">همه</option>
+          <option value="der">der</option>
+          <option value="die">die</option>
+          <option value="das">das</option>
+          <option value="Verb">فعل</option>
+          <option value="Adj">صفت</option>
+          <option value="Adv">قید</option>
+          <option value="noun">فقط اسم‌ها</option>
+          <option value="non-noun">غیر اسم</option>
+          <option value="none">بدون آرتیکل</option>
+        </select>
         <button class="btn btn-primary" id="quickJsonBtn" style="flex:0 0 auto;">📥 JSON</button>
         <input type="file" id="quickJsonFile" accept=".json,application/json" style="display:none;">
       </div>
+      <div id="articleQuickFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
       <div id="wordTableContainer"></div>
     </div>
   </div>
@@ -109,6 +140,17 @@
           <option value="bad">بلد نیستم</option>
           <option value="has-example">با مثال</option>
           <option value="no-example">بدون مثال</option>
+        </select>
+        <select id="cardArticleFilter" style="flex:1;min-width:100px;">
+          <option value="all">همه آرتیکل‌ها</option>
+          <option value="der">der</option>
+          <option value="die">die</option>
+          <option value="das">das</option>
+          <option value="Verb">فعل</option>
+          <option value="Adj">صفت</option>
+          <option value="Adv">قید</option>
+          <option value="noun">فقط اسم‌ها</option>
+          <option value="non-noun">غیر اسم</option>
         </select>
       </div>
       <div class="row tight" style="margin-bottom:10px;flex-wrap:wrap;">
@@ -141,6 +183,12 @@
         <div class="row" style="margin-top:10px;">
           <button class="btn btn-primary btn-lg" id="startSrsBtn" style="flex:1;">⚡ مرور امروز (SRS)</button>
         </div>
+      </div>
+
+      <div class="panel" style="border-color:var(--info);border-width:2px;">
+        <h3 style="color:var(--info);">🔤 تمرین اختصاصی آرتیکل (der/die/das)</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:12px;">آرتیکل‌ها قلب زبان آلمانی‌اند! این تمرین فقط روی جنسیت اسم‌ها کار می‌کند.</p>
+        <div class="article-practice-grid" id="articlePracticeGrid"></div>
       </div>
     </div>
 
@@ -206,25 +254,30 @@
     <div id="quizReport" class="hidden"></div>
   </div>
 
+  <!-- TAB GRAMMAR -->
+  <div id="tab-grammar" class="tab-content hidden">
+    <div class="panel">
+      <h3>📘 گرامر و نکات این درس</h3>
+      <div id="grammarList"></div>
+    </div>
+  </div>
+
   <!-- TAB STORIES -->
   <div id="tab-stories" class="tab-content hidden">
     <div class="panel">
-      <h3>📖 داستان‌های این درس</h3>
-      <button class="btn btn-primary" id="addStoryBtn">➕ داستان جدید</button>
-      <div class="story-grid" id="storyGrid"></div>
+      <h3>📖 محتوای این درس</h3>
+      <button class="btn btn-primary" id="addStoryBtn">➕ محتوای جدید</button>
+      <div id="contentTabs" class="content-tabs" style="margin-top:14px;"></div>
+      <div id="contentGrid" class="story-grid"></div>
     </div>
   </div>
 
   <!-- TAB JSON -->
   <div id="tab-json" class="tab-content hidden">
-
     <div class="panel">
       <h3>📂 افزودن از فایل JSON</h3>
       <p class="muted" style="font-size:12px;margin-bottom:10px;line-height:1.8;">
         فایل JSON رو بکش و اینجا رها کن یا کلیک کن.
-        <br>• <b>درس کامل با عنوان</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">{"lesson":"...","words":[...],"stories":[...]}</code>
-        <br>• <b>آرایه لغات</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">[{"word":"...","mean":"..."}]</code>
-        <br>• <b>کتاب کامل</b>: <code style="direction:ltr;display:inline-block;font-size:11px;">{"name":"...","lessons":[...]}</code>
       </p>
       <div id="bigDropZone" class="drop-zone">
         <div class="dz-icon">📁</div>
@@ -242,12 +295,7 @@
 
     <div class="panel">
       <h3>📋 پیست JSON دستی</h3>
-      <textarea id="jsonInput" placeholder='{
-  "lesson": "Lektion 2",
-  "words": [
-    {"de":"Buch","fa":"کتاب","art":"das"}
-  ]
-}' style="min-height:160px;direction:ltr;text-align:left;font-family:monospace;font-size:12px;"></textarea>
+      <textarea id="jsonInput" placeholder='{"lesson":"Lektion 2","words":[...]}' style="min-height:160px;direction:ltr;text-align:left;font-family:monospace;font-size:12px;"></textarea>
       <div style="margin-top:10px;">
         <label>🎯 مقصد پیش‌فرض</label>
         <select id="jsonTargetLesson"></select>
@@ -366,14 +414,25 @@
   <!-- TAB MANAGE STORY -->
   <div id="tab-manage-story" class="tab-content hidden">
     <div class="panel">
-      <h3>📖 افزودن داستان جدید</h3>
-      <div style="margin-bottom:10px;">
-        <label style="color:var(--warning);font-weight:600;">🎯 داستان به کدوم درس اضافه بشه؟</label>
-        <select id="storyTargetLesson" style="font-weight:600;"></select>
+      <h3>📖 افزودن محتوای جدید</h3>
+      <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div style="flex:1;min-width:140px;">
+          <label>نوع محتوا</label>
+          <select id="contentTypeSelect">
+            <option value="story">📖 داستان</option>
+            <option value="letter-formal">📧 نامه رسمی</option>
+            <option value="letter-informal">💌 نامه غیررسمی</option>
+            <option value="dialogue">💬 دیالوگ</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <label>🎯 درس مقصد</label>
+          <select id="storyTargetLesson" style="font-weight:600;"></select>
+        </div>
       </div>
       <div class="row" style="margin-bottom:8px;">
         <div style="flex:1;">
-          <label>عنوان داستان *</label>
+          <label>عنوان *</label>
           <input id="storyTitleInput" placeholder="Meine Familie">
         </div>
       </div>
@@ -398,7 +457,7 @@
         <textarea id="storySentencesInput" placeholder="Das ist meine Familie. | این خانواده من است." style="min-height:120px;"></textarea>
       </div>
       <div class="row tight" style="flex-wrap:wrap;">
-        <button class="btn btn-primary" id="saveStoryBtn">💾 ذخیره داستان</button>
+        <button class="btn btn-primary" id="saveStoryBtn">💾 ذخیره</button>
         <button class="btn" id="cancelStoryEditBtn" style="display:none;">✕ لغو ویرایش</button>
       </div>
     </div>
@@ -413,6 +472,8 @@
 
 </div>
 </div>
+
+<!-- ============ MODALS ============ -->
 
 <!-- MODAL BOOK -->
 <div class="modal-overlay" id="modalBook">
@@ -524,7 +585,7 @@
   </div>
 </div>
 
-<!-- MODAL IMPORT BOOK -->
+<!-- MODAL IMPORT BOOK (انتخاب نوع افزودن) -->
 <div class="modal-overlay" id="modalImportBook">
   <div class="modal-box">
     <h3>📥 وارد کردن کتاب از JSON</h3>
@@ -562,7 +623,7 @@
     </select>
     <label style="margin-top:8px;">🎨 عکس جلد</label>
     <input id="newBookCoverInput" placeholder="https://..." dir="ltr">
-    <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;">
+    <div style="margin-top:10px;padding:10px;background:var(--bg-3);border-radius:8px;font-size:12px;">
       <div style="color:var(--muted);margin-bottom:4px;">📊 محتوای کتاب:</div>
       <div id="newBookStatsPreview"></div>
     </div>
@@ -573,7 +634,7 @@
   </div>
 </div>
 
-<!-- MODAL REPLACE BOOK -->
+<!-- MODAL REPLACE TARGET BOOK -->
 <div class="modal-overlay" id="modalReplaceTargetBook">
   <div class="modal-box">
     <h3>🔄 جایگزینی با کتاب موجود</h3>
@@ -638,6 +699,11 @@
     <button class="story-reader-close" id="closeStoryReader">✕</button>
     <div class="story-reader-body-wrap" id="storyReaderBody" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;"></div>
   </div>
+</div>
+
+<!-- MODAL WORD TOOLTIP -->
+<div class="word-tooltip-modal" id="wordTooltipModal">
+  <div class="word-tooltip-content" id="wordTooltipContent"></div>
 </div>
 
 <div class="toast" id="toast"></div>

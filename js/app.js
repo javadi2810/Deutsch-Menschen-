@@ -2,16 +2,21 @@
 'use strict';
 
 /* ============================================================
-   CONSTANTS & STATE
+   CONSTANTS
    ============================================================ */
-const STORAGE_KEY = 'german-vocab-pro-v1';
-const LEGACY_KEYS = ['german-vocab-v2', 'german_vocab_app_data_v11', 'german-vocab-pro'];
+const STORAGE_KEY = 'german-vocab-pro-v3';
+const LEGACY_KEYS = ['german-vocab-pro-v2', 'german-vocab-pro-v1', 'german-vocab-v2', 'german_vocab_app_data_v11', 'german-vocab-pro'];
 const AUTOPLAY_KEY = 'german-vocab-autoplay';
+const THEME_KEY = 'german-vocab-theme';
 
-let state = { books: [], activeBookId: null, activeLessonId: null, lastLessonByBook: {}, quizHistory: [] };
+/* ============================================================
+   STATE
+   ============================================================ */
+let state = { books: [], activeBookId: null, activeLessonId: null, lastLessonByBook: {}, quizHistory: [], articleHistory: [] };
 let practice = { active: false, queue: [], index: 0, ratings: {}, _isTransitioning: false };
 let quizState = { mode: null, questions: [], index: 0, correct: 0, wrong: 0, wrongWords: [], answered: false, startedAt: 0 };
 let storyEditId = null;
+let storyEditId_kind = null;
 let currentStoryId = null;
 let repeatMode = 0;
 let repeatCounter = 0;
@@ -20,12 +25,46 @@ let currentAudio = null;
 let editingBookId = null;
 let pendingBookData = null;
 let practiceDirection = 'de-fa';
+let currentContentType = 'all';
 
 let autoPlayWord = true;
 try {
   const saved = localStorage.getItem(AUTOPLAY_KEY);
   if (saved !== null) autoPlayWord = saved === 'true';
 } catch(e){}
+
+/* ============================================================
+   THEME MANAGER
+   ============================================================ */
+let currentTheme = 'dark';
+try {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light' || saved === 'dark') currentTheme = saved;
+  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) currentTheme = 'light';
+} catch(e){}
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  document.body.setAttribute('data-theme', theme);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#f5f7fb' : '#0f172a');
+  const icon = theme === 'light' ? '☀️' : '🌙';
+  const libBtn = document.getElementById('themeToggleLibrary');
+  const mainBtn = document.getElementById('themeToggleMain');
+  if (libBtn) libBtn.textContent = icon;
+  if (mainBtn) {
+    const ic = mainBtn.querySelector('.hbtn-icon');
+    if (ic) ic.textContent = icon; else mainBtn.textContent = icon;
+  }
+  try { localStorage.setItem(THEME_KEY, theme); } catch(e){}
+}
+
+function toggleTheme() {
+  const next = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  toast(next === 'light' ? '☀️ تم روشن فعال شد' : '🌙 تم تاریک فعال شد', 'success');
+}
 
 /* ============================================================
    UTILITIES
@@ -90,7 +129,7 @@ function articleClass(a){
 }
 function getWordType(w){
   const art = w.art || '–';
-  if (art === 'der' || art === 'die' || art === 'das') return { type: 'noun', label: 'اسم', icon: '📦' };
+  if (['der','die','das'].includes(art)) return { type: 'noun', label: 'اسم', icon: '📦' };
   if (art === 'Verb') return { type: 'verb', label: 'فعل', icon: '⚡' };
   if (art === 'Adj') return { type: 'adj', label: 'صفت', icon: '🎨' };
   if (art === 'Adv') return { type: 'adj', label: 'قید', icon: '💫' };
@@ -152,56 +191,203 @@ function quizModeLabel(mode){
 }
 
 /* ============================================================
+   NORMALIZERS
+   ============================================================ */
+function normalizeWord(raw){
+  if (!raw || typeof raw !== 'object') return null;
+  const de = (raw.de || raw.word || raw.german || raw.Wort || raw.Deutsch || '').toString().trim();
+  const fa = (raw.fa || raw.mean || raw.persian || raw.translation || raw.Bedeutung || raw.Farsi || '').toString().trim();
+  if (!de || !fa) return null;
+  return {
+    id: raw.id || uid(),
+    de, art: (raw.art || raw.article || raw.Artikel || '–').toString(),
+    plural: (raw.plural || raw.Plural || '–').toString(),
+    fa,
+    ipa: (raw.ipa || '').toString(),
+    image: (raw.image || '').toString(),
+    audioUrl: (raw.audioUrl || '').toString(),
+    category: (raw.category || '').toString(),
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    difficulty: (raw.difficulty || '').toString(),
+    ex: (raw.ex || raw.example || raw.Beispiel || '').toString(),
+    exMean: (raw.exMean || raw.exampleFa || raw.beispielFa || '').toString(),
+    exAudio: (raw.exAudio || raw.exampleAudio || '').toString(),
+    note: (raw.note || '').toString(),
+    notes: Array.isArray(raw.notes) ? raw.notes : [],
+    collocations: Array.isArray(raw.collocations) ? raw.collocations : [],
+    synonyms: Array.isArray(raw.synonyms) ? raw.synonyms : [],
+    related: Array.isArray(raw.related) ? raw.related : [],
+    forms: raw.forms || {},
+    contextExamples: Array.isArray(raw.contextExamples) ? raw.contextExamples : [],
+    extraExamples: Array.isArray(raw.extraExamples) ? raw.extraExamples : [],
+    commonMistakes: Array.isArray(raw.commonMistakes) ? raw.commonMistakes : [],
+    speak: raw.speak || '',
+    status: raw.status || 'new',
+    srs: raw.srs || { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0, streak: 0 }
+  };
+}
+
+function normalizeStory(raw){
+  if (!raw || typeof raw !== 'object') return null;
+  const title = (raw.title || raw.name || '').toString().trim();
+  if (!title) return null;
+  let sentences = raw.sentences || raw.lines || [];
+  if (typeof sentences === 'string') {
+    sentences = sentences.split(/\r?\n/).filter(Boolean).map(line => {
+      const sep = line.indexOf('|');
+      if (sep < 1) return null;
+      return { de: line.slice(0, sep).trim(), fa: line.slice(sep+1).trim() };
+    }).filter(Boolean);
+  }
+  sentences = (sentences || []).map(s => {
+    if (typeof s === 'string') {
+      const sep = s.indexOf('|');
+      if (sep < 1) return null;
+      return { de: s.slice(0, sep).trim(), fa: s.slice(sep+1).trim() };
+    }
+    return {
+      de: (s.de || s.german || '').toString(),
+      fa: (s.fa || s.persian || s.translation || '').toString(),
+      audio: (s.audio || s.audioUrl || '').toString(),
+      speaker: (s.speaker || '').toString()
+    };
+  }).filter(s => s && s.de && s.fa);
+
+  let type = (raw.type || '').toString().toLowerCase();
+  if (!type) {
+    const t = title.toLowerCase();
+    if (t.includes('brief') || t.includes('email') || t.includes('e-mail')) type = 'letter-informal';
+    else if (t.includes('dialog') || t.includes('gespräch')) type = 'dialogue';
+    else type = 'story';
+  }
+  if (type === 'informal') type = 'letter-informal';
+  if (type === 'formal') type = 'letter-formal';
+  if (!['story', 'letter-formal', 'letter-informal', 'dialogue'].includes(type)) type = 'story';
+
+  return {
+    id: raw.id || uid(),
+    title, type,
+    audio: (raw.audio || raw.audioUrl || raw.fullAudio || '').toString(),
+    coverImage: (raw.coverImage || raw.cover || raw.image || '').toString(),
+    coverColor: safeCoverColor(raw.coverColor),
+    wordIds: Array.isArray(raw.wordIds) ? raw.wordIds : [],
+    grammarIds: Array.isArray(raw.grammarIds) ? raw.grammarIds : [],
+    sentences
+  };
+}
+
+function normalizeGrammar(raw){
+  if (!raw || typeof raw !== 'object') return null;
+  const title = (raw.title || raw.name || '').toString().trim();
+  const explanation = (raw.explanation || raw.description || raw.text || '').toString().trim();
+  if (!title && !explanation) return null;
+  return {
+    id: raw.id || uid(),
+    title: title || 'نکته گرامری',
+    priority: raw.priority || 1,
+    explanation,
+    rules: Array.isArray(raw.rules) ? raw.rules : [],
+    examples: Array.isArray(raw.examples) ? raw.examples.map(e => ({
+      de: (e.de || e.german || '').toString(),
+      fa: (e.fa || e.persian || e.translation || '').toString(),
+      audio: (e.audio || '').toString()
+    })) : [],
+    commonMistakes: Array.isArray(raw.commonMistakes) ? raw.commonMistakes : []
+  };
+}
+
+function normalizeDialogue(raw){
+  if (!raw || typeof raw !== 'object') return null;
+  const title = (raw.title || raw.name || '').toString().trim();
+  if (!title) return null;
+  return {
+    id: raw.id || uid(),
+    title, type: 'dialogue',
+    wordIds: Array.isArray(raw.wordIds) ? raw.wordIds : [],
+    grammarIds: Array.isArray(raw.grammarIds) ? raw.grammarIds : [],
+    lines: Array.isArray(raw.lines) ? raw.lines.map(l => ({
+      speaker: (l.speaker || '').toString(),
+      de: (l.de || l.german || '').toString(),
+      fa: (l.fa || l.persian || l.translation || '').toString(),
+      audio: (l.audio || '').toString()
+    })) : [],
+    audio: (raw.audio || '').toString(),
+    coverImage: (raw.coverImage || '').toString(),
+    coverColor: safeCoverColor(raw.coverColor)
+  };
+}
+
+function normalizeLetter(raw){
+  if (!raw || typeof raw !== 'object') return null;
+  const title = (raw.title || raw.name || '').toString().trim();
+  if (!title) return null;
+  return {
+    id: raw.id || uid(),
+    title,
+    type: (raw.type === 'formal') ? 'letter-formal' : 'letter-informal',
+    topic: (raw.topic || '').toString(),
+    audio: (raw.audio || '').toString(),
+    wordIds: Array.isArray(raw.wordIds) ? raw.wordIds : [],
+    grammarIds: Array.isArray(raw.grammarIds) ? raw.grammarIds : [],
+    de: (raw.de || '').toString(),
+    fa: (raw.fa || '').toString(),
+    coverImage: (raw.coverImage || '').toString(),
+    coverColor: safeCoverColor(raw.coverColor)
+  };
+}
+
+function normalizeLesson(raw, fallbackTitle){
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    return { id: uid(), title: fallbackTitle || 'درس', words: raw.map(normalizeWord).filter(Boolean), stories: [], grammar: [], dialogues: [], letters: [], isSample: false };
+  }
+  if (typeof raw !== 'object') return null;
+  return {
+    id: raw.id || uid(),
+    title: (raw.title || raw.lesson || raw.lessonTitle || raw.name || fallbackTitle || 'درس').toString(),
+    isSample: !!raw.isSample,
+    metadata: raw.metadata || {},
+    grammar: Array.isArray(raw.grammar) ? raw.grammar.map(normalizeGrammar).filter(Boolean) : [],
+    words: Array.isArray(raw.words) ? raw.words.map(normalizeWord).filter(Boolean) : [],
+    stories: Array.isArray(raw.stories) ? raw.stories.map(normalizeStory).filter(Boolean) : [],
+    letters: Array.isArray(raw.letters) ? raw.letters.map(normalizeLetter).filter(Boolean) : [],
+    dialogues: Array.isArray(raw.dialogues) ? raw.dialogues.map(normalizeDialogue).filter(Boolean) : [],
+    exercises: Array.isArray(raw.exercises) ? raw.exercises : [],
+    quiz: raw.quiz || null
+  };
+}
+
+function normalizeBook(raw, fallbackName){
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    id: raw.id || uid(),
+    name: (raw.name || raw.title || raw.book || fallbackName || 'کتاب').toString(),
+    level: (raw.level || 'A1.1').toString(),
+    coverImage: (raw.coverImage || raw.cover || raw.image || '').toString(),
+    lessons: Array.isArray(raw.lessons) ? raw.lessons.map((l, i) => normalizeLesson(l, 'درس ' + (i+1))).filter(Boolean) : []
+  };
+}
+
+/* ============================================================
    SAMPLE LESSON
    ============================================================ */
 function makeSampleLesson(){
   return {
     id: 'sample-' + uid(),
-    title: 'Lektion 2 — Familie und Freunde (نمونه)',
+    title: 'Lektion — Beispiel (نمونه)',
     isSample: true,
-    stories: [
-      {
-        id: 'sample-story-' + uid(),
-        title: 'Geschichte 1: Meine Familie',
-        audio: '', coverImage: '', coverColor: '#536dfe',
-        sentences: [
-          { de: 'Meine Familie ist nicht sehr groß.', fa: 'خانواده من خیلی بزرگ نیست.' },
-          { de: 'Mein Vater arbeitet in einer Firma.', fa: 'پدر من در یک شرکت کار می‌کند.' },
-          { de: 'Meine Mutter ist Lehrerin.', fa: 'مادر من معلم است.' },
-          { de: 'Ich habe einen Bruder und eine Schwester.', fa: 'من یک برادر و یک خواهر دارم.' },
-          { de: 'Wir wohnen zusammen in Teheran.', fa: 'ما با هم در تهران زندگی می‌کنیم.' },
-          { de: 'Ich bin sehr glücklich mit meiner Familie.', fa: 'من با خانواده‌ام خیلی خوشحالم.' }
-        ]
-      },
-      {
-        id: 'sample-story-' + uid(),
-        title: 'Geschichte 2: Ein Tag mit Freunden',
-        audio: '', coverImage: '', coverColor: '#536dfe',
-        sentences: [
-          { de: 'Heute treffe ich meine Freunde.', fa: 'امروز دوستانم را می‌بینم.' },
-          { de: 'Wir lernen zusammen Deutsch.', fa: 'ما با هم آلمانی یاد می‌گیریم.' },
-          { de: 'Mein Freund Ali wohnt in Berlin.', fa: 'دوست من علی در برلین زندگی می‌کند.' },
-          { de: 'Er arbeitet als Arzt.', fa: 'او به عنوان پزشک کار می‌کند.' },
-          { de: 'Wir sind alle sehr glücklich.', fa: 'ما همه خیلی خوشحالیم.' }
-        ]
-      }
-    ],
+    metadata: {},
+    grammar: [],
     words: [
-      { id: 'sample-w-' + uid(), de: 'Familie', art: 'die', plural: 'Familien', fa: 'خانواده', ex: 'Meine Familie ist groß.', exMean: 'خانواده من بزرگ است.', exAudio: '', note: '', notes: [], synonyms: ['Verwandtschaft'], related: ['Eltern', 'Kinder'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'Vater', art: 'der', plural: 'Väter', fa: 'پدر', ex: 'Mein Vater arbeitet viel.', exMean: 'پدر من زیاد کار می‌کند.', exAudio: '', note: '', notes: [], synonyms: ['Papa'], related: ['Mutter'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'Mutter', art: 'die', plural: 'Mütter', fa: 'مادر', ex: 'Meine Mutter kocht sehr gut.', exMean: 'مادر من خیلی خوب آشپزی می‌کند.', exAudio: '', note: '', notes: [], synonyms: ['Mama'], related: ['Vater'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'Bruder', art: 'der', plural: 'Brüder', fa: 'برادر', ex: 'Mein Bruder ist zehn Jahre alt.', exMean: 'برادر من ده سال دارد.', exAudio: '', note: '', notes: [], synonyms: [], related: ['Schwester'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'Schwester', art: 'die', plural: 'Schwestern', fa: 'خواهر', ex: 'Meine Schwester studiert Medizin.', exMean: 'خواهر من پزشکی می‌خواند.', exAudio: '', note: '', notes: [], synonyms: [], related: ['Bruder'], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'wohnen', art: 'Verb', plural: '–', fa: 'زندگی کردن', ex: 'Ich wohne in Teheran.', exMean: 'من در تهران زندگی می‌کنم.', exAudio: '', note: '', notes: [], synonyms: ['leben'], related: ['Wohnung'], forms: { present: 'wohne / wohnst / wohnt', past: 'wohnte', perfect: 'hat gewohnt' }, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'arbeiten', art: 'Verb', plural: '–', fa: 'کار کردن', ex: 'Ich arbeite als Lehrer.', exMean: 'من به عنوان معلم کار می‌کنم.', exAudio: '', note: '', notes: [], synonyms: [], related: ['Arbeit'], forms: { present: 'arbeite / arbeitest / arbeitet', past: 'arbeitete', perfect: 'hat gearbeitet' }, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'glücklich', art: 'Adj', plural: '–', fa: 'خوشحال', ex: 'Ich bin sehr glücklich.', exMean: 'من خیلی خوشحالم.', exAudio: '', note: '', notes: [], synonyms: ['froh'], related: [], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'zusammen', art: 'Adv', plural: '–', fa: 'با هم', ex: 'Wir lernen zusammen Deutsch.', exMean: 'ما با هم آلمانی یاد می‌گیریم.', exAudio: '', note: '', notes: [], synonyms: ['gemeinsam'], related: [], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } },
-      { id: 'sample-w-' + uid(), de: 'Wie heißt du?', art: '–', plural: '–', fa: 'اسمت چیه؟', ex: 'Hallo! Wie heißt du?', exMean: 'سلام! اسمت چیه؟', exAudio: '', note: '', notes: [], synonyms: [], related: [], forms: {}, extraExamples: [], status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 } }
-    ]
+      { id: 'sample-w1-' + uid(), de: 'Familie', art: 'die', plural: 'Familien', fa: 'خانواده', ex: 'Meine Familie ist groß.', exMean: 'خانواده من بزرگ است.', status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0, streak: 0 } },
+      { id: 'sample-w2-' + uid(), de: 'Vater', art: 'der', plural: 'Väter', fa: 'پدر', ex: 'Mein Vater arbeitet viel.', exMean: 'پدر من زیاد کار می‌کند.', status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0, streak: 0 } },
+      { id: 'sample-w3-' + uid(), de: 'Mutter', art: 'die', plural: 'Mütter', fa: 'مادر', ex: 'Meine Mutter kocht gut.', exMean: 'مادرم خوب آشپزی می‌کند.', status: 'new', srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0, streak: 0 } }
+    ],
+    stories: [], letters: [], dialogues: []
   };
 }
 
-function ensureSingleSampleLesson(book) {
+function ensureSampleLesson(book) {
   if (!book) return;
   if (!Array.isArray(book.lessons)) book.lessons = [];
   book.lessons = book.lessons.filter(l => !l.isSample);
@@ -225,7 +411,7 @@ function toggleAutoPlay(){
   autoPlayWord = !autoPlayWord;
   try { localStorage.setItem(AUTOPLAY_KEY, String(autoPlayWord)); } catch(e){}
   updateAutoPlayUI();
-  toast(autoPlayWord ? '🔊 پخش خودکار روشن شد' : '🔇 پخش خودکار خاموش شد', autoPlayWord ? 'success' : 'warning');
+  toast(autoPlayWord ? '🔊 پخش خودکار روشن' : '🔇 پخش خودکار خاموش', autoPlayWord ? 'success' : 'warning');
 }
 function updateDirectionLabel(){
   const lbl = document.getElementById('directionLabel');
@@ -239,101 +425,22 @@ function togglePracticeDirection(){
 }
 
 /* ============================================================
-   NORMALIZERS
-   ============================================================ */
-function normalizeWord(raw){
-  if (!raw || typeof raw !== 'object') return null;
-  const de = (raw.de || raw.word || raw.german || raw.Wort || raw.Deutsch || '').toString().trim();
-  const fa = (raw.fa || raw.mean || raw.persian || raw.translation || raw.Bedeutung || raw.Farsi || '').toString().trim();
-  if (!de || !fa) return null;
-  return {
-    id: raw.id || uid(),
-    de, art: (raw.art || raw.article || raw.Artikel || '–').toString(),
-    plural: (raw.plural || raw.Plural || '–').toString(),
-    fa,
-    ex: (raw.ex || raw.example || raw.Beispiel || '').toString(),
-    exMean: (raw.exMean || raw.exampleFa || raw.beispielFa || '').toString(),
-    exAudio: (raw.exAudio || raw.exampleAudio || '').toString(),
-    note: (raw.note || '').toString(),
-    notes: Array.isArray(raw.notes) ? raw.notes : [],
-    synonyms: Array.isArray(raw.synonyms) ? raw.synonyms : [],
-    related: Array.isArray(raw.related) ? raw.related : [],
-    forms: raw.forms || {},
-    extraExamples: Array.isArray(raw.extraExamples) ? raw.extraExamples : [],
-    speak: raw.speak || '',
-    status: raw.status || 'new',
-    srs: raw.srs || { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 }
-  };
-}
-function normalizeStory(raw){
-  if (!raw || typeof raw !== 'object') return null;
-  const title = (raw.title || raw.name || '').toString().trim();
-  if (!title) return null;
-  let sentences = raw.sentences || raw.lines || [];
-  if (typeof sentences === 'string') {
-    sentences = sentences.split(/\r?\n/).filter(Boolean).map(line => {
-      const sep = line.indexOf('|');
-      if (sep < 1) return null;
-      return { de: line.slice(0, sep).trim(), fa: line.slice(sep+1).trim() };
-    }).filter(Boolean);
-  }
-  sentences = (sentences || []).map(s => {
-    if (typeof s === 'string') {
-      const sep = s.indexOf('|');
-      if (sep < 1) return null;
-      return { de: s.slice(0, sep).trim(), fa: s.slice(sep+1).trim() };
-    }
-    return { de: (s.de || s.german || '').toString(), fa: (s.fa || s.persian || s.translation || '').toString() };
-  }).filter(s => s && s.de && s.fa);
-  return {
-    id: raw.id || uid(),
-    title,
-    audio: (raw.audio || raw.audioUrl || raw.fullAudio || '').toString(),
-    coverImage: (raw.coverImage || raw.cover || raw.image || '').toString(),
-    coverColor: safeCoverColor(raw.coverColor),
-    sentences
-  };
-}
-function normalizeLesson(raw, fallbackTitle){
-  if (!raw) return null;
-  if (Array.isArray(raw)) {
-    return { id: uid(), title: fallbackTitle || 'درس', words: raw.map(normalizeWord).filter(Boolean), stories: [], isSample: false };
-  }
-  if (typeof raw !== 'object') return null;
-  return {
-    id: raw.id || uid(),
-    title: (raw.title || raw.lesson || raw.lessonTitle || raw.name || fallbackTitle || 'درس').toString(),
-    words: Array.isArray(raw.words) ? raw.words.map(normalizeWord).filter(Boolean) : [],
-    stories: Array.isArray(raw.stories) ? raw.stories.map(normalizeStory).filter(Boolean) : [],
-    isSample: !!raw.isSample
-  };
-}
-function normalizeBook(raw, fallbackName){
-  if (!raw || typeof raw !== 'object') return null;
-  return {
-    id: raw.id || uid(),
-    name: (raw.name || raw.title || raw.book || fallbackName || 'کتاب').toString(),
-    level: (raw.level || 'A1.1').toString(),
-    coverImage: (raw.coverImage || raw.cover || raw.image || '').toString(),
-    lessons: Array.isArray(raw.lessons) ? raw.lessons.map((l, i) => normalizeLesson(l, 'درس ' + (i+1))).filter(Boolean) : []
-  };
-}
-
-/* ============================================================
-   DEFAULT DATA / MIGRATION / LOAD / SAVE
+   DEFAULT / LOAD / SAVE
    ============================================================ */
 function defaultData(){
   const book = { id: uid(), name: 'Menschen', level: 'A1.1', coverImage: '', lessons: [] };
-  ensureSingleSampleLesson(book);
+  ensureSampleLesson(book);
   return {
     books: [book],
     activeBookId: book.id,
     activeLessonId: book.lessons[0].id,
     lastLessonByBook: {},
-    quizHistory: []
+    quizHistory: [],
+    articleHistory: []
   };
 }
-function tryMigrateLegacy(){
+
+function load(){
   const currentRaw = localStorage.getItem(STORAGE_KEY);
   if (currentRaw !== null) {
     try {
@@ -341,89 +448,36 @@ function tryMigrateLegacy(){
       if (d && typeof d === 'object' && Array.isArray(d.books)) {
         if (!d.lastLessonByBook) d.lastLessonByBook = {};
         if (!Array.isArray(d.quizHistory)) d.quizHistory = [];
+        if (!Array.isArray(d.articleHistory)) d.articleHistory = [];
         return d;
       }
     } catch(e){}
-    return null;
   }
   for (const key of LEGACY_KEYS) {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {
       const data = JSON.parse(raw);
-      const migrated = migrateFromLegacy(data);
-      if (migrated && migrated.books.length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-        try { localStorage.removeItem(key); } catch(e){}
-        return migrated;
+      if (data && Array.isArray(data.books)) {
+        const result = {
+          books: data.books.map(b => normalizeBook(b)).filter(Boolean),
+          activeBookId: data.activeBookId || (data.books[0] && data.books[0].id),
+          activeLessonId: data.activeLessonId || (data.books[0] && data.books[0].lessons[0] && data.books[0].lessons[0].id),
+          lastLessonByBook: data.lastLessonByBook || {},
+          quizHistory: Array.isArray(data.quizHistory) ? data.quizHistory : [],
+          articleHistory: []
+        };
+        if (!result.books.find(b => b.id === result.activeBookId)) result.activeBookId = result.books[0]?.id || null;
+        return result;
       }
-    } catch(e) { console.warn('[Migration]', e); }
-  }
-  return null;
-}
-function migrateFromLegacy(data){
-  if (data.books && Array.isArray(data.books)) {
-    const books = data.books.map(b => normalizeBook(b)).filter(Boolean);
-    const result = {
-      books,
-      activeBookId: data.activeBookId || (books[0] && books[0].id),
-      activeLessonId: data.activeLessonId || (books[0] && books[0].lessons[0] && books[0].lessons[0].id),
-      lastLessonByBook: data.lastLessonByBook || {},
-      quizHistory: Array.isArray(data.quizHistory) ? data.quizHistory : []
-    };
-    if (!result.books.find(b => b.id === result.activeBookId)) result.activeBookId = result.books[0]?.id || null;
-    const ab = result.books.find(b => b.id === result.activeBookId);
-    if (ab && !ab.lessons.find(l => l.id === result.activeLessonId)) result.activeLessonId = ab.lessons[0]?.id || null;
-    return result;
-  }
-  const books = [];
-  if (typeof data === 'object' && data !== null) {
-    const specialKeys = ['activeBookId', 'activeLessonId', 'books', 'lastLessonByBook', 'quizHistory'];
-    const realBooks = Object.keys(data).filter(k => !specialKeys.includes(k) && typeof data[k] === 'object');
-    realBooks.forEach(bookName => {
-      const lessonsData = data[bookName];
-      if (!lessonsData || typeof lessonsData !== 'object') return;
-      const lessons = [];
-      if (Array.isArray(lessonsData.lessons)) {
-        lessonsData.lessons.forEach((l, i) => {
-          const nl = normalizeLesson(l, 'درس ' + (i+1));
-          if (nl) lessons.push(nl);
-        });
-      } else {
-        Object.keys(lessonsData).forEach(lessonName => {
-          const nl = normalizeLesson(lessonsData[lessonName], lessonName);
-          if (nl) { nl.title = lessonName; lessons.push(nl); }
-        });
-      }
-      if (lessons.length) books.push({ id: uid(), name: bookName, level: 'A1.1', coverImage: '', lessons });
-    });
-  }
-  if (!books.length) return null;
-  return { books, activeBookId: books[0].id, activeLessonId: books[0].lessons[0]?.id || null, lastLessonByBook: {}, quizHistory: [] };
-}
-function load(){
-  const migrated = tryMigrateLegacy();
-  if (migrated) {
-    migrated.books.forEach(b => {
-      if (!Array.isArray(b.lessons) || !b.lessons.length) ensureSingleSampleLesson(b);
-    });
-    return migrated;
-  }
-  const currentRaw = localStorage.getItem(STORAGE_KEY);
-  if (currentRaw !== null) {
-    try {
-      const d = JSON.parse(currentRaw);
-      if (d && typeof d === 'object' && Array.isArray(d.books)) {
-        if (!d.lastLessonByBook) d.lastLessonByBook = {};
-        if (!Array.isArray(d.quizHistory)) d.quizHistory = [];
-        return d;
-      }
-    } catch(e){}
+    } catch(e) {}
   }
   return defaultData();
 }
+
 function save(){
   if (!state.lastLessonByBook) state.lastLessonByBook = {};
+  if (!Array.isArray(state.articleHistory)) state.articleHistory = [];
   if (state.activeBookId && state.activeLessonId) {
     state.lastLessonByBook[state.activeBookId] = state.activeLessonId;
   }
@@ -445,8 +499,12 @@ function getLessonById(lessonId){
   if (!b) return null;
   return b.lessons.find(l => l.id === lessonId) || null;
 }
-function getWords(){ const l = getLesson(); return l ? l.words : []; }
-function getStories(){ const l = getLesson(); return l ? l.stories : []; }
+function getWords(){ const l = getLesson(); return l ? (l.words || []) : []; }
+function getStories(){ const l = getLesson(); return l ? (l.stories || []) : []; }
+function getLetters(){ const l = getLesson(); return l ? (l.letters || []) : []; }
+function getDialogues(){ const l = getLesson(); return l ? (l.dialogues || []) : []; }
+function getGrammar(){ const l = getLesson(); return l ? (l.grammar || []) : []; }
+
 function getDueWords(book){
   book = book || getBook();
   if (!book) return [];
@@ -455,30 +513,180 @@ function getDueWords(book){
   (book.lessons || []).forEach(l => {
     (l.words || []).forEach(w => {
       const s = ensureSrs(w);
-      if (!s.nextReview || s.nextReview <= now) due.push({ word: w, lessonTitle: l.title });
+      if (!s.nextReview || s.nextReview <= now) due.push({ word: w, lessonTitle: l.title, lessonId: l.id });
     });
   });
   return due;
 }
 
+function findWordAnywhere(wordText) {
+  if (!wordText) return null;
+  const book = getBook();
+  if (!book) return null;
+  const clean = wordText.toLowerCase().replace(/[.,!?;:()"'«»„“”–—\-]/g, '').trim();
+  if (!clean) return null;
+  const activeLesson = getLesson();
+  if (activeLesson) {
+    const found = (activeLesson.words || []).find(w => {
+      const wClean = w.de.toLowerCase().replace(/[.,!?;:()"'«»„“”–—\-]/g, '');
+      return wClean === clean || w.de.toLowerCase() === clean;
+    });
+    if (found) return { word: found, lesson: activeLesson, isActiveLesson: true };
+  }
+  for (const lesson of book.lessons) {
+    if (activeLesson && lesson.id === activeLesson.id) continue;
+    const found = (lesson.words || []).find(w => {
+      const wClean = w.de.toLowerCase().replace(/[.,!?;:()"'«»„“”–—\-]/g, '');
+      return wClean === clean || w.de.toLowerCase() === clean;
+    });
+    if (found) return { word: found, lesson, isActiveLesson: false };
+  }
+  return null;
+}
+
+function highlightClickableWords(sentenceDe) {
+  if (!sentenceDe) return '';
+  const parts = sentenceDe.split(/(\s+|[.,!?;:()"'«»„“”\[\]{}–—\-]+)/);
+  return parts.map(part => {
+    if (!part) return '';
+    if (/^\s+$/.test(part)) return part;
+    if (/^[.,!?;:()"'«»„“”\[\]{}–—\-]+$/.test(part)) return esc(part);
+    const result = findWordAnywhere(part);
+    if (result) {
+      const w = result.word;
+      const lessonLabel = result.isActiveLesson ? '📖 این درس' : `📚 ${esc(result.lesson.title)}`;
+      return `<span class="clickable-word" data-click-word="${esc(w.de)}" data-word-id="${esc(w.id)}" data-lesson-id="${esc(result.lesson.id)}" data-is-active="${result.isActiveLesson}" title="${esc(w.fa)} — ${lessonLabel}">${esc(part)}</span>`;
+    }
+    return esc(part);
+  }).join('');
+}
+
 /* ============================================================
-   SRS
+   SENTENCE WITH AUDIO
+   ============================================================ */
+function renderSentenceWithAudio(sentenceDe, sentenceFa, audioUrl, options) {
+  options = options || {};
+  const showAudio = options.showAudio !== false;
+  const extraClass = options.className || '';
+  const highlighted = highlightClickableWords(sentenceDe);
+  let audioBtnHtml = '';
+  if (showAudio) {
+    const hasAudio = audioUrl && audioUrl.trim();
+    audioBtnHtml = `<button class="sentence-speak-btn ${hasAudio ? 'has-audio' : ''}" 
+      data-sentence-speak="${esc(sentenceDe)}" 
+      data-sentence-audio="${esc(audioUrl || '')}" 
+      title="${hasAudio ? 'پخش فایل صوتی' : 'تلفظ TTS'}">
+      ${hasAudio ? '🎵' : '🔊'}
+    </button>`;
+  }
+  return `<div class="sentence-with-audio ${extraClass}">
+    <div class="sentence-de-row">
+      <span class="sentence-de-text">${highlighted}</span>
+      ${audioBtnHtml}
+    </div>
+    ${sentenceFa ? `<div class="sentence-fa">${esc(sentenceFa)}</div>` : ''}
+  </div>`;
+}
+
+function wireSentenceAudio(container) {
+  if (!container) return;
+  container.querySelectorAll('[data-sentence-speak]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      speak(btn.dataset.sentenceSpeak, btn.dataset.sentenceAudio);
+    });
+  });
+}
+
+/* ============================================================
+   BUILD EXAMPLES FOR CARD — حداقل ۲ جمله
+   ============================================================ */
+function buildExamplesForCard(w) {
+  const examples = [];
+  if (w.ex && w.ex.trim()) {
+    examples.push({ de: w.ex, fa: w.exMean || '', audio: w.exAudio || '', source: 'main' });
+  }
+  (w.contextExamples || []).forEach(cx => {
+    if (cx && cx.de) {
+      examples.push({ de: cx.de, fa: cx.fa || '', audio: cx.audio || cx.audioUrl || '', source: 'context', type: cx.type || '' });
+    }
+  });
+  (w.extraExamples || []).forEach(ex => {
+    if (typeof ex === 'string') {
+      examples.push({ de: ex, fa: '', audio: '', source: 'extra' });
+    } else if (ex && ex.de) {
+      examples.push({ de: ex.de, fa: ex.fa || '', audio: ex.audio || ex.audioUrl || '', source: 'extra' });
+    }
+  });
+  if (examples.length < 2 && w.de) {
+    const autoExamples = generateAutoExamples(w);
+    autoExamples.forEach(ae => {
+      if (!examples.some(e => e.de.toLowerCase() === ae.de.toLowerCase())) {
+        examples.push(ae);
+      }
+    });
+  }
+  return examples;
+}
+
+function generateAutoExamples(w) {
+  const out = [];
+  const de = w.de;
+  const art = w.art || '';
+  const fa = w.fa || '';
+  const plural = w.plural && w.plural !== '–' ? w.plural : '';
+  if (['der','die','das'].includes(art)) {
+    out.push({ de: `Das ist ${art} ${de}.`, fa: `این ${fa} است.`, audio: '', source: 'auto' });
+    if (plural) {
+      out.push({ de: `Die ${plural} sind hier.`, fa: `${fa}ها اینجا هستند.`, audio: '', source: 'auto' });
+    } else {
+      out.push({ de: `Ich sehe ${art} ${de}.`, fa: `من ${fa} را می‌بینم.`, audio: '', source: 'auto' });
+    }
+  } else if (art === 'Verb') {
+    out.push({ de: `Ich kann ${de}.`, fa: `من می‌توانم ${fa}.`, audio: '', source: 'auto' });
+    out.push({ de: `Er will ${de}.`, fa: `او می‌خواهد ${fa}.`, audio: '', source: 'auto' });
+  } else if (art === 'Adj') {
+    out.push({ de: `Das ist sehr ${de}.`, fa: `این خیلی ${fa} است.`, audio: '', source: 'auto' });
+    out.push({ de: `Ich finde es ${de}.`, fa: `من آن را ${fa} می‌دانم.`, audio: '', source: 'auto' });
+  } else if (art === 'Adv') {
+    out.push({ de: `Er macht das ${de}.`, fa: `او آن را ${fa} انجام می‌دهد.`, audio: '', source: 'auto' });
+    out.push({ de: `Sie sagt das ${de}.`, fa: `او آن را ${fa} می‌گوید.`, audio: '', source: 'auto' });
+  } else {
+    out.push({ de: `${de}`, fa: fa, audio: '', source: 'auto' });
+    out.push({ de: `Ich kenne ${de}.`, fa: `من ${fa} را می‌شناسم.`, audio: '', source: 'auto' });
+  }
+  return out;
+}
+
+/* ============================================================
+   SRS — با قاعده ۳ بار درست پشت سر هم
    ============================================================ */
 const SRS_INTERVALS = { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 };
 function ensureSrs(w){
-  if (!w.srs) w.srs = { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 };
+  if (!w.srs) w.srs = { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0, streak: 0 };
+  if (typeof w.srs.streak !== 'number') w.srs.streak = 0;
   return w.srs;
 }
 function reviewWord(w, rating){
   const s = ensureSrs(w);
   if (rating === 'good') {
-    s.box = Math.min(5, s.box + 1);
+    s.streak = (s.streak || 0) + 1;
     s.correctCount++;
-    w.status = s.box >= 4 ? 'good' : 'learning';
+    if (s.streak >= 3 && w.status === 'bad') {
+      w.status = 'learning';
+      s.box = 2;
+      s.streak = 0;
+    } else if (w.status !== 'bad') {
+      s.box = Math.min(5, s.box + 1);
+      w.status = s.box >= 4 ? 'good' : 'learning';
+    }
   } else if (rating === 'medium') {
+    s.streak = 0;
     s.correctCount++;
     w.status = 'learning';
   } else {
+    s.streak = 0;
     s.box = 1;
     s.wrongCount++;
     w.status = 'bad';
@@ -494,6 +702,7 @@ function undoReviewWord(w){
   if (prev === 'good') {
     s.box = Math.max(1, s.box - 1);
     s.correctCount = Math.max(0, s.correctCount - 1);
+    s.streak = Math.max(0, (s.streak || 0) - 1);
   } else if (prev === 'medium') {
     s.correctCount = Math.max(0, s.correctCount - 1);
   } else if (prev === 'bad') {
@@ -507,18 +716,9 @@ function undoReviewWord(w){
   s.lastRating = null;
   save();
 }
-function highlightExample(sentenceDe, wordDe){
-  if (!sentenceDe || !wordDe) return esc(sentenceDe || '');
-  const escaped = wordDe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = sentenceDe.split(new RegExp(`(${escaped})`, 'gi'));
-  return parts.map(part => {
-    if (part.toLowerCase() === wordDe.toLowerCase()) return `<span class="ex-highlight">${esc(part)}</span>`;
-    return esc(part);
-  }).join('');
-}
 
 /* ============================================================
-   BOOK LIBRARY / MAIN APP / TITLE / BANNER
+   BOOK LIBRARY
    ============================================================ */
 function showBookLibrary(){
   document.getElementById('bookLibraryScreen').classList.remove('hidden');
@@ -555,15 +755,13 @@ function updateReviewBanner(){
       <button class="btn btn-primary btn-sm" id="startDailyReviewBtn">🚀 شروع مرور</button>
     </div>
   `;
-  const btn = document.getElementById('startDailyReviewBtn');
-  if (btn) btn.addEventListener('click', startDailyReview);
+  document.getElementById('startDailyReviewBtn')?.addEventListener('click', startDailyReview);
 }
 function startDailyReview(){
   const due = getDueWords();
   if (!due.length) { toast('کلمه‌ای برای مرور نیست!', 'warning'); return; }
-  const words = due.map(d => d.word);
   practice.active = true;
-  practice.queue = shuffle(words);
+  practice.queue = shuffle(due.map(d => d.word));
   practice.index = 0;
   practice.ratings = {};
   practice._isTransitioning = false;
@@ -577,11 +775,7 @@ function renderBookLibrary(){
   const grid = document.getElementById('bookCardsGrid');
   if (!grid) return;
   if (!state.books.length) {
-    grid.innerHTML = `<div class="empty-library">
-      <div class="empty-icon">📚</div>
-      <div>هنوز کتابی نداری</div>
-      <div style="font-size:13px;margin-top:8px;">با دکمه «➕ کتاب جدید» شروع کن</div>
-    </div>`;
+    grid.innerHTML = `<div class="empty-library"><div class="empty-icon">📚</div><div>هنوز کتابی نداری</div></div>`;
     return;
   }
   grid.innerHTML = state.books.map(book => {
@@ -589,7 +783,9 @@ function renderBookLibrary(){
     const level = book.level || 'A1.1';
     const totalLessons = (book.lessons || []).length;
     const totalWords = (book.lessons || []).reduce((s, l) => s + ((l.words || []).length), 0);
-    const totalStories = (book.lessons || []).reduce((s, l) => s + ((l.stories || []).length), 0);
+    const totalStories = (book.lessons || []).reduce((s, l) =>
+      s + ((l.stories || []).length) + ((l.letters || []).length) + ((l.dialogues || []).length), 0);
+    const totalGrammar = (book.lessons || []).reduce((s, l) => s + ((l.grammar || []).length), 0);
     let mastered = 0;
     (book.lessons || []).forEach(l => {
       (l.words || []).forEach(w => { if (normalizeStatus(w) === 'good') mastered++; });
@@ -597,29 +793,25 @@ function renderBookLibrary(){
     const pct = totalWords ? Math.round((mastered / totalWords) * 100) : 0;
     return `<div class="book-card-library" data-book-id="${esc(book.id)}">
       <button class="book-card-edit" data-lib-edit="${esc(book.id)}" title="ویرایش">✏️</button>
-      <button class="book-card-download" data-lib-download="${esc(book.id)}" title="دانلود کتاب">⬇️</button>
+      <button class="book-card-download" data-lib-download="${esc(book.id)}" title="دانلود">⬇️</button>
       <button class="book-card-delete" data-lib-del="${esc(book.id)}" title="حذف">🗑</button>
       <div class="book-cover-wrap">
         ${coverImage
           ? `<img src="${esc(coverImage)}" alt="${esc(book.name)}">`
-          : `<div class="book-cover-placeholder">
-              <div class="book-icon">📖</div>
-              <div class="book-name">${esc(book.name)}</div>
-            </div>`}
+          : `<div class="book-cover-placeholder"><div class="book-icon">📖</div><div class="book-name">${esc(book.name)}</div></div>`}
         <span class="book-level-badge">${esc(level)}</span>
       </div>
       <div class="book-card-body">
         <h3 class="book-card-title">${esc(book.name)}</h3>
         <div class="book-card-stats">
-          <span class="book-stat"><span class="stat-icon">📝</span> ${totalWords} کلمه</span>
-          <span class="book-stat"><span class="stat-icon">📚</span> ${totalLessons} درس</span>
-          ${totalStories ? `<span class="book-stat"><span class="stat-icon">📖</span> ${totalStories} داستان</span>` : ''}
+          <span class="book-stat"><span class="stat-icon">📝</span> ${totalWords}</span>
+          <span class="book-stat"><span class="stat-icon">📚</span> ${totalLessons}</span>
+          ${totalStories ? `<span class="book-stat"><span class="stat-icon">📖</span> ${totalStories}</span>` : ''}
+          ${totalGrammar ? `<span class="book-stat"><span class="stat-icon">📘</span> ${totalGrammar}</span>` : ''}
         </div>
         <div class="book-card-progress">
           <div class="book-progress-label"><span>تسلط</span><span>${pct}٪</span></div>
-          <div class="book-progress-bar">
-            <div class="book-progress-fill" style="width:${pct}%"></div>
-          </div>
+          <div class="book-progress-bar"><div class="book-progress-fill" style="width:${pct}%"></div></div>
         </div>
       </div>
     </div>`;
@@ -632,40 +824,31 @@ function renderBookLibrary(){
     });
   });
   grid.querySelectorAll('[data-lib-edit]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      openEditBookModal(btn.dataset.libEdit);
-    });
+    btn.addEventListener('click', e => { e.stopPropagation(); openEditBookModal(btn.dataset.libEdit); });
   });
   grid.querySelectorAll('[data-lib-download]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const bookId = btn.dataset.libDownload;
-      const book = state.books.find(b => b.id === bookId);
+      const book = state.books.find(b => b.id === btn.dataset.libDownload);
       if (!book) return;
-      exportData(book, `${book.name}-${book.level || 'A1.1'}.json`);
-      toast(`⬇️ «${book.name}» دانلود شد`, 'success');
+      exportData(book, `${book.name}-${book.level}.json`);
+      toast(`⬇️ دانلود شد`, 'success');
     });
   });
   grid.querySelectorAll('[data-lib-del]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const bookId = btn.dataset.libDel;
-      const book = state.books.find(b => b.id === bookId);
+      const book = state.books.find(b => b.id === btn.dataset.libDel);
       if (!book) return;
       const totalWords = (book.lessons || []).reduce((s, l) => s + ((l.words || []).length), 0);
-      const msg = `⚠️ حذف کتاب «${book.name}»\n\nاین کار شامل:\n• ${(book.lessons || []).length} درس\n• ${totalWords} کلمه\n• همه داستان‌ها و آمار SRS\n\nبرگشت‌پذیر نیست. مطمئنی؟`;
-      if (!confirm(msg)) return;
-      state.books = state.books.filter(b => b.id !== bookId);
-      if (state.activeBookId === bookId) {
+      if (!confirm(`⚠️ حذف «${book.name}»؟\n\n${(book.lessons||[]).length} درس و ${totalWords} کلمه حذف می‌شوند.`)) return;
+      state.books = state.books.filter(b => b.id !== btn.dataset.libDel);
+      if (state.activeBookId === btn.dataset.libDel) {
         state.activeBookId = state.books[0]?.id || null;
-        const nb = getBook();
-        state.activeLessonId = nb?.lessons[0]?.id || null;
+        state.activeLessonId = getBook()?.lessons[0]?.id || null;
       }
-      save();
-      LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
-      renderBookLibrary();
-      toast(`🗑 «${book.name}» حذف شد`, 'success');
+      save(); renderBookLibrary();
+      toast('حذف شد', 'success');
     });
   });
 }
@@ -684,6 +867,9 @@ function openBook(bookId){
   populateLessonTargets();
 }
 
+/* ⬇️ ادامه در پیام ۲ (BOOK PICKER، GLOBAL SEARCH، POPULATE TARGETS، RENDER LESSON، STATS، WORD TABLE، CARDS، CLICKABLE WORDS، FOLDERS، ARTICLE، PRACTICE...) */
+
+
 /* ============================================================
    BOOK PICKER
    ============================================================ */
@@ -695,51 +881,42 @@ function openBookPicker(){
   document.body.classList.add('locked');
 }
 function closeBookPicker(){
-  const modal = document.getElementById('modalBookPicker');
-  if (modal) modal.classList.remove('active');
+  document.getElementById('modalBookPicker')?.classList.remove('active');
   document.body.classList.remove('locked');
 }
 function renderBookPickerGrid(){
   const grid = document.getElementById('bookPickerGrid');
   if (!grid) return;
   if (!state.books.length) {
-    grid.innerHTML = `<div class="empty-library" style="grid-column:1/-1;padding:30px;">
-      <div class="empty-icon">📚</div>
-      <div>هنوز کتابی نداری</div>
-    </div>`;
+    grid.innerHTML = `<div class="empty-library" style="grid-column:1/-1;">هنوز کتابی نداری</div>`;
     return;
   }
   grid.innerHTML = state.books.map(book => {
     const coverImage = safeImageSrc(book.coverImage);
-    const level = book.level || 'A1.1';
-    const totalLessons = (book.lessons || []).length;
-    const totalWords = (book.lessons || []).reduce((s, l) => s + ((l.words || []).length), 0);
     const isActive = book.id === state.activeBookId;
+    const totalWords = (book.lessons || []).reduce((s, l) => s + ((l.words || []).length), 0);
+    const totalLessons = (book.lessons || []).length;
     return `<div class="book-card-library" data-picker-book-id="${esc(book.id)}" style="${isActive ? 'border-color:var(--accent);' : ''}">
       ${isActive ? `<div style="position:absolute;top:10px;left:10px;background:var(--accent);color:#000;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:800;z-index:6;">✓ فعال</div>` : ''}
       <div class="book-cover-wrap">
         ${coverImage
           ? `<img src="${esc(coverImage)}" alt="${esc(book.name)}">`
-          : `<div class="book-cover-placeholder">
-              <div class="book-icon">📖</div>
-              <div class="book-name">${esc(book.name)}</div>
-            </div>`}
-        <span class="book-level-badge">${esc(level)}</span>
+          : `<div class="book-cover-placeholder"><div class="book-icon">📖</div><div class="book-name">${esc(book.name)}</div></div>`}
+        <span class="book-level-badge">${esc(book.level || 'A1.1')}</span>
       </div>
       <div class="book-card-body">
         <h3 class="book-card-title">${esc(book.name)}</h3>
         <div class="book-card-stats">
-          <span class="book-stat"><span class="stat-icon">📝</span> ${totalWords} کلمه</span>
-          <span class="book-stat"><span class="stat-icon">📚</span> ${totalLessons} درس</span>
+          <span class="book-stat">📝 ${totalWords}</span>
+          <span class="book-stat">📚 ${totalLessons}</span>
         </div>
       </div>
     </div>`;
   }).join('');
   grid.querySelectorAll('[data-picker-book-id]').forEach(card => {
     card.addEventListener('click', () => {
-      const bookId = card.dataset.pickerBookId;
       closeBookPicker();
-      openBook(bookId);
+      openBook(card.dataset.pickerBookId);
       toast('📖 کتاب باز شد', 'success');
     });
   });
@@ -752,19 +929,15 @@ function openGlobalSearch(){
   const book = getBook();
   if (!book) { toast('اول یک کتاب انتخاب کن', 'warning'); return; }
   const modal = document.getElementById('modalGlobalSearch');
-  const nameEl = document.getElementById('globalSearchBookName');
-  if (nameEl) nameEl.textContent = book.name;
-  const input = document.getElementById('globalSearchInput');
-  if (input) input.value = '';
-  const results = document.getElementById('globalSearchResults');
-  if (results) results.innerHTML = `<div class="global-search-empty">شروع به تایپ کن...</div>`;
+  document.getElementById('globalSearchBookName').textContent = book.name;
+  document.getElementById('globalSearchInput').value = '';
+  document.getElementById('globalSearchResults').innerHTML = `<div class="global-search-empty">شروع به تایپ کن...</div>`;
   modal.classList.add('active');
   document.body.classList.add('locked');
-  setTimeout(() => { if (input) input.focus(); }, 100);
+  setTimeout(() => document.getElementById('globalSearchInput').focus(), 100);
 }
 function closeGlobalSearch(){
-  const modal = document.getElementById('modalGlobalSearch');
-  if (modal) modal.classList.remove('active');
+  document.getElementById('modalGlobalSearch')?.classList.remove('active');
   document.body.classList.remove('locked');
 }
 function searchAllWords(query){
@@ -773,17 +946,13 @@ function searchAllWords(query){
   const book = getBook();
   if (!book) return;
   const q = (query || '').trim().toLowerCase();
-  if (!q) {
-    results.innerHTML = `<div class="global-search-empty">شروع به تایپ کن...</div>`;
-    return;
-  }
+  if (!q) { results.innerHTML = `<div class="global-search-empty">شروع به تایپ کن...</div>`; return; }
   const matches = [];
   (book.lessons || []).forEach(lesson => {
     (lesson.words || []).forEach(word => {
-      const de = (word.de || '').toLowerCase();
-      const fa = (word.fa || '').toLowerCase();
-      const art = (word.art || '').toLowerCase();
-      if (de.includes(q) || fa.includes(q) || art.includes(q)) matches.push({ word, lesson });
+      if ((word.de||'').toLowerCase().includes(q) || (word.fa||'').toLowerCase().includes(q) || (word.art||'').toLowerCase().includes(q)) {
+        matches.push({ word, lesson });
+      }
     });
   });
   if (!matches.length) {
@@ -794,10 +963,9 @@ function searchAllWords(query){
     <div class="global-search-stats">✅ ${matches.length} نتیجه در ${new Set(matches.map(m => m.lesson.id)).size} درس</div>
     ${matches.slice(0, 100).map(m => {
       const w = m.word;
-      const artClass = articleClass(w.art);
       return `<div class="global-search-item" data-go-word="${esc(w.id)}" data-go-lesson="${esc(m.lesson.id)}">
         <div class="gs-word">
-          ${w.art && w.art !== '–' ? `<span class="gs-art ${artClass}">${esc(w.art)}</span>` : ''}
+          ${w.art && w.art !== '–' ? `<span class="gs-art ${articleClass(w.art)}">${esc(w.art)}</span>` : ''}
           <span>${esc(w.de)}</span>
         </div>
         <div class="gs-meaning">${esc(w.fa)}</div>
@@ -820,419 +988,6 @@ function searchAllWords(query){
     });
   });
 }
-/* ============================================================
-   IMPORT BOOK POPUP
-   ============================================================ */
-function openImportBookPopup(pending){
-  pendingBookData = pending;
-  let booksCount = 0, lessonsCount = 0, wordsCount = 0, storiesCount = 0, firstBookName = '';
-  if (pending.type === 'single') {
-    const b = pending.data;
-    booksCount = 1;
-    lessonsCount = b.lessons.length;
-    b.lessons.forEach(l => { wordsCount += l.words.length; storiesCount += l.stories.length; });
-    firstBookName = b.name;
-  } else if (pending.type === 'multi') {
-    booksCount = pending.data.length;
-    pending.data.forEach(b => {
-      lessonsCount += b.lessons.length;
-      b.lessons.forEach(l => { wordsCount += l.words.length; storiesCount += l.stories.length; });
-    });
-    firstBookName = pending.data[0]?.name || '';
-  }
-  const info = document.getElementById('importBookInfo');
-  info.innerHTML = `
-    <div class="import-info-row"><span class="label">📦 تعداد کتاب:</span><span class="value">${booksCount}</span></div>
-    <div class="import-info-row"><span class="label">📚 تعداد درس:</span><span class="value">${lessonsCount}</span></div>
-    <div class="import-info-row"><span class="label">📝 تعداد کلمات:</span><span class="value">${wordsCount}</span></div>
-    ${storiesCount ? `<div class="import-info-row"><span class="label">📖 تعداد داستان:</span><span class="value">${storiesCount}</span></div>` : ''}
-    ${firstBookName ? `<div class="import-info-row"><span class="label">🏷 نام:</span><span class="value">${esc(firstBookName)}${booksCount > 1 ? ' و ...' : ''}</span></div>` : ''}
-  `;
-  document.getElementById('modalImportBook').classList.add('active');
-  document.body.classList.add('locked');
-}
-function closeImportBookPopup(){
-  document.getElementById('modalImportBook').classList.remove('active');
-  document.body.classList.remove('locked');
-  pendingBookData = null;
-}
-function chooseImportAsNewBook(){
-  if (!pendingBookData) return;
-  document.getElementById('modalImportBook').classList.remove('active');
-  const data = pendingBookData;
-  if (data.type === 'single') {
-    document.getElementById('newBookNameInput').value = data.data.name || '';
-    document.getElementById('newBookLevelInput').value = data.data.level || 'A1.1';
-    document.getElementById('newBookCoverInput').value = data.data.coverImage || '';
-  } else {
-    document.getElementById('newBookNameInput').value = data.data[0]?.name || '';
-    document.getElementById('newBookLevelInput').value = data.data[0]?.level || 'A1.1';
-    document.getElementById('newBookCoverInput').value = data.data[0]?.coverImage || '';
-  }
-  let lessonsCount = 0, wordsCount = 0;
-  if (data.type === 'single') {
-    lessonsCount = data.data.lessons.length;
-    data.data.lessons.forEach(l => { wordsCount += l.words.length; });
-  } else {
-    data.data.forEach(b => {
-      lessonsCount += b.lessons.length;
-      b.lessons.forEach(l => { wordsCount += l.words.length; });
-    });
-  }
-  document.getElementById('newBookStatsPreview').innerHTML = `
-    <div>📚 ${lessonsCount} درس</div>
-    <div>📝 ${wordsCount} کلمه</div>
-  `;
-  document.getElementById('modalNewBookFromImport').classList.add('active');
-}
-function confirmNewBookFromImport(){
-  if (!pendingBookData) return;
-  const name = document.getElementById('newBookNameInput').value.trim();
-  const level = document.getElementById('newBookLevelInput').value;
-  const coverImage = safeImageSrc(document.getElementById('newBookCoverInput').value.trim());
-  if (!name) { toast('نام کتاب لازمه', 'error'); return; }
-  let newBooks = [];
-  if (pendingBookData.type === 'single') {
-    const b = { ...pendingBookData.data };
-    b.id = uid(); b.name = name; b.level = level; b.coverImage = coverImage;
-    newBooks = [b];
-  } else {
-    pendingBookData.data.forEach((b, idx) => {
-      const nb = { ...b };
-      nb.id = uid();
-      if (idx === 0) { nb.name = name; nb.level = level; nb.coverImage = coverImage; }
-      newBooks.push(nb);
-    });
-  }
-  newBooks.forEach(nb => ensureSingleSampleLesson(nb));
-  newBooks.forEach(nb => state.books.push(nb));
-  state.activeBookId = newBooks[0].id;
-  state.activeLessonId = newBooks[0].lessons[0]?.id;
-  save();
-  document.getElementById('modalNewBookFromImport').classList.remove('active');
-  document.body.classList.remove('locked');
-  pendingBookData = null;
-  renderAll(); populateLessonTargets();
-  showBookLibrary();
-  toast(`✅ ${newBooks.length} کتاب اضافه شد (با درس نمونه)`, 'success');
-}
-function chooseImportAsReplace(){
-  if (!pendingBookData) return;
-  document.getElementById('modalImportBook').classList.remove('active');
-  if (!state.books.length) {
-    toast('کتابی برای جایگزینی وجود نداره', 'warning');
-    closeImportBookPopup();
-    return;
-  }
-  const sel = document.getElementById('replaceTargetSelect');
-  sel.innerHTML = state.books.map(b => {
-    const totalWords = (b.lessons || []).reduce((s, l) => s + ((l.words || []).length), 0);
-    return `<option value="${b.id}">${esc(b.name)} — ${esc(b.level)} (${totalWords} کلمه)</option>`;
-  }).join('');
-  document.getElementById('modalReplaceTargetBook').classList.add('active');
-}
-function confirmReplaceBook(){
-  if (!pendingBookData) return;
-  const targetId = document.getElementById('replaceTargetSelect').value;
-  const targetBook = state.books.find(b => b.id === targetId);
-  if (!targetBook) { toast('کتاب مقصد پیدا نشد', 'error'); return; }
-  let sourceLessons = [];
-  let sourceCover = targetBook.coverImage;
-  let sourceLevel = targetBook.level;
-  if (pendingBookData.type === 'single') {
-    sourceLessons = pendingBookData.data.lessons;
-    if (pendingBookData.data.coverImage) sourceCover = pendingBookData.data.coverImage;
-    if (pendingBookData.data.level) sourceLevel = pendingBookData.data.level;
-  } else {
-    pendingBookData.data.forEach(b => { sourceLessons = sourceLessons.concat(b.lessons); });
-  }
-  const newLessons = sourceLessons
-    .filter(l => !l.isSample)
-    .map(l => ({
-      id: uid(),
-      title: l.title || 'درس',
-      words: (l.words || []).map(w => ({ ...w, id: w.id || uid() })),
-      stories: (l.stories || []).map(s => ({ ...s, id: s.id || uid() })),
-      isSample: false
-    }));
-  const sampleLesson = makeSampleLesson();
-  targetBook.lessons = [sampleLesson, ...newLessons];
-  targetBook.coverImage = sourceCover;
-  targetBook.level = sourceLevel;
-  state.activeBookId = targetBook.id;
-  state.activeLessonId = sampleLesson.id;
-  save();
-  document.getElementById('modalReplaceTargetBook').classList.remove('active');
-  document.body.classList.remove('locked');
-  pendingBookData = null;
-  renderAll(); populateLessonTargets();
-  toast(`✅ «${targetBook.name}» جایگزین شد (درس نمونه حفظ شد)`, 'success');
-}
-
-/* ============================================================
-   WORD VIEW
-   ============================================================ */
-function openWordView(wordId){
-  const word = getWords().find(w => w.id === wordId);
-  if (!word) { toast('کلمه پیدا نشد', 'error'); return; }
-  const modal = document.getElementById('wordViewModal');
-  const content = document.getElementById('wordViewContent');
-  const notes = word.notes || [];
-  const st = normalizeStatus(word);
-  const srs = ensureSrs(word);
-  const statusLabels = { new: 'جدید ⚪', learning: 'در یادگیری 🟡', good: 'مسلط 🟢', bad: 'بلد نیستم ❌' };
-  const wt = getWordType(word);
-  const forms = word.forms || {};
-  const synonyms = word.synonyms || [];
-  const related = word.related || [];
-  const extraExamples = word.extraExamples || [];
-  const formLabels = { present: 'حال', past: 'گذشته', perfect: 'ماضی نقلی', future: 'آینده', imperative: 'امری', participle: 'اسم مفعول' };
-  const hasEx = word.ex && word.ex.trim();
-  const hasExAudio = word.exAudio && word.exAudio.trim();
-
-  let html = `
-    <button class="word-view-close" id="wvClose">✕</button>
-    <button class="word-view-edit-btn" id="wvEdit">✏️ ادیت</button>
-    <button class="word-view-delete-btn" id="wvDelete">🗑 حذف</button>
-    <div class="word-view-header">
-      ${word.art && word.art !== '–' ? `<span class="word-view-art ${articleClass(word.art)}">${esc(word.art)}</span>` : ''}
-      <span class="word-view-de">${esc(word.de)}</span>
-      ${word.plural && word.plural !== '–' ? `<span class="word-view-plural">جمع: ${esc(word.plural)}</span>` : ''}
-    </div>
-    <div class="word-view-fa">${esc(word.fa)}</div>
-    <div class="word-view-actions-row">
-      <span class="word-type-badge ${wt.type}">${wt.icon} ${wt.label}</span>
-      <button class="btn btn-sm btn-primary" id="wvSpeak">🔊 تلفظ</button>
-      <button class="btn btn-sm" id="wvMuteToggle" title="پخش خودکار صدا هنگام باز شدن کارت" style="background:${autoPlayWord ? 'var(--accent)' : 'var(--bg-3)'};color:#fff;border-color:transparent;">${autoPlayWord ? '🔊 خودکار' : '🔇 سایلنت'}</button>
-      <span class="btn btn-sm" style="background:${st === 'good' ? 'var(--accent)' : st === 'learning' ? 'var(--warning)' : st === 'bad' ? 'var(--danger)' : 'var(--bg-3)'};color:#fff;border-color:transparent;cursor:default;">${statusLabels[st] || st}</span>
-      <span class="btn btn-sm" style="background:var(--bg-3);cursor:default;">📦 جعبه ${srs.box}</span>
-    </div>
-  `;
-
-  if (hasEx) {
-    html += `<div class="word-view-example">
-      <div class="word-view-example-de">
-        <span class="ex-text">${highlightExample(word.ex, word.de)}</span>
-        <button class="ex-speak-btn ${hasExAudio ? 'has-audio' : ''}" data-wv-speak-ex="${esc(word.ex)}" data-wv-audio="${esc(word.exAudio || '')}">${hasExAudio ? '🎵' : '🔊'}</button>
-      </div>
-      ${word.exMean ? `<div class="word-view-example-fa">${esc(word.exMean)}</div>` : ''}
-    </div>`;
-  }
-
-  const formsKeys = Object.keys(forms).filter(k => forms[k] && String(forms[k]).trim());
-  if (formsKeys.length) {
-    html += `<div class="word-view-section"><h4>🔤 صرف فعل</h4><div class="conjugation-grid">`;
-    formsKeys.forEach(key => {
-      html += `<div class="conj-row"><span class="conj-label">${esc(formLabels[key] || key)}</span><span class="conj-value">${esc(forms[key])}</span></div>`;
-    });
-    html += `</div></div>`;
-  }
-
-  if (synonyms.length) {
-    html += `<div class="word-view-section" style="border-right-color:var(--accent);">
-      <h4>🔗 مترادف‌ها</h4>
-      <div class="chips-list">${synonyms.map(s => `<span class="chip synonym">${esc(s)}</span>`).join('')}</div>
-    </div>`;
-  }
-  if (related.length) {
-    html += `<div class="word-view-section" style="border-right-color:var(--purple);">
-      <h4>📎 کلمات مرتبط</h4>
-      <div class="chips-list">${related.map(s => `<span class="chip related">${esc(s)}</span>`).join('')}</div>
-    </div>`;
-  }
-  if (extraExamples.length) {
-    html += `<div class="word-view-section" style="border-right-color:var(--warning);">
-      <h4>📚 جملات بیشتر (${extraExamples.length})</h4>
-      <div class="extra-examples-list">
-        ${extraExamples.map(ex => {
-          const deText = typeof ex === 'string' ? ex : ex.de;
-          const faText = typeof ex === 'string' ? '' : ex.fa;
-          const audioUrl = typeof ex === 'string' ? '' : (ex.audio || '');
-          return `<div class="extra-example-item">
-            <div class="extra-example-de">
-              <span class="ex-text">${highlightExample(deText, word.de)}</span>
-              <button class="ex-speak-btn ${audioUrl ? 'has-audio' : ''}" data-wv-extra="${esc(deText)}" data-wv-extra-audio="${esc(audioUrl)}">${audioUrl ? '🎵' : '🔊'}</button>
-            </div>
-            ${faText ? `<div class="extra-example-fa">${esc(faText)}</div>` : ''}
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-  }
-  if (word.note) {
-    html += `<div class="word-view-section" style="border-right-color:var(--info);">
-      <h4>📝 یادداشت</h4>
-      <div style="font-size:14px;line-height:1.7;color:var(--text);">${esc(word.note)}</div>
-    </div>`;
-  }
-  if (notes.length) {
-    html += `<div class="word-view-section" style="border-right-color:var(--warning);">
-      <h4>💡 نکات (${notes.length})</h4>
-      <div class="notes-inline-list">${notes.map(n => `<div class="note-inline-item">${esc(n)}</div>`).join('')}</div>
-    </div>`;
-  }
-
-  content.innerHTML = html;
-  modal.classList.add('active');
-  document.body.classList.add('locked');
-
-  document.getElementById('wvClose').addEventListener('click', () => {
-    modal.classList.remove('active');
-    document.body.classList.remove('locked');
-  });
-  document.getElementById('wvEdit').addEventListener('click', () => {
-    modal.classList.remove('active');
-    document.body.classList.remove('locked');
-    openWordEdit(word.id);
-  });
-  document.getElementById('wvDelete').addEventListener('click', () => {
-    if (!confirm(`حذف «${word.de}»؟`)) return;
-    const l = getLesson();
-    l.words = l.words.filter(x => x.id !== word.id);
-    save();
-    modal.classList.remove('active');
-    document.body.classList.remove('locked');
-    renderAll(); populateLessonTargets();
-    toast('🗑 حذف شد', 'success');
-  });
-  document.getElementById('wvSpeak').addEventListener('click', () => speakTTS(word.de));
-
-  const muteBtn = document.getElementById('wvMuteToggle');
-  if (muteBtn) {
-    muteBtn.addEventListener('click', () => {
-      autoPlayWord = !autoPlayWord;
-      try { localStorage.setItem(AUTOPLAY_KEY, String(autoPlayWord)); } catch(e){}
-      updateAutoPlayUI();
-      muteBtn.textContent = autoPlayWord ? '🔊 خودکار' : '🔇 سایلنت';
-      muteBtn.style.background = autoPlayWord ? 'var(--accent)' : 'var(--bg-3)';
-      toast(autoPlayWord ? '🔊 پخش خودکار روشن شد' : '🔇 پخش خودکار خاموش شد', autoPlayWord ? 'success' : 'warning');
-    });
-  }
-
-  content.querySelectorAll('[data-wv-speak-ex]').forEach(btn => {
-    btn.addEventListener('click', () => speak(btn.dataset.wvSpeakEx, btn.dataset.wvAudio));
-  });
-  content.querySelectorAll('[data-wv-extra]').forEach(btn => {
-    btn.addEventListener('click', () => speak(btn.dataset.wvExtra, btn.dataset.wvExtraAudio));
-  });
-  modal.addEventListener('click', e => {
-    if (e.target === modal) { modal.classList.remove('active'); document.body.classList.remove('locked'); }
-  }, { once: true });
-
-  if (autoPlayWord) setTimeout(() => speakTTS(word.de), 200);
-}
-
-/* ============================================================
-   WORD EDIT
-   ============================================================ */
-function openWordEdit(wordId){
-  const word = getWords().find(w => w.id === wordId);
-  if (!word) { toast('کلمه پیدا نشد', 'error'); return; }
-  const modal = document.getElementById('wordEditModal');
-  const content = document.getElementById('wordEditContent');
-  const forms = word.forms || {};
-  const formLabels = { present: 'حال', past: 'گذشته', perfect: 'ماضی نقلی', future: 'آینده', imperative: 'امری', participle: 'اسم مفعول' };
-  const synonyms = (word.synonyms || []).join(', ');
-  const related = (word.related || []).join(', ');
-  const notes = (word.notes || []).join('\n');
-  const extraExamples = (word.extraExamples || []).map(ex => {
-    const de = typeof ex === 'string' ? ex : ex.de;
-    const fa = typeof ex === 'string' ? '' : ex.fa;
-    return de + ' | ' + fa;
-  }).join('\n');
-
-  let html = `
-    <div class="word-edit-header"><h3>✏️ ویرایش کامل لغت</h3><button class="word-edit-close" id="weClose">✕</button></div>
-    <div class="word-edit-form-group">
-      <h4>📝 اطلاعات اصلی</h4>
-      <div class="word-edit-row">
-        <div class="word-edit-field"><label>کلمه آلمانی *</label><input id="weDe" value="${esc(word.de || '')}" dir="ltr"></div>
-        <div class="word-edit-field"><label>نوع کلمه</label>
-          <select id="weArt">
-            <option value="–" ${word.art === '–' ? 'selected' : ''}>–</option>
-            <option value="der" ${word.art === 'der' ? 'selected' : ''}>der</option>
-            <option value="die" ${word.art === 'die' ? 'selected' : ''}>die</option>
-            <option value="das" ${word.art === 'das' ? 'selected' : ''}>das</option>
-            <option value="Verb" ${word.art === 'Verb' ? 'selected' : ''}>Verb</option>
-            <option value="Adj" ${word.art === 'Adj' ? 'selected' : ''}>Adj</option>
-            <option value="Adv" ${word.art === 'Adv' ? 'selected' : ''}>Adv</option>
-          </select>
-        </div>
-      </div>
-      <div class="word-edit-row">
-        <div class="word-edit-field"><label>جمع</label><input id="wePlural" value="${esc(word.plural || '')}" dir="ltr"></div>
-        <div class="word-edit-field"><label>ترجمه فارسی *</label><input id="weFa" value="${esc(word.fa || '')}"></div>
-      </div>
-    </div>
-    <div class="word-edit-form-group">
-      <h4>📌 جمله مثال</h4>
-      <div class="word-edit-field"><label>جمله آلمانی</label><input id="weEx" value="${esc(word.ex || '')}" dir="ltr"></div>
-      <div class="word-edit-field"><label>ترجمه جمله</label><input id="weExMean" value="${esc(word.exMean || '')}"></div>
-      <div class="word-edit-field"><label>🎵 لینک صوتی جمله</label><input id="weExAudio" value="${esc(word.exAudio || '')}" dir="ltr"></div>
-    </div>
-    <div class="word-edit-form-group">
-      <h4>🔤 صرف فعل</h4>
-      ${Object.keys(formLabels).map(key => `<div class="word-edit-field"><label>${formLabels[key]}</label><input id="weForm_${key}" value="${esc(forms[key] || '')}" dir="ltr"></div>`).join('')}
-    </div>
-    <div class="word-edit-form-group"><h4>🔗 مترادف‌ها</h4><div class="word-edit-field"><input id="weSynonyms" value="${esc(synonyms)}" dir="ltr" placeholder="toll, super, klasse"></div></div>
-    <div class="word-edit-form-group"><h4>📎 کلمات مرتبط</h4><div class="word-edit-field"><input id="weRelated" value="${esc(related)}" dir="ltr" placeholder="Apfel, Obst"></div></div>
-    <div class="word-edit-form-group"><h4>📚 جملات بیشتر (هر خط: آلمانی | فارسی)</h4><div class="word-edit-field"><textarea id="weExtraExamples" dir="ltr">${esc(extraExamples)}</textarea></div></div>
-    <div class="word-edit-form-group"><h4>📝 یادداشت</h4><div class="word-edit-field"><textarea id="weNote">${esc(word.note || '')}</textarea></div></div>
-    <div class="word-edit-form-group"><h4>💡 نکات (هر خط یک نکته)</h4><div class="word-edit-field"><textarea id="weNotes">${esc(notes)}</textarea></div></div>
-    <div class="word-edit-actions">
-      <button class="btn btn-primary" id="weSave">💾 ذخیره تغییرات</button>
-      <button class="btn" id="weCancel">لغو</button>
-    </div>
-  `;
-
-  content.innerHTML = html;
-  modal.classList.add('active');
-  document.body.classList.add('locked');
-
-  document.getElementById('weClose').addEventListener('click', closeWordEdit);
-  document.getElementById('weCancel').addEventListener('click', closeWordEdit);
-
-  document.getElementById('weSave').addEventListener('click', () => {
-    const de = document.getElementById('weDe').value.trim();
-    const fa = document.getElementById('weFa').value.trim();
-    if (!de || !fa) { toast('کلمه و ترجمه لازمه', 'error'); return; }
-    word.de = de;
-    word.art = document.getElementById('weArt').value;
-    word.plural = document.getElementById('wePlural').value.trim() || '–';
-    word.fa = fa;
-    word.ex = document.getElementById('weEx').value.trim();
-    word.exMean = document.getElementById('weExMean').value.trim();
-    word.exAudio = document.getElementById('weExAudio').value.trim();
-    word.forms = {};
-    Object.keys(formLabels).forEach(key => {
-      const val = document.getElementById('weForm_' + key).value.trim();
-      if (val) word.forms[key] = val;
-    });
-    word.synonyms = document.getElementById('weSynonyms').value.split(',').map(s => s.trim()).filter(Boolean);
-    word.related = document.getElementById('weRelated').value.split(',').map(s => s.trim()).filter(Boolean);
-    const extraLines = document.getElementById('weExtraExamples').value.split(/\r?\n/);
-    const extra = [];
-    extraLines.forEach(line => {
-      if (!line.trim()) return;
-      const sep = line.indexOf('|');
-      if (sep < 1) return;
-      extra.push({ de: line.slice(0, sep).trim(), fa: line.slice(sep + 1).trim() });
-    });
-    word.extraExamples = extra;
-    word.note = document.getElementById('weNote').value.trim();
-    word.notes = document.getElementById('weNotes').value.split(/\r?\n/).map(n => n.trim()).filter(Boolean);
-    save();
-    closeWordEdit();
-    renderAll(); populateLessonTargets();
-    toast('✅ تغییرات ذخیره شد', 'success');
-  });
-
-  modal.addEventListener('click', e => { if (e.target === modal) closeWordEdit(); }, { once: true });
-}
-function closeWordEdit(){
-  document.getElementById('wordEditModal').classList.remove('active');
-  document.body.classList.remove('locked');
-}
 
 /* ============================================================
    POPULATE TARGETS
@@ -1243,23 +998,17 @@ function populateLessonTargets(){
   selectors.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
-    if (!b || !b.lessons.length) {
-      sel.innerHTML = '<option value="">— درسی وجود ندارد —</option>';
-      return;
-    }
+    if (!b || !b.lessons.length) { sel.innerHTML = '<option value="">— درسی وجود ندارد —</option>'; return; }
     const currentValue = sel.value;
     sel.innerHTML = b.lessons.map(l => {
-      const count = (l.words || []).length;
-      const storyCount = (l.stories || []).length;
-      const info = id === 'storyTargetLesson' ? `${storyCount} داستان` : `${count} کلمه`;
+      const wordCount = (l.words || []).length;
+      const storyCount = (l.stories || []).length + (l.letters || []).length + (l.dialogues || []).length;
+      const info = id === 'storyTargetLesson' ? `${storyCount} محتوا` : `${wordCount} کلمه`;
       const sampleBadge = l.isSample ? ' 🔒' : '';
       return `<option value="${l.id}">${esc(l.title)}${sampleBadge} (${info})</option>`;
     }).join('');
-    if (currentValue && b.lessons.find(l => l.id === currentValue)) {
-      sel.value = currentValue;
-    } else if (state.activeLessonId && b.lessons.find(l => l.id === state.activeLessonId)) {
-      sel.value = state.activeLessonId;
-    }
+    if (currentValue && b.lessons.find(l => l.id === currentValue)) sel.value = currentValue;
+    else if (state.activeLessonId && b.lessons.find(l => l.id === state.activeLessonId)) sel.value = state.activeLessonId;
   });
 }
 
@@ -1270,18 +1019,10 @@ function renderLessonSelect(){
   const b = getBook();
   const sel = document.getElementById('lessonSelect');
   if (!sel) return;
-  if (!b || !b.lessons.length) {
-    sel.innerHTML = '<option value="">— بدون درس —</option>';
-    const delBtn = document.getElementById('delLessonBtn');
-    if (delBtn) delBtn.disabled = true;
-    updateAppTitle();
-    return;
-  }
+  if (!b || !b.lessons.length) { sel.innerHTML = '<option value="">— بدون درس —</option>'; return; }
   sel.innerHTML = b.lessons.map(l =>
     `<option value="${l.id}" ${l.id===state.activeLessonId?'selected':''}>${l.isSample ? '🔒 ' : ''}${esc(l.title)} (${(l.words||[]).length})</option>`
   ).join('');
-  const delBtn = document.getElementById('delLessonBtn');
-  if (delBtn) delBtn.disabled = false;
   updateAppTitle();
 }
 
@@ -1319,15 +1060,45 @@ function renderStats(){
 /* ============================================================
    RENDER: WORD TABLE
    ============================================================ */
+function renderArticleQuickFilters(){
+  const cont = document.getElementById('articleQuickFilters');
+  if (!cont) return;
+  const words = getWords();
+  const artCounts = { der: 0, die: 0, das: 0, Verb: 0, Adj: 0, Adv: 0, none: 0 };
+  words.forEach(w => {
+    if (['der','die','das','Verb','Adj','Adv'].includes(w.art)) artCounts[w.art]++;
+    else if (!w.art || w.art === '–') artCounts.none++;
+  });
+  cont.innerHTML = `
+    <button class="article-quick-btn der" data-quick-art="der">der <span class="aqb-count">${artCounts.der}</span></button>
+    <button class="article-quick-btn die" data-quick-art="die">die <span class="aqb-count">${artCounts.die}</span></button>
+    <button class="article-quick-btn das" data-quick-art="das">das <span class="aqb-count">${artCounts.das}</span></button>
+    <button class="article-quick-btn verb" data-quick-art="Verb">Verb <span class="aqb-count">${artCounts.Verb}</span></button>
+    <button class="article-quick-btn adj" data-quick-art="Adj">Adj <span class="aqb-count">${artCounts.Adj}</span></button>
+  `;
+  cont.querySelectorAll('[data-quick-art]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('filterArticle').value = btn.dataset.quickArt;
+      renderWordTable();
+    });
+  });
+}
+
 function renderWordTable(){
   const search = (document.getElementById('searchBox').value || '').toLowerCase();
   const filter = document.getElementById('filterStatus').value;
+  const artFilter = document.getElementById('filterArticle')?.value || 'all';
   let words = getWords().slice();
   if (search) words = words.filter(w =>
-    (w.de||'').toLowerCase().includes(search) ||
-    (w.fa||'').toLowerCase().includes(search)
+    (w.de||'').toLowerCase().includes(search) || (w.fa||'').toLowerCase().includes(search)
   );
   if (filter !== 'all') words = words.filter(w => normalizeStatus(w) === filter);
+  if (artFilter !== 'all') {
+    if (artFilter === 'noun') words = words.filter(w => ['der','die','das'].includes(w.art));
+    else if (artFilter === 'non-noun') words = words.filter(w => !['der','die','das'].includes(w.art));
+    else if (artFilter === 'none') words = words.filter(w => !w.art || w.art === '–');
+    else words = words.filter(w => w.art === artFilter);
+  }
   const cont = document.getElementById('wordTableContainer');
   if (!cont) return;
   if (!words.length) {
@@ -1360,13 +1131,14 @@ function renderWordTable(){
 }
 
 /* ============================================================
-   RENDER: CARDS
+   RENDER: CARDS — حداقل ۲ جمله + مترادف/متضاد
    ============================================================ */
 function renderCards(){
   const container = document.getElementById('cardsContainer');
   if (!container) return;
   const search = (document.getElementById('cardSearch').value || '').toLowerCase();
   const filter = document.getElementById('cardFilter').value;
+  const artFilter = document.getElementById('cardArticleFilter')?.value || 'all';
   let words = getWords().slice();
   if (search) {
     words = words.filter(w =>
@@ -1378,6 +1150,11 @@ function renderCards(){
   if (filter === 'has-example') words = words.filter(w => w.ex);
   else if (filter === 'no-example') words = words.filter(w => !w.ex);
   else if (filter !== 'all') words = words.filter(w => normalizeStatus(w) === filter);
+  if (artFilter !== 'all') {
+    if (artFilter === 'noun') words = words.filter(w => ['der','die','das'].includes(w.art));
+    else if (artFilter === 'non-noun') words = words.filter(w => !['der','die','das'].includes(w.art));
+    else words = words.filter(w => w.art === artFilter);
+  }
   if (cardSortMode === 'alpha') words.sort((a, b) => a.de.localeCompare(b.de, 'de'));
   else if (cardSortMode === 'random') words = shuffle(words);
   else if (cardSortMode === 'status') {
@@ -1392,12 +1169,39 @@ function renderCards(){
     const st = normalizeStatus(w);
     const art = w.art && w.art !== '–' ? w.art : '';
     const artClass = articleClass(w.art);
-    const hasEx = w.ex && w.ex.trim();
-    const hasPlural = w.plural && w.plural !== '–';
     const wt = getWordType(w);
-    const hasExAudio = w.exAudio && w.exAudio.trim();
+    const allExamples = buildExamplesForCard(w);
+    const displayExamples = allExamples.slice(0, 2);
+    const totalExamples = allExamples.length;
+    const examplesHtml = displayExamples.map(ex => {
+      const sourceBadge = ex.source === 'auto'
+        ? `<span class="ex-source-badge auto">🤖 خودکار</span>`
+        : ex.source === 'context'
+        ? `<span class="ex-source-badge context">🎯 بافت</span>`
+        : '';
+      return `<div class="word-card-example">
+        ${sourceBadge}
+        ${renderSentenceWithAudio(ex.de, ex.fa, ex.audio, { className: 'card-example' })}
+      </div>`;
+    }).join('');
+    const moreExamplesBadge = totalExamples > 2
+      ? `<button class="word-card-more-examples" data-card-more="${w.id}">+${totalExamples - 2} جمله دیگر ⋮</button>`
+      : '';
+    const synonyms = w.synonyms || [];
+    const related = w.related || [];
+    const chipsHtml = (synonyms.length || related.length) ? `
+      <div class="word-card-chips-section">
+        ${synonyms.length ? `<div class="word-card-chips-row">
+          <span class="word-card-chips-label">🔗 مترادف:</span>
+          <div class="word-card-chips-list">${synonyms.map(s => `<span class="word-card-chip synonym" data-chip="${esc(s)}">${esc(s)}</span>`).join('')}</div>
+        </div>` : ''}
+        ${related.length ? `<div class="word-card-chips-row">
+          <span class="word-card-chips-label">📎 مرتبط:</span>
+          <div class="word-card-chips-list">${related.map(s => `<span class="word-card-chip related" data-chip="${esc(s)}">${esc(s)}</span>`).join('')}</div>
+        </div>` : ''}
+      </div>` : '';
     const hasForms = w.forms && Object.keys(w.forms).some(k => w.forms[k] && String(w.forms[k]).trim());
-    const hasAnyExtra = hasForms || (w.synonyms || []).length > 0 || (w.related || []).length > 0 || (w.extraExamples || []).length > 0 || (w.note && w.note.trim()) || (w.notes || []).length > 0;
+    const hasAnyExtra = hasForms || synonyms.length || related.length || totalExamples > 2 || (w.note && w.note.trim()) || (w.notes || []).length > 0 || (w.collocations || []).length > 0;
     return `<div class="word-card status-${st}" data-card-id="${w.id}">
       <div class="word-card-header">
         <div class="word-card-title">
@@ -1410,25 +1214,19 @@ function renderCards(){
           ${hasAnyExtra ? `<button class="word-more-btn" data-card-more="${w.id}" title="نمایش کامل">⋮</button>` : ''}
         </div>
       </div>
-      ${hasPlural ? `<div class="word-card-plural-line"><span>📚 جمع:</span> <span class="pl-value">${esc(w.plural)}</span></div>` : ''}
+      ${w.plural && w.plural !== '–' ? `<div class="word-card-plural-line"><span>📚 جمع:</span> <span class="pl-value">${esc(w.plural)}</span></div>` : ''}
       <div class="word-card-fa">${esc(w.fa)}</div>
-      ${hasEx
-        ? `<div class="word-card-example">
-            <div class="ex-de">
-              <span class="ex-text">${highlightExample(w.ex, w.de)}</span>
-              <button class="ex-speak-btn ${hasExAudio ? 'has-audio' : ''}" data-ex-speak="${esc(w.ex)}" data-ex-audio="${esc(w.exAudio || '')}">${hasExAudio ? '🎵' : '🔊'}</button>
-            </div>
-            ${w.exMean ? `<div class="ex-fa">${esc(w.exMean)}</div>` : ''}
-          </div>`
-        : `<div class="word-card-example none">📝 هنوز جمله‌ای نداری — کلیک کن و اضافه کن</div>`
-      }
+      ${chipsHtml}
+      <div class="word-card-examples-list">
+        ${examplesHtml}
+        ${moreExamplesBadge}
+      </div>
       <div class="word-card-footer">
         <div class="status-actions">
           <button class="status-btn bad ${st === 'bad' ? 'active' : ''}" data-card-rate="bad" data-card-id="${w.id}">❌ بلد نیستم</button>
           <button class="status-btn medium ${st === 'learning' ? 'active' : ''}" data-card-rate="medium" data-card-id="${w.id}">⚠️ نصفه</button>
           <button class="status-btn good ${st === 'good' ? 'active' : ''}" data-card-rate="good" data-card-id="${w.id}">✔️ بلدم</button>
         </div>
-        ${(w.notes || []).length ? `<span class="word-card-notes-count">💡 ${(w.notes || []).length}</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -1437,6 +1235,8 @@ function renderCards(){
   container.querySelectorAll('.word-card').forEach(card => {
     card.addEventListener('click', e => {
       if (e.target.closest('button')) return;
+      if (e.target.closest('.clickable-word')) return;
+      if (e.target.closest('.word-card-chip')) return;
       openWordView(card.dataset.cardId);
     });
   });
@@ -1446,8 +1246,14 @@ function renderCards(){
   container.querySelectorAll('[data-card-speak]').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); speakTTS(btn.dataset.cardSpeak); });
   });
-  container.querySelectorAll('[data-ex-speak]').forEach(btn => {
-    btn.addEventListener('click', e => { e.stopPropagation(); speak(btn.dataset.exSpeak, btn.dataset.exAudio); });
+  container.querySelectorAll('.word-card-chip').forEach(chip => {
+    chip.addEventListener('click', e => {
+      e.stopPropagation();
+      const word = chip.dataset.chip;
+      const found = findWordAnywhere(word);
+      if (found) openWordView(found.word.id);
+      else toast(`«${word}» در کتاب پیدا نشد`, 'warning');
+    });
   });
   container.querySelectorAll('[data-card-rate]').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -1456,10 +1262,76 @@ function renderCards(){
       if (!w) return;
       reviewWord(w, btn.dataset.cardRate);
       renderCards(); renderStats();
-      const labels = { good: '✔️ بلدم', medium: '⚠️ نصفه', bad: '❌ بلد نیستم' };
-      toast(`${labels[btn.dataset.cardRate]} ثبت شد`, btn.dataset.cardRate === 'good' ? 'success' : 'warning');
+      toast('ثبت شد', 'success');
     });
   });
+  wireClickableWords(container);
+  wireSentenceAudio(container);
+}
+
+/* ============================================================
+   CLICKABLE WORDS
+   ============================================================ */
+function wireClickableWords(container) {
+  container.querySelectorAll('.clickable-word').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      showWordTooltip(el.dataset.clickWord, el.dataset.lessonId, el.dataset.isActive === 'true');
+    });
+  });
+}
+
+function showWordTooltip(wordText, lessonId, isActive) {
+  const result = findWordAnywhere(wordText);
+  if (!result) { toast('این کلمه در کتاب پیدا نشد', 'warning'); return; }
+  const w = result.word;
+  const modal = document.getElementById('wordTooltipModal');
+  const content = document.getElementById('wordTooltipContent');
+  const lesson = result.lesson;
+  const locationLabel = result.isActiveLesson ? '📖 این درس' : `📚 ${esc(lesson.title)}`;
+  const hasEx = w.ex && w.ex.trim();
+  content.innerHTML = `
+    <button class="wt-close" id="wtClose">✕</button>
+    <div class="wt-header">
+      ${w.art && w.art !== '–' ? `<span class="wt-art ${articleClass(w.art)}">${esc(w.art)}</span>` : ''}
+      <span class="wt-word">${esc(w.de)}</span>
+      ${w.plural && w.plural !== '–' ? `<span class="wt-plural">جمع: ${esc(w.plural)}</span>` : ''}
+    </div>
+    <div class="wt-fa">${esc(w.fa)}</div>
+    <div class="wt-location">${locationLabel}</div>
+    ${hasEx ? `<div class="wt-example">
+      ${renderSentenceWithAudio(w.ex, w.exMean || '', w.exAudio || '', { className: 'tooltip-example' })}
+    </div>` : ''}
+    <div class="wt-actions">
+      <button class="btn btn-sm btn-primary" id="wtSpeak">🔊 تلفظ</button>
+      <button class="btn btn-sm" id="wtOpenFull" style="background:var(--info);color:#fff;">📖 مشاهده کامل</button>
+    </div>
+  `;
+  modal.classList.add('active');
+  document.body.classList.add('locked');
+  document.getElementById('wtClose').addEventListener('click', () => {
+    modal.classList.remove('active');
+    document.body.classList.remove('locked');
+  });
+  document.getElementById('wtSpeak').addEventListener('click', () => speakTTS(w.de));
+  document.getElementById('wtOpenFull').addEventListener('click', () => {
+    modal.classList.remove('active');
+    document.body.classList.remove('locked');
+    if (!result.isActiveLesson) {
+      if (practice.active) exitPractice();
+      state.activeLessonId = lesson.id;
+      save();
+      renderAll();
+      populateLessonTargets();
+    }
+    setTimeout(() => openWordView(w.id), 200);
+  });
+  wireSentenceAudio(content);
+  wireClickableWords(content);
+  modal.addEventListener('click', e => {
+    if (e.target === modal) { modal.classList.remove('active'); document.body.classList.remove('locked'); }
+  }, { once: true });
 }
 
 /* ============================================================
@@ -1488,6 +1360,113 @@ function renderFolders(){
   fg.querySelectorAll('[data-folder]').forEach(card => {
     card.addEventListener('click', () => startPractice(card.dataset.folder));
   });
+  renderArticlePracticeGrid();
+}
+
+/* ============================================================
+   ARTICLE SECTION — ساده (سه ردیف der/die/das + دو دکمه)
+   ============================================================ */
+function getArticleStats() {
+  const words = getWords();
+  const nouns = words.filter(w => ['der','die','das'].includes(w.art));
+  const stats = {
+    der: { total: 0, bad: 0, learning: 0, good: 0, new: 0, badWords: [] },
+    die: { total: 0, bad: 0, learning: 0, good: 0, new: 0, badWords: [] },
+    das: { total: 0, bad: 0, learning: 0, good: 0, new: 0, badWords: [] }
+  };
+  nouns.forEach(w => {
+    const st = normalizeStatus(w);
+    const b = stats[w.art];
+    if (!b) return;
+    b.total++;
+    if (st === 'bad') { b.bad++; b.badWords.push(w); }
+    else if (st === 'learning') b.learning++;
+    else if (st === 'good') b.good++;
+    else b.new++;
+  });
+  return stats;
+}
+
+function renderArticlePracticeGrid(){
+  const grid = document.getElementById('articlePracticeGrid');
+  if (!grid) return;
+  const stats = getArticleStats();
+  const totalNouns = stats.der.total + stats.die.total + stats.das.total;
+  if (totalNouns < 2) {
+    grid.innerHTML = `<div class="empty">حداقل ۲ اسم با آرتیکل لازمه</div>`;
+    return;
+  }
+  function pctFor(s) {
+    if (s.total === 0) return 0;
+    return Math.round((s.good / s.total) * 100);
+  }
+  function buildRow(art, s, color) {
+    const pct = pctFor(s);
+    return `
+      <div class="article-simple-row" style="border-right-color:${color}">
+        <div class="article-simple-header">
+          <span class="article-simple-name" style="color:${color}">${art}</span>
+          <span class="article-simple-pct">${pct}٪</span>
+          <span class="article-simple-bad">❌ ${s.bad}</span>
+        </div>
+        <div class="article-simple-bar">
+          <div class="article-simple-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <button class="btn btn-primary btn-sm article-simple-btn" data-practice-art="${art}">
+          🎯 تمرین ${art} (${s.total})
+        </button>
+      </div>
+    `;
+  }
+  const allBad = stats.der.bad + stats.die.bad + stats.das.bad;
+  grid.innerHTML = `
+    ${buildRow('der', stats.der, '#60a5fa')}
+    ${buildRow('die', stats.die, '#f87171')}
+    ${buildRow('das', stats.das, '#34d399')}
+    <div style="grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+      ${allBad > 0 ? `<button class="btn btn-warning btn-sm" id="practiceAllBadArticleBtn" style="flex:1;">🔥 همه ضعیف‌ها (${allBad})</button>` : ''}
+      <button class="btn btn-primary btn-sm" id="practiceAllArticleBtn" style="flex:1;">🔀 همه با هم (${totalNouns})</button>
+    </div>
+  `;
+  grid.querySelectorAll('[data-practice-art]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const art = btn.dataset.practiceArt;
+      const words = getWords().filter(w => w.art === art);
+      if (words.length < 2) { toast('حداقل ۲ کلمه لازمه', 'warning'); return; }
+      startArticleQuizForWords(words, `آرتیکل ${art}`);
+    });
+  });
+  document.getElementById('practiceAllBadArticleBtn')?.addEventListener('click', () => {
+    const words = getWords().filter(w =>
+      ['der','die','das'].includes(w.art) && normalizeStatus(w) === 'bad'
+    );
+    if (words.length < 2) { toast('حداقل ۲ کلمه ضعیف لازمه', 'warning'); return; }
+    startArticleQuizForWords(words, 'همه ضعیف‌ها');
+  });
+  document.getElementById('practiceAllArticleBtn')?.addEventListener('click', () => {
+    const words = getWords().filter(w => ['der','die','das'].includes(w.art));
+    if (words.length < 2) { toast('حداقل ۲ کلمه لازمه', 'warning'); return; }
+    startArticleQuizForWords(words, 'همه با هم');
+  });
+}
+
+function startArticleQuizForWords(words, label) {
+  quizState.mode = 'article';
+  quizState.questions = shuffle(words).slice(0, 20).map(w => ({
+    type: 'article', word: w, correct: w.art, options: ['der','die','das']
+  }));
+  quizState.index = 0;
+  quizState.correct = 0;
+  quizState.wrong = 0;
+  quizState.wrongWords = [];
+  quizState.answered = false;
+  quizState.startedAt = Date.now();
+  switchTab('quiz');
+  document.getElementById('quizHome').classList.add('hidden');
+  document.getElementById('quizSession').classList.remove('hidden');
+  document.getElementById('quizReport').classList.add('hidden');
+  renderQuizQuestionNew();
+  toast(`🎯 ${label} — ${quizState.questions.length} کلمه`, 'success');
 }
 
 /* ============================================================
@@ -1521,8 +1500,7 @@ function buildFolderMenu(){
   ).join('');
   list.querySelectorAll('[data-menu-folder]').forEach(el => {
     el.addEventListener('click', () => {
-      const menu = document.getElementById('practiceFolderMenu');
-      if (menu) menu.classList.add('hidden');
+      document.getElementById('practiceFolderMenu')?.classList.add('hidden');
       startPractice(el.dataset.menuFolder);
     });
   });
@@ -1533,39 +1511,30 @@ function buildFolderMenu(){
    ============================================================ */
 function enterTheaterMode(){
   document.body.classList.add('practice-theater');
-  const btn = document.getElementById('practiceFullscreenBtn');
-  if (btn) { btn.textContent = '✕ خروج'; btn.title = 'بستن حالت بزرگ'; }
+  document.getElementById('practiceFullscreenBtn').textContent = '✕ خروج';
 }
 function exitTheaterMode(){
   document.body.classList.remove('practice-theater');
-  const btn = document.getElementById('practiceFullscreenBtn');
-  if (btn) { btn.textContent = '⛶ بزرگ'; btn.title = 'نمایش بزرگ'; }
+  document.getElementById('practiceFullscreenBtn').textContent = '⛶ بزرگ';
 }
 function toggleTheaterMode(){
   if (document.body.classList.contains('practice-theater')) exitTheaterMode();
   else enterTheaterMode();
 }
 
-/* ============================================================
-   RESET PRACTICE SETTINGS
-   ============================================================ */
 function resetPracticeSettings(){
-  if (!confirm('تنظیمات تمرین (پخش خودکار، جهت کارت، مرتب‌سازی) به حالت اولیه برگرده؟')) return;
+  if (!confirm('تنظیمات تمرین به حالت اولیه برگرده؟')) return;
   autoPlayWord = true;
   try { localStorage.setItem(AUTOPLAY_KEY, 'true'); } catch(e){}
   updateAutoPlayUI();
-  repeatMode = 0;
-  repeatCounter = 0;
   practiceDirection = 'de-fa';
   updateDirectionLabel();
   cardSortMode = 'alpha';
   if (practice.active) exitPractice();
   exitTheaterMode();
-  const menu = document.getElementById('practiceFolderMenu');
-  if (menu) menu.classList.add('hidden');
-  renderFolders();
-  renderCards();
-  toast('♻️ تنظیمات به حالت اولیه برگشت', 'success');
+  document.getElementById('practiceFolderMenu')?.classList.add('hidden');
+  renderFolders(); renderCards();
+  toast('♻️ تنظیمات ریست شد', 'success');
 }
 
 /* ============================================================
@@ -1599,8 +1568,6 @@ function showCurrentPracticeCard(){
   const w = practice.queue[practice.index];
   document.getElementById('practiceCounter').textContent = `${practice.index + 1} / ${practice.queue.length}`;
   document.getElementById('practiceProgress').style.width = ((practice.index / practice.queue.length) * 100) + '%';
-
-  // ✅ اول محتوا رو عوض کن
   if (practiceDirection === 'de-fa') {
     document.getElementById('fcArt').textContent = w.art && w.art !== '–' ? w.art : '';
     document.getElementById('fcArt').className = 'fc-art art ' + articleClass(w.art);
@@ -1612,25 +1579,13 @@ function showCurrentPracticeCard(){
     document.getElementById('fcArt').className = 'fc-art';
     document.getElementById('fcWord').textContent = w.fa;
     document.getElementById('fcMeaning').textContent = (w.art && w.art !== '–' ? w.art + ' ' : '') + w.de;
-    document.getElementById('fcExample').innerHTML = w.exMean ? `📌 ${esc(w.exMean)}${w.ex ? `<br><small dir="ltr">${esc(w.ex)}</small>` : ''}` : (w.ex ? `📌 <span dir="ltr">${esc(w.ex)}</span>` : '');
+    document.getElementById('fcExample').innerHTML = w.exMean ? `📌 ${esc(w.exMean)}${w.ex ? `<br><small dir="ltr">${esc(w.ex)}</small>` : ''}` : '';
   }
-
   const speakBtn = document.getElementById('fcSpeakBtn');
-  if (speakBtn) {
-    if (practiceDirection === 'fa-de') speakBtn.style.display = 'none';
-    else speakBtn.style.display = '';
-  }
-
-  const prevBtn = document.getElementById('prevPracticeBtn');
-  if (prevBtn) prevBtn.disabled = practice.index === 0;
-
-  // ✅ مطمئن شو کارت رو نشون داده می‌شه (بعد از تغییر محتوا)
+  if (speakBtn) speakBtn.style.display = practiceDirection === 'fa-de' ? 'none' : '';
+  document.getElementById('prevPracticeBtn').disabled = practice.index === 0;
   const inner = document.getElementById('flashcardInner');
-  if (inner && inner.classList.contains('flipped')) {
-    inner.classList.remove('flipped');
-  }
-
-  // ✅ پخش صدا فقط بعد از تاخیر کوتاه
+  if (inner && inner.classList.contains('flipped')) inner.classList.remove('flipped');
   if (autoPlayWord && practiceDirection === 'de-fa') {
     setTimeout(() => {
       const innerEl = document.getElementById('flashcardInner');
@@ -1639,28 +1594,16 @@ function showCurrentPracticeCard(){
   }
 }
 
-/* ============================================================
-   ⭐ rateCurrent — با رفع مشکل پشت کارت بعدی
-   ============================================================ */
 function rateCurrent(rating){
   if (practice._isTransitioning) return;
   practice._isTransitioning = true;
-
   const w = practice.queue[practice.index];
   reviewWord(w, rating);
   practice.ratings[practice.index] = rating;
-
   const inner = document.getElementById('flashcardInner');
   const wasFlipped = inner && inner.classList.contains('flipped');
-
-  // ✅ اگه پشت کارت دیده می‌شه، اول برگردونش
-  if (wasFlipped) {
-    inner.classList.remove('flipped');
-  }
-
-  // ✅ همیشه یه تاخیر کوتاه برای هماهنگی با انیمیشن
+  if (wasFlipped) inner.classList.remove('flipped');
   const delay = wasFlipped ? 400 : 150;
-
   setTimeout(() => {
     practice.index++;
     showCurrentPracticeCard();
@@ -1671,36 +1614,31 @@ function rateCurrent(rating){
 
 function exitPractice(){
   exitTheaterMode();
-  const menu = document.getElementById('practiceFolderMenu');
-  if (menu) menu.classList.add('hidden');
-
+  document.getElementById('practiceFolderMenu')?.classList.add('hidden');
   practice.active = false;
   practice.ratings = {};
   practice._isTransitioning = false;
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   if (currentAudio) { try { currentAudio.pause(); } catch(e){} currentAudio = null; }
-  const folderView = document.getElementById('practiceFolderView');
-  const sessionView = document.getElementById('practiceSession');
-  if (folderView) folderView.classList.remove('hidden');
-  if (sessionView) sessionView.classList.add('hidden');
+  document.getElementById('practiceFolderView')?.classList.remove('hidden');
+  document.getElementById('practiceSession')?.classList.add('hidden');
   renderAll(); populateLessonTargets();
   updateReviewBanner();
 }
 
 /* ============================================================
-   QUIZ STATS HELPERS
+   QUIZ STATS
    ============================================================ */
 function getQuizModeStats(mode){
   const history = (state.quizHistory || []).filter(h =>
     h.lessonId === state.activeLessonId && h.mode === mode
   );
-  if (!history.length) return { attempts: 0, bestPct: 0, lastPct: 0, lastDate: null, totalWordsTested: 0 };
+  if (!history.length) return { attempts: 0, bestPct: 0, lastPct: 0 };
   let bestPct = 0;
-  let last = history[history.length - 1];
   history.forEach(h => { if (h.pct > bestPct) bestPct = h.pct; });
-  return { attempts: history.length, bestPct, lastPct: last.pct, lastDate: last.date };
+  const last = history[history.length - 1];
+  return { attempts: history.length, bestPct, lastPct: last.pct };
 }
-
 function renderModeStatsBadge(mode){
   const s = getQuizModeStats(mode);
   if (s.attempts === 0) return `<div class="quiz-mode-stats none">🆕 هنوز کار نکردی</div>`;
@@ -1710,9 +1648,6 @@ function renderModeStatsBadge(mode){
   </div>`;
 }
 
-/* ============================================================
-   QUIZ
-   ============================================================ */
 function pickAdaptiveWords(words, count){
   const bad = words.filter(w => normalizeStatus(w) === 'bad');
   const learning = words.filter(w => normalizeStatus(w) === 'learning');
@@ -1747,33 +1682,6 @@ function renderQuizHome(){
   const lessonHistory = (state.quizHistory || [])
     .filter(h => h.lessonId === state.activeLessonId)
     .slice(-10).reverse();
-
-  const modes = ['mean', 'sentence', 'typing', 'listening', 'article', 'plural'];
-  const tested = modes.filter(m => getQuizModeStats(m).attempts > 0);
-  const notTested = modes.filter(m => getQuizModeStats(m).attempts === 0);
-  const totalAttempts = modes.reduce((s, m) => s + getQuizModeStats(m).attempts, 0);
-  let overviewHtml = '';
-  if (totalAttempts === 0) {
-    overviewHtml = `
-      <div class="quiz-overview new">
-        <div class="qo-icon">🆕</div>
-        <div class="qo-text">
-          <strong>هنوز هیچ آزمونی از این درس کار نکردی!</strong>
-          <div class="qo-sub">با انتخاب یکی از حالت‌های زیر شروع کن</div>
-        </div>
-      </div>`;
-  } else {
-    overviewHtml = `
-      <div class="quiz-overview">
-        <div class="qo-row"><span class="qo-label">📊 کل آزمون‌ها:</span><span class="qo-value">${totalAttempts} بار</span></div>
-        <div class="qo-row"><span class="qo-label">✅ کار شده:</span><span class="qo-value qo-done">${tested.length} حالت</span></div>
-        ${notTested.length ? `
-        <div class="qo-row"><span class="qo-label">⏳ هنوز کار نشده:</span><span class="qo-value qo-pending">${notTested.length} حالت</span></div>
-        <div class="qo-pending-list">${notTested.map(m => `<span class="qo-pending-chip">${quizModeLabel(m)}</span>`).join('')}</div>
-        ` : `<div class="qo-all-done">🎉 همه حالت‌ها رو کار کردی!</div>`}
-      </div>`;
-  }
-
   container.innerHTML = `
     <div class="panel">
       <h3 style="text-align:center;font-size:20px;margin-bottom:8px;">🎯 آزمون هوشمند</h3>
@@ -1786,51 +1694,50 @@ function renderQuizHome(){
             📅 شروع مرور روزانه (${due.length} کلمه)
           </button>
         </div>` : ''}
-      ${overviewHtml}
       <div class="quiz-mode-grid">
         <div class="quiz-mode-card mode-mean" data-quiz-mode="mean">
           <span class="mode-icon">🔤</span>
           <div class="mode-title">معنی کلمه</div>
-          <div class="mode-desc">${words.length} کلمه<br>کلمه آلمانی ↔ معنی فارسی</div>
+          <div class="mode-desc">${words.length} کلمه</div>
           ${renderModeStatsBadge('mean')}
         </div>
         <div class="quiz-mode-card mode-sentence" data-quiz-mode="sentence">
           <span class="mode-icon">📝</span>
-          <div class="mode-title">جای خالی در جمله</div>
-          <div class="mode-desc">${exampleCount} جمله<br>کلمه درست رو انتخاب کن</div>
+          <div class="mode-title">جای خالی</div>
+          <div class="mode-desc">${exampleCount} جمله</div>
           ${renderModeStatsBadge('sentence')}
         </div>
         <div class="quiz-mode-card mode-typing" data-quiz-mode="typing">
           <span class="mode-icon">⌨️</span>
           <div class="mode-title">تایپ کردن</div>
-          <div class="mode-desc">${words.length} کلمه<br>ترجمه فارسی → تایپ آلمانی</div>
+          <div class="mode-desc">${words.length} کلمه</div>
           ${renderModeStatsBadge('typing')}
         </div>
         <div class="quiz-mode-card mode-listening" data-quiz-mode="listening">
           <span class="mode-icon">🎧</span>
           <div class="mode-title">شنیداری</div>
-          <div class="mode-desc">${words.length} کلمه<br>گوش کن → تایپ کن</div>
+          <div class="mode-desc">${words.length} کلمه</div>
           ${renderModeStatsBadge('listening')}
         </div>
         ${nounCount >= 2 ? `
           <div class="quiz-mode-card mode-article" data-quiz-mode="article">
             <span class="mode-icon">🔤</span>
             <div class="mode-title">جنسیت اسم</div>
-            <div class="mode-desc">${nounCount} اسم<br>der / die / das</div>
+            <div class="mode-desc">${nounCount} اسم</div>
             ${renderModeStatsBadge('article')}
           </div>` : ''}
         ${pluralCount >= 2 ? `
           <div class="quiz-mode-card mode-plural" data-quiz-mode="plural">
             <span class="mode-icon">📚</span>
             <div class="mode-title">جمع اسم</div>
-            <div class="mode-desc">${pluralCount} اسم<br>جمع درست رو انتخاب کن</div>
+            <div class="mode-desc">${pluralCount} اسم</div>
             ${renderModeStatsBadge('plural')}
           </div>` : ''}
       </div>
       ${badCount > 0 ? `
         <div style="text-align:center;margin-top:16px;">
           <button class="btn btn-danger btn-lg" id="quizBadBtn" style="width:100%;">
-            ❌ آزمون فقط «بلد نیستم»ها (${badCount} کلمه)
+            ❌ آزمون فقط «بلد نیستم»ها (${badCount})
           </button>
         </div>` : ''}
     </div>
@@ -1841,8 +1748,7 @@ function renderQuizHome(){
           ${lessonHistory.map(h => {
             const d = new Date(h.date);
             let dateStr = '';
-            try { dateStr = d.toLocaleDateString('fa-IR') + ' ' + d.toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'}); }
-            catch(e) { dateStr = d.toLocaleString(); }
+            try { dateStr = d.toLocaleDateString('fa-IR'); } catch(e) { dateStr = d.toLocaleDateString(); }
             return `<div class="quiz-history-item">
               <span class="qh-mode">${quizModeLabel(h.mode)}</span>
               <span class="qh-score" style="color:${h.pct>=70?'var(--accent)':h.pct>=50?'var(--warning)':'var(--danger)'}">${h.pct}%</span>
@@ -1853,14 +1759,11 @@ function renderQuizHome(){
         </div>
       </div>` : ''}
   `;
-
   container.querySelectorAll('[data-quiz-mode]').forEach(card => {
     card.addEventListener('click', () => startQuizMode(card.dataset.quizMode));
   });
-  const badBtn = document.getElementById('quizBadBtn');
-  if (badBtn) badBtn.addEventListener('click', () => startQuizMode('mean', true));
-  const dailyBtn = document.getElementById('quizDailyReviewBtn');
-  if (dailyBtn) dailyBtn.addEventListener('click', startDailyReview);
+  document.getElementById('quizBadBtn')?.addEventListener('click', () => startQuizMode('mean', true));
+  document.getElementById('quizDailyReviewBtn')?.addEventListener('click', startDailyReview);
 }
 
 function startQuizMode(mode, onlyBad){
@@ -1870,7 +1773,6 @@ function startQuizMode(mode, onlyBad){
   if (mode === 'article') words = words.filter(w => ['der','die','das'].includes(w.art));
   if (mode === 'plural') words = words.filter(w => w.plural && w.plural !== '–');
   if (words.length < 2) { toast('حداقل ۲ کلمه لازمه', 'warning'); return; }
-
   quizState.mode = mode;
   quizState.questions = [];
   quizState.index = 0;
@@ -1879,22 +1781,17 @@ function startQuizMode(mode, onlyBad){
   quizState.wrongWords = [];
   quizState.answered = false;
   quizState.startedAt = Date.now();
-
-  const poolSize = Math.min(20, words.length);
-  const picked = pickAdaptiveWords(words, poolSize);
-
+  const picked = pickAdaptiveWords(words, Math.min(20, words.length));
   if (mode === 'mean') {
     picked.forEach(w => {
       if (practiceDirection === 'de-fa') {
         const others = words.filter(x => x.id !== w.id).map(x => x.fa).filter(Boolean);
         if (others.length < 2) return;
-        const opts = shuffle([w.fa, ...shuffle(others).slice(0, 3)]);
-        quizState.questions.push({ type: 'mean', word: w, correct: w.fa, options: opts, dir: 'de-fa' });
+        quizState.questions.push({ type: 'mean', word: w, correct: w.fa, options: shuffle([w.fa, ...shuffle(others).slice(0, 3)]), dir: 'de-fa' });
       } else {
         const others = words.filter(x => x.id !== w.id).map(x => x.de).filter(Boolean);
         if (others.length < 2) return;
-        const opts = shuffle([w.de, ...shuffle(others).slice(0, 3)]);
-        quizState.questions.push({ type: 'mean', word: w, correct: w.de, options: opts, dir: 'fa-de' });
+        quizState.questions.push({ type: 'mean', word: w, correct: w.de, options: shuffle([w.de, ...shuffle(others).slice(0, 3)]), dir: 'fa-de' });
       }
     });
   } else if (mode === 'sentence') {
@@ -1903,8 +1800,7 @@ function startQuizMode(mode, onlyBad){
       if (others.length < 2) return;
       const escaped = w.de.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const masked = w.ex.replace(new RegExp(escaped, 'gi'), '_____');
-      const opts = shuffle([w.de, ...shuffle(others).slice(0, 3)]);
-      quizState.questions.push({ type: 'sentence', word: w, correct: w.de, options: opts, masked, exMean: w.exMean });
+      quizState.questions.push({ type: 'sentence', word: w, correct: w.de, options: shuffle([w.de, ...shuffle(others).slice(0, 3)]), masked, exMean: w.exMean });
     });
   } else if (mode === 'typing' || mode === 'listening') {
     picked.forEach(w => {
@@ -1918,13 +1814,10 @@ function startQuizMode(mode, onlyBad){
     picked.forEach(w => {
       const others = words.filter(x => x.id !== w.id && x.plural && x.plural !== '–').map(x => x.plural);
       if (others.length < 2) return;
-      const opts = shuffle([w.plural, ...shuffle(others).slice(0, 3)]);
-      quizState.questions.push({ type: 'plural', word: w, correct: w.plural, options: opts });
+      quizState.questions.push({ type: 'plural', word: w, correct: w.plural, options: shuffle([w.plural, ...shuffle(others).slice(0, 3)]) });
     });
   }
-
   if (!quizState.questions.length) { toast('سوالی ساخته نشد', 'error'); return; }
-
   quizState.questions = shuffle(quizState.questions).slice(0, 20);
   document.getElementById('quizHome').classList.add('hidden');
   document.getElementById('quizSession').classList.remove('hidden');
@@ -1938,21 +1831,16 @@ function renderQuizQuestionNew(){
   const total = quizState.questions.length;
   const progress = (quizState.index / total * 100);
   quizState.answered = false;
-
   const session = document.getElementById('quizSession');
   let questionHtml = '';
-
   if (q.type === 'mean') {
     const showDe = (q.dir || 'de-fa') === 'de-fa';
     questionHtml = `
       <div class="quiz-question-box">
-        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">
           ${showDe ? 'معنی این کلمه چیه؟' : 'معادل آلمانی این کلمه چیه؟'}
         </div>
         <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">${esc(showDe ? q.word.de : q.word.fa)}</div>
-        <div style="text-align:center;">
-          <button class="quiz-hint-toggle" id="quizFlipDirBtn">🔄 تغییر جهت</button>
-        </div>
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
@@ -1960,12 +1848,8 @@ function renderQuizQuestionNew(){
   } else if (q.type === 'sentence') {
     questionHtml = `
       <div class="quiz-question-box">
-        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">کدوم کلمه توی جای خالی میاد؟</div>
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">کدوم کلمه توی جای خالی میاد؟</div>
         <div class="quiz-sentence">"${esc(q.masked)}"</div>
-        <div style="text-align:center;">
-          <button class="quiz-hint-toggle" id="quizHintBtn">💡 نمایش راهنما (ترجمه)</button>
-          <div class="quiz-hint-content" id="quizHintContent">${esc(q.exMean || 'ترجمه موجود نیست')}</div>
-        </div>
       </div>
       <div class="quiz-options">
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
@@ -1974,28 +1858,19 @@ function renderQuizQuestionNew(){
     const isListening = q.mode === 'listening';
     questionHtml = `
       <div class="quiz-question-box">
-        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">
           ${isListening ? 'گوش کن و بنویس' : 'ترجمه فارسی → تایپ آلمانی'}
         </div>
         ${isListening ? `
           <button class="quiz-listen-btn" id="quizListenBtn">🔊</button>
-          <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;">برای پخش دوباره کلیک کن</div>
         ` : `<div class="quiz-word" style="color:var(--accent);">${esc(q.word.fa)}</div>`}
-        <input type="text" class="quiz-typing-input" id="quizTypingInput" placeholder="آلمانی رو تایپ کن..." dir="ltr" autocomplete="off" autocorrect="off">
-        <div style="text-align:center;">
-          <button class="quiz-hint-toggle" id="quizHintBtn">💡 نمایش راهنما</button>
-          <div class="quiz-hint-content" id="quizHintContent">
-            ${q.word.ex ? `<div dir="ltr" style="text-align:left;margin-bottom:6px;">📝 ${esc(q.word.ex)}</div>` : ''}
-            ${q.word.fa ? `<div>💬 معنی: ${esc(q.word.fa)}</div>` : ''}
-            ${q.word.art && q.word.art !== '–' ? `<div>🔤 آرتیکل: ${esc(q.word.art)}</div>` : ''}
-          </div>
-        </div>
+        <input type="text" class="quiz-typing-input" id="quizTypingInput" placeholder="آلمانی رو تایپ کن..." dir="ltr" autocomplete="off">
         <button class="btn btn-primary" id="quizCheckBtn" style="width:100%;margin-top:12px;padding:12px;">✅ بررسی جواب</button>
       </div>`;
   } else if (q.type === 'article') {
     questionHtml = `
       <div class="quiz-question-box">
-        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">آرتیکل درست چیه؟</div>
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">آرتیکل درست چیه؟</div>
         <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">${esc(q.word.de)}</div>
         <div style="text-align:center;color:var(--muted);font-size:13px;margin-top:6px;">${esc(q.word.fa)}</div>
       </div>
@@ -2005,7 +1880,7 @@ function renderQuizQuestionNew(){
   } else if (q.type === 'plural') {
     questionHtml = `
       <div class="quiz-question-box">
-        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">جمع این اسم چیه؟</div>
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px;">جمع این اسم چیه؟</div>
         <div class="quiz-word" style="font-size:clamp(28px,7vw,42px);">
           ${q.word.art && q.word.art !== '–' ? `<span style="opacity:0.7;font-size:0.6em;">${esc(q.word.art)}</span> ` : ''}${esc(q.word.de)}
         </div>
@@ -2015,7 +1890,6 @@ function renderQuizQuestionNew(){
         ${q.options.map(o => `<button class="quiz-opt" data-qopt="${esc(o)}">${esc(o)}</button>`).join('')}
       </div>`;
   }
-
   session.innerHTML = `
     <div class="panel">
       <div class="quiz-session-header">
@@ -2034,39 +1908,7 @@ function renderQuizQuestionNew(){
       </div>
       ${questionHtml}
     </div>`;
-
   document.getElementById('quizExitBtn').addEventListener('click', backToQuizHome);
-  const hintBtn = document.getElementById('quizHintBtn');
-  const hintContent = document.getElementById('quizHintContent');
-  if (hintBtn) {
-    hintBtn.addEventListener('click', () => {
-      hintContent.classList.toggle('show');
-      hintBtn.innerHTML = hintContent.classList.contains('show') ? '🙈 مخفی کردن راهنما' : '💡 نمایش راهنما';
-    });
-  }
-
-  const flipDirBtn = document.getElementById('quizFlipDirBtn');
-  if (flipDirBtn) {
-    flipDirBtn.addEventListener('click', () => {
-      practiceDirection = practiceDirection === 'de-fa' ? 'fa-de' : 'de-fa';
-      updateDirectionLabel();
-      const w = q.word;
-      const allWords = getWords();
-      if (practiceDirection === 'de-fa') {
-        const others = allWords.filter(x => x.id !== w.id).map(x => x.fa).filter(Boolean);
-        q.correct = w.fa;
-        q.options = shuffle([w.fa, ...shuffle(others).slice(0, 3)]);
-        q.dir = 'de-fa';
-      } else {
-        const others = allWords.filter(x => x.id !== w.id).map(x => x.de).filter(Boolean);
-        q.correct = w.de;
-        q.options = shuffle([w.de, ...shuffle(others).slice(0, 3)]);
-        q.dir = 'fa-de';
-      }
-      renderQuizQuestionNew();
-    });
-  }
-
   if (q.type === 'typing') {
     const input = document.getElementById('quizTypingInput');
     const checkBtn = document.getElementById('quizCheckBtn');
@@ -2095,18 +1937,15 @@ function answerChoice(q, selected){
   const isCorrect = germanEquals(selected, q.correct);
   if (isCorrect) { quizState.correct++; reviewWord(q.word, 'good'); }
   else { quizState.wrong++; quizState.wrongWords.push(q.word); reviewWord(q.word, 'bad'); }
-
   document.querySelectorAll('[data-qopt]').forEach(btn => {
     btn.disabled = true;
     if (germanEquals(btn.dataset.qopt, q.correct)) btn.classList.add('correct');
     else if (btn.dataset.qopt === selected) btn.classList.add('wrong');
   });
-
   const fb = document.createElement('div');
   fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'wrong');
   fb.innerHTML = isCorrect ? '✅ آفرین! درست بود' : `❌ اشتباه — جواب درست: <strong>${esc(q.correct)}</strong>`;
   document.getElementById('quizSession').appendChild(fb);
-
   const next = document.createElement('button');
   next.className = 'btn btn-primary';
   next.style.cssText = 'margin-top:16px;width:100%;padding:12px;';
@@ -2124,23 +1963,20 @@ function checkTypingAnswer(q, input){
   input.disabled = true;
   if (isCorrect) { quizState.correct++; reviewWord(q.word, 'good'); input.classList.add('correct'); }
   else { quizState.wrong++; quizState.wrongWords.push(q.word); reviewWord(q.word, 'bad'); input.classList.add('wrong'); }
-
   const fb = document.createElement('div');
   fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'wrong');
   fb.innerHTML = isCorrect
-    ? `✅ آفرین! درست بود — <strong style="direction:ltr;">${esc(q.correct)}</strong>`
+    ? `✅ آفرین! — <strong style="direction:ltr;">${esc(q.correct)}</strong>`
     : `❌ اشتباه — جواب درست: <strong style="direction:ltr;">${esc(q.correct)}</strong>
        <div style="font-size:12px;opacity:0.8;margin-top:6px;">جواب تو: <span dir="ltr">${esc(userAnswer || '(خالی)')}</span></div>`;
   document.getElementById('quizSession').appendChild(fb);
   document.getElementById('quizCheckBtn').style.display = 'none';
-
   const next = document.createElement('button');
   next.className = 'btn btn-primary';
   next.style.cssText = 'margin-top:16px;width:100%;padding:12px;';
   next.textContent = 'سوال بعدی ➡️';
   next.addEventListener('click', () => { quizState.index++; renderQuizQuestionNew(); });
   document.getElementById('quizSession').appendChild(next);
-  setTimeout(() => next.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
 }
 
 function renderQuizReportNew(){
@@ -2151,21 +1987,26 @@ function renderQuizReportNew(){
   else if (pct >= 70) { badge = 'good'; badgeText = '👍 خیلی خوب!'; }
   else if (pct >= 50) { badge = 'average'; badgeText = '📚 خوب، ولی بیشتر تمرین کن'; }
   else { badge = 'weak'; badgeText = '💪 نیاز به تمرین بیشتر'; }
-
   if (!state.quizHistory) state.quizHistory = [];
   state.quizHistory.push({
     id: uid(), date: Date.now(),
     bookId: state.activeBookId, lessonId: state.activeLessonId,
     mode: quizState.mode, correct: quizState.correct, wrong: quizState.wrong,
-    total: total, pct: pct
+    total, pct
   });
   if (state.quizHistory.length > 100) state.quizHistory = state.quizHistory.slice(-100);
+  if (quizState.mode === 'article') {
+    if (!Array.isArray(state.articleHistory)) state.articleHistory = [];
+    state.articleHistory.push({
+      id: uid(), date: Date.now(), lessonId: state.activeLessonId,
+      correct: quizState.correct, total, pct
+    });
+    if (state.articleHistory.length > 50) state.articleHistory = state.articleHistory.slice(-50);
+  }
   save();
-
   document.getElementById('quizSession').classList.add('hidden');
   const report = document.getElementById('quizReport');
   report.classList.remove('hidden');
-
   report.innerHTML = `
     <div class="quiz-report-hero">
       <div class="quiz-report-badge ${badge}">${badgeText}</div>
@@ -2183,7 +2024,7 @@ function renderQuizReportNew(){
         <div class="quiz-failed-list">
           ${quizState.wrongWords.map(w => `
             <div class="quiz-failed-item">
-              <span class="de">${esc(w.de)}</span>
+              <span class="de">${w.art && w.art !== '–' ? esc(w.art) + ' ' : ''}${esc(w.de)}</span>
               <span class="fa">${esc(w.fa)}</span>
             </div>`).join('')}
         </div>
@@ -2195,7 +2036,6 @@ function renderQuizReportNew(){
       <button class="btn btn-primary btn-lg" id="quizBackBtn" style="width:100%;">🏠 بازگشت به منوی آزمون</button>
       ${quizState.wrongWords.length ? `<button class="btn btn-danger btn-lg" id="quizRetryWrongBtn" style="width:100%;">🔄 آزمون مجدد کلمات اشتباه</button>` : ''}
     </div>`;
-
   document.getElementById('quizBackBtn').addEventListener('click', backToQuizHome);
   const retryBtn = document.getElementById('quizRetryWrongBtn');
   if (retryBtn) {
@@ -2221,9 +2061,7 @@ function renderQuizReportNew(){
       renderQuizQuestionNew();
     });
   }
-
-  renderAll(); populateLessonTargets();
-  updateReviewBanner();
+  renderAll(); populateLessonTargets(); updateReviewBanner();
 }
 
 function backToQuizHome(){
@@ -2240,55 +2078,155 @@ function backToQuizHome(){
 }
 
 /* ============================================================
-   STORIES
+   GRAMMAR
    ============================================================ */
-function renderStories(){
+function renderGrammar(){
+  const cont = document.getElementById('grammarList');
+  if (!cont) return;
+  const grammar = getGrammar();
+  if (!grammar.length) {
+    cont.innerHTML = `<div class="empty">هنوز گرامری برای این درس ثبت نشده</div>`;
+    return;
+  }
+  cont.innerHTML = grammar.map(g => `
+    <div class="grammar-card">
+      <div class="grammar-card-header">
+        <span class="grammar-priority">${g.priority}</span>
+        <h4 class="grammar-title">${esc(g.title)}</h4>
+      </div>
+      <div class="grammar-explanation">${esc(g.explanation)}</div>
+      ${g.rules && g.rules.length ? `
+        <div class="grammar-section">
+          <div class="grammar-section-title">📌 قوانین</div>
+          <ul class="grammar-rules">${g.rules.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
+        </div>` : ''}
+      ${g.examples && g.examples.length ? `
+        <div class="grammar-section">
+          <div class="grammar-section-title">💬 مثال‌ها</div>
+          <div class="grammar-examples">
+            ${g.examples.map(ex => `
+              <div class="grammar-example">
+                ${renderSentenceWithAudio(ex.de, ex.fa, ex.audio || '', { className: 'grammar-ex' })}
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
+      ${g.commonMistakes && g.commonMistakes.length ? `
+        <div class="grammar-section">
+          <div class="grammar-section-title">⚠️ اشتباهات رایج</div>
+          <ul class="grammar-mistakes">${g.commonMistakes.map(m => `<li>${esc(m)}</li>`).join('')}</ul>
+        </div>` : ''}
+    </div>
+  `).join('');
+  wireClickableWords(cont);
+  wireSentenceAudio(cont);
+}
+
+/* ⬇️ ادامه در پیام ۳ (STORIES، LETTERS، DIALOGUES، AUDIO PLAYER کامل، WORD VIEW، WORD EDIT، STORY EDIT، IMPORT/EXPORT، TABS، MODALS، EVENTS، INIT) */
+/* ============================================================
+   STORIES / LETTERS / DIALOGUES
+   ============================================================ */
+function renderContentTabs(){
+  const cont = document.getElementById('contentTabs');
+  if (!cont) return;
   const stories = getStories();
-  const grid = document.getElementById('storyGrid');
+  const letters = getLetters();
+  const dialogues = getDialogues();
+  const counts = {
+    all: stories.length + letters.length + dialogues.length,
+    story: stories.length,
+    'letter-formal': letters.filter(l => l.type === 'letter-formal').length,
+    'letter-informal': letters.filter(l => l.type === 'letter-informal').length,
+    dialogue: dialogues.length
+  };
+  const tabs = [
+    { key: 'all', label: '📚 همه' },
+    { key: 'story', label: '📖 داستان' },
+    { key: 'letter-formal', label: '📧 نامه رسمی' },
+    { key: 'letter-informal', label: '💌 نامه غیررسمی' },
+    { key: 'dialogue', label: '💬 دیالوگ' }
+  ];
+  cont.innerHTML = tabs.filter(t => t.key === 'all' || counts[t.key] > 0).map(t => `
+    <button class="content-tab-btn ${currentContentType === t.key ? 'active' : ''}" data-content-type="${t.key}">
+      ${t.label} <span class="content-tab-count">${counts[t.key]}</span>
+    </button>
+  `).join('');
+  cont.querySelectorAll('[data-content-type]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentContentType = btn.dataset.contentType;
+      renderContentTabs();
+      renderContentGrid();
+    });
+  });
+}
+
+function renderContentGrid(){
+  const grid = document.getElementById('contentGrid');
   if (!grid) return;
-  if (!stories.length) { grid.innerHTML = '<div class="empty">هنوز داستانی نداری</div>'; return; }
-  grid.innerHTML = stories.map(s => {
-    const img = safeImageSrc(s.coverImage);
-    const color = safeCoverColor(s.coverColor);
+  const stories = getStories();
+  const letters = getLetters();
+  const dialogues = getDialogues();
+  let items = [];
+  const typeFilter = currentContentType;
+  if (typeFilter === 'all' || typeFilter === 'story') {
+    stories.forEach(s => items.push({ ...s, _kind: 'story' }));
+  }
+  if (typeFilter === 'all' || typeFilter === 'letter-formal' || typeFilter === 'letter-informal') {
+    letters.forEach(l => {
+      if (typeFilter === 'all' || l.type === typeFilter) items.push({ ...l, _kind: 'letter' });
+    });
+  }
+  if (typeFilter === 'all' || typeFilter === 'dialogue') {
+    dialogues.forEach(d => items.push({ ...d, _kind: 'dialogue' }));
+  }
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty">محتوایی در این دسته وجود ندارد</div>`;
+    return;
+  }
+  grid.innerHTML = items.map(item => {
+    const img = safeImageSrc(item.coverImage);
+    const color = safeCoverColor(item.coverColor);
+    let typeLabel = '';
+    let typeClass = '';
+    if (item._kind === 'story') { typeLabel = '📖 داستان'; typeClass = 'story'; }
+    else if (item._kind === 'letter' && item.type === 'letter-formal') { typeLabel = '📧 رسمی'; typeClass = 'formal'; }
+    else if (item._kind === 'letter') { typeLabel = '💌 غیررسمی'; typeClass = 'informal'; }
+    else if (item._kind === 'dialogue') { typeLabel = '💬 دیالوگ'; typeClass = 'dialogue'; }
     return `<div class="story-card-wrapper">
-      <button class="story-card" style="--cover-color:${color};width:100%;" data-story="${s.id}">
+      <button class="story-card type-${typeClass}" style="--cover-color:${color};width:100%;" data-content-id="${item.id}" data-content-kind="${item._kind}">
         ${img ? `<img src="${esc(img)}" alt="">` : ''}
-        <span class="title">${esc(s.title)}</span>
+        <span class="story-type-badge">${typeLabel}</span>
+        <span class="title">${esc(item.title)}</span>
       </button>
-      <button class="story-edit-btn" data-edit="${s.id}" title="ویرایش">✏️</button>
-      <button class="story-del-btn" data-del-story="${s.id}" title="حذف">✕</button>
+      <button class="story-edit-btn" data-edit="${item.id}" data-edit-kind="${item._kind}" title="ویرایش">✏️</button>
+      <button class="story-del-btn" data-del-story="${item.id}" data-del-kind="${item._kind}" title="حذف">✕</button>
     </div>`;
   }).join('');
-  grid.querySelectorAll('[data-story]').forEach(btn => {
-    btn.addEventListener('click', () => openStory(btn.dataset.story));
+  grid.querySelectorAll('[data-content-id]').forEach(btn => {
+    btn.addEventListener('click', () => openContent(btn.dataset.contentId, btn.dataset.contentKind));
   });
   grid.querySelectorAll('[data-del-story]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const s = getStories().find(x => x.id === btn.dataset.delStory);
-      if (!s || !confirm(`حذف «${s.title}»؟`)) return;
+      const kind = btn.dataset.delKind;
+      const id = btn.dataset.delStory;
+      if (!confirm('حذف این محتوا؟')) return;
       const l = getLesson();
-      l.stories = l.stories.filter(x => x.id !== s.id);
-      save(); renderStories(); populateLessonTargets(); toast('حذف شد', 'success');
+      if (kind === 'story') l.stories = (l.stories || []).filter(x => x.id !== id);
+      else if (kind === 'letter') l.letters = (l.letters || []).filter(x => x.id !== id);
+      else if (kind === 'dialogue') l.dialogues = (l.dialogues || []).filter(x => x.id !== id);
+      save(); renderContentTabs(); renderContentGrid(); populateLessonTargets();
+      toast('حذف شد', 'success');
     });
   });
   grid.querySelectorAll('[data-edit]').forEach(btn => {
-    btn.addEventListener('click', e => { e.stopPropagation(); loadStoryForEdit(btn.dataset.edit); });
+    btn.addEventListener('click', e => { e.stopPropagation(); loadContentForEdit(btn.dataset.edit, btn.dataset.editKind); });
   });
 }
-function highlightStoryWords(sentenceDe){
-  const parts = sentenceDe.split(/(\s+|[.,!?;:()"'\[\]{}–—\-]+)/);
-  return parts.map(part => {
-    if (!part || /^\s+$/.test(part) || /^[.,!?;:()"'\[\]{}–—\-]+$/.test(part)) return esc(part);
-    const clean = part.toLowerCase().replace(/[.,!?;:()"'\[\]{}–—]/g, '');
-    const found = getWords().find(w =>
-      w.de.toLowerCase() === clean ||
-      (w.art && w.de.toLowerCase() === w.art.toLowerCase()) ||
-      w.de.toLowerCase().startsWith(clean + ' ')
-    );
-    if (found) return `<span class="story-word" data-word-id="${found.id}">${esc(part)}</span>`;
-    return esc(part);
-  }).join('');
+
+function openContent(id, kind){
+  if (kind === 'story') openStory(id);
+  else if (kind === 'letter') openLetter(id);
+  else if (kind === 'dialogue') openDialogue(id);
 }
 
 function openStory(id){
@@ -2296,17 +2234,57 @@ function openStory(id){
   if (!s) return;
   currentStoryId = id;
   repeatCounter = 0;
-  const audio = toDirectAudioUrl(s.audio);
-  const coverImage = safeImageSrc(s.coverImage);
-  const coverColor = safeCoverColor(s.coverColor);
-  const stories = getStories();
-  const idx = stories.findIndex(x => x.id === id);
-  const hasPrev = idx > 0;
-  const hasNext = idx < stories.length - 1;
+  renderContentReader({
+    title: s.title, type: 'story', typeLabel: '📖 داستان',
+    audio: s.audio, coverImage: s.coverImage, coverColor: s.coverColor,
+    sentences: s.sentences, itemId: id
+  });
+}
 
-  document.getElementById('storyReaderModal').classList.add('active');
+function openLetter(id){
+  const l = getLetters().find(x => x.id === id);
+  if (!l) return;
+  currentStoryId = id;
+  repeatCounter = 0;
+  const sentences = [];
+  if (l.de) {
+    const deLines = l.de.split(/\r?\n/);
+    const faLines = (l.fa || '').split(/\r?\n/);
+    deLines.forEach((line, i) => {
+      if (line.trim() || (faLines[i] || '').trim()) {
+        sentences.push({ de: line.trim(), fa: (faLines[i] || '').trim() });
+      }
+    });
+  }
+  renderContentReader({
+    title: l.title, type: l.type,
+    typeLabel: l.type === 'letter-formal' ? '📧 نامه رسمی' : '💌 نامه غیررسمی',
+    audio: l.audio, coverImage: l.coverImage, coverColor: l.coverColor,
+    sentences, itemId: id, isLetter: true
+  });
+}
+
+function openDialogue(id){
+  const d = getDialogues().find(x => x.id === id);
+  if (!d) return;
+  currentStoryId = id;
+  repeatCounter = 0;
+  renderContentReader({
+    title: d.title, type: 'dialogue', typeLabel: '💬 دیالوگ',
+    audio: d.audio, coverImage: d.coverImage, coverColor: d.coverColor,
+    sentences: d.lines.map(l => ({ de: l.de, fa: l.fa, speaker: l.speaker, audio: l.audio || '' })),
+    itemId: id, isDialogue: true
+  });
+}
+
+function renderContentReader(data){
+  const modal = document.getElementById('storyReaderModal');
+  const body = document.getElementById('storyReaderBody');
+  modal.classList.add('active');
   document.body.classList.add('locked');
-
+  const audio = toDirectAudioUrl(data.audio);
+  const coverImage = safeImageSrc(data.coverImage);
+  const coverColor = safeCoverColor(data.coverColor);
   let playerClass = 'audio-player';
   let playerStyle = '';
   if (coverImage) {
@@ -2317,33 +2295,67 @@ function openStory(id){
     playerStyle = ` style="--player-cover-color:${coverColor}"`;
   }
 
-  let html = `<h2 class="story-reader-title">${esc(s.title)}</h2>`;
+  // تشخیص نوع محتوا برای ناوبری
+  let navItems = [];
+  let navKind = 'story';
+  if (data.type === 'story') { navItems = getStories(); navKind = 'story'; }
+  else if (data.type === 'letter-formal' || data.type === 'letter-informal') { navItems = getLetters(); navKind = 'letter'; }
+  else if (data.type === 'dialogue') { navItems = getDialogues(); navKind = 'dialogue'; }
 
-  if (stories.length > 1) {
+  const currentIdx = navItems.findIndex(x => x.id === data.itemId);
+  const hasPrev = currentIdx > 0;
+  const hasNext = currentIdx < navItems.length - 1;
+
+  let html = `<div class="content-reader-type-badge type-${data.type}">${data.typeLabel}</div>`;
+  html += `<h2 class="story-reader-title">${esc(data.title)}</h2>`;
+
+  // نوار ناوبری سریع بین محتواها
+  if (navItems.length > 1) {
     html += `<div class="story-quick-nav">`;
-    stories.forEach((st, i) => {
-      html += `<button class="story-quick-nav-btn ${st.id === id ? 'active' : ''}" data-jump-story="${st.id}">${i+1}. ${esc(st.title)}</button>`;
+    navItems.forEach((st, i) => {
+      html += `<button class="story-quick-nav-btn ${st.id === data.itemId ? 'active' : ''}" data-jump-story="${st.id}" data-jump-kind="${navKind}">${i+1}. ${esc(st.title)}</button>`;
     });
     html += `</div>`;
   }
 
   html += `<div class="story-reader-body-scroll" id="storyScrollBody">`;
-  (s.sentences || []).forEach((sent, i) => {
-    html += `<div class="story-sentence">
-      <div class="story-de">${i+1}. ${highlightStoryWords(sent.de)}</div>
-      <div class="story-fa">${esc(sent.fa)}</div>
-    </div>`;
-  });
+  if (data.isLetter) {
+    data.sentences.forEach(sent => {
+      if (!sent.de && !sent.fa) {
+        html += `<div class="letter-paragraph-break"></div>`;
+        return;
+      }
+      html += `<div class="story-sentence letter-line">`;
+      html += renderSentenceWithAudio(sent.de, sent.fa, sent.audio || '', { className: 'reader-sentence' });
+      html += `</div>`;
+    });
+  } else if (data.isDialogue) {
+    data.sentences.forEach(sent => {
+      const speakerClass = sent.speaker === 'A' ? 'speaker-a' : 'speaker-b';
+      html += `<div class="dialogue-line ${speakerClass}">`;
+      if (sent.speaker) html += `<span class="dialogue-speaker">${esc(sent.speaker)}</span>`;
+      html += renderSentenceWithAudio(sent.de, sent.fa, sent.audio || '', { className: 'dialogue-sentence' });
+      html += `</div>`;
+    });
+  } else {
+    data.sentences.forEach((sent, i) => {
+      html += `<div class="story-sentence">`;
+      html += `<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${i+1}</div>`;
+      html += renderSentenceWithAudio(sent.de, sent.fa, sent.audio || '', { className: 'reader-sentence' });
+      html += `</div>`;
+    });
+  }
   html += `</div>`;
 
   html += `<div class="story-toolbar">
     <button class="btn btn-sm" id="toggleFa">👁 نمایش/پنهان ترجمه</button>
   </div>`;
 
+  // 🎵 کارت صوتی کامل با همه دکمه‌ها
   if (audio) {
-    const downloadName = (s.title || 'audio').replace(/[\\/:*?"<>|]/g, '_') + '.mp3';
+    const downloadName = (data.title || 'audio').replace(/[\\/:*?"<>|]/g, '_') + '.mp3';
     html += `<div class="${playerClass}" data-audio-player${playerStyle}>
-      <div class="audio-player-label">🎧 ${esc(s.title)}</div>
+      <div class="audio-player-label">🎧 ${esc(data.title)}</div>
       <div class="audio-player-row">
         <button type="button" class="audio-nav-btn" data-prev-btn ${hasPrev ? '' : 'disabled'}>⏮</button>
         <button type="button" class="audio-play-btn" data-play-btn>▶</button>
@@ -2368,32 +2380,32 @@ function openStory(id){
     </div>`;
   }
 
-  document.getElementById('storyReaderBody').innerHTML = html;
+  body.innerHTML = html;
 
-  const scrollBody = document.getElementById('storyScrollBody');
-  if (scrollBody) scrollBody.scrollTop = 0;
-  const activeNav = document.querySelector('.story-quick-nav-btn.active');
+  // ناوبری سریع بین محتواها
+  body.querySelectorAll('[data-jump-story]').forEach(btn => {
+    btn.addEventListener('click', () => openContent(btn.dataset.jumpStory, btn.dataset.jumpKind));
+  });
+  const activeNav = body.querySelector('.story-quick-nav-btn.active');
   if (activeNav) {
     try { activeNav.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } catch(e) {}
   }
 
-  document.querySelectorAll('[data-jump-story]').forEach(btn => {
-    btn.addEventListener('click', () => openStory(btn.dataset.jumpStory));
-  });
-  document.querySelectorAll('.story-word').forEach(span => {
-    span.addEventListener('click', (e) => { e.stopPropagation(); openWordView(span.dataset.wordId); });
-  });
+  wireClickableWords(body);
+  wireSentenceAudio(body);
+
   const toggleBtn = document.getElementById('toggleFa');
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
-      document.querySelectorAll('.story-fa').forEach(el => el.classList.toggle('hidden'));
+      document.querySelectorAll('.sentence-fa').forEach(el => el.classList.toggle('hidden'));
     });
   }
+
   if (audio) {
     const playerEl = document.querySelector('[data-audio-player]');
     if (playerEl) {
       if (coverImage) {
-        const styleId = 'style_' + s.id.replace(/[^a-zA-Z0-9]/g, '');
+        const styleId = 'style_' + (data.itemId || 'x').replace(/[^a-zA-Z0-9]/g, '');
         const old = document.getElementById(styleId);
         if (old) old.remove();
         const st = document.createElement('style');
@@ -2406,34 +2418,9 @@ function openStory(id){
   }
 }
 
-function applyRepeatButtonState(btn){
-  if (!btn) return;
-  btn.classList.remove('repeat-1', 'repeat-2', 'auto-next', 'repeat-inf');
-  const oldBadge = btn.querySelector('.repeat-badge');
-  if (oldBadge) oldBadge.remove();
-  btn.textContent = '🔁';
-  if (repeatMode === 0) { btn.title = 'حالت تکرار: خاموش'; }
-  else if (repeatMode === 1) { btn.classList.add('repeat-1'); const b = document.createElement('span'); b.className = 'repeat-badge'; b.textContent = '1'; btn.appendChild(b); }
-  else if (repeatMode === 2) { btn.classList.add('repeat-2'); const b = document.createElement('span'); b.className = 'repeat-badge'; b.textContent = '2'; btn.appendChild(b); }
-  else if (repeatMode === 3) { btn.classList.add('auto-next'); const b = document.createElement('span'); b.className = 'repeat-badge'; b.textContent = 'A'; btn.appendChild(b); }
-  else if (repeatMode === 4) { btn.classList.add('repeat-inf'); const b = document.createElement('span'); b.className = 'repeat-badge'; b.textContent = '∞'; btn.appendChild(b); }
-}
-function goToAdjacentStory(direction, autoAdvance){
-  const stories = getStories();
-  if (!stories.length) return false;
-  let idx = -1;
-  for (let i = 0; i < stories.length; i++) {
-    if (String(stories[i].id) === String(currentStoryId)) { idx = i; break; }
-  }
-  if (idx === -1) return false;
-  let nextIdx = idx + direction;
-  if (nextIdx >= stories.length) { if (!autoAdvance) return false; nextIdx = 0; }
-  if (nextIdx < 0) { if (!autoAdvance) return false; nextIdx = stories.length - 1; }
-  currentStoryId = stories[nextIdx].id;
-  if (autoAdvance) repeatCounter = 0;
-  openStory(currentStoryId);
-  return true;
-}
+/* ============================================================
+   AUDIO PLAYER — نسخه کامل با prev/next/loop ۵ حالته
+   ============================================================ */
 function setupCustomAudioPlayer(root){
   const audioEl = root.querySelector('[data-audio]');
   const playBtn = root.querySelector('[data-play-btn]');
@@ -2450,6 +2437,7 @@ function setupCustomAudioPlayer(root){
   let isSeeking = false;
   const speeds = [1, 1.25, 1.5, 0.75, 0.5];
   let speedIdx = 0;
+
   function updatePlayState(){
     if (audioEl.paused) { playBtn.textContent = '▶'; playBtn.classList.remove('playing'); }
     else { playBtn.textContent = '❚❚'; playBtn.classList.add('playing'); }
@@ -2465,36 +2453,66 @@ function setupCustomAudioPlayer(root){
     if (repeatMode === 0) return;
     if (repeatMode === 4) { audioEl.currentTime = 0; audioEl.play().catch(()=>{}); return; }
     if (repeatMode === 1 || repeatMode === 2) {
-      const maxRepeat = repeatMode;
-      if (repeatCounter < maxRepeat) { repeatCounter++; audioEl.currentTime = 0; audioEl.play().catch(()=>{}); return; }
-      else { repeatCounter = 0; goToAdjacentStory(1, true); return; }
+      if (repeatCounter < repeatMode) {
+        repeatCounter++;
+        audioEl.currentTime = 0;
+        audioEl.play().catch(()=>{});
+        return;
+      } else {
+        repeatCounter = 0;
+        goToAdjacentStory(1, true);
+        return;
+      }
     }
     if (repeatMode === 3) { goToAdjacentStory(1, true); return; }
   });
-  audioEl.addEventListener('loadedmetadata', () => { durationEl.textContent = fmtTime(audioEl.duration); progress.max = audioEl.duration || 0; });
+  audioEl.addEventListener('loadedmetadata', () => {
+    durationEl.textContent = fmtTime(audioEl.duration);
+    progress.max = audioEl.duration || 0;
+  });
   audioEl.addEventListener('timeupdate', () => {
     if (!isSeeking) progress.value = audioEl.currentTime || 0;
     currentEl.textContent = fmtTime(audioEl.currentTime);
   });
   progress.addEventListener('input', () => { isSeeking = true; currentEl.textContent = fmtTime(parseFloat(progress.value) || 0); });
   progress.addEventListener('change', () => { audioEl.currentTime = parseFloat(progress.value) || 0; isSeeking = false; });
-  volume.addEventListener('input', () => { const v = parseInt(volume.value, 10) / 100; audioEl.volume = v; updateVolIcon(v); });
-  function updateVolIcon(v){
-    if (v === 0) volIcon.textContent = '🔇';
-    else if (v < 0.5) volIcon.textContent = '🔉';
-    else volIcon.textContent = '🔊';
+  if (volume) {
+    volume.addEventListener('input', () => {
+      const v = parseInt(volume.value, 10) / 100;
+      audioEl.volume = v;
+      if (volIcon) {
+        if (v === 0) volIcon.textContent = '🔇';
+        else if (v < 0.5) volIcon.textContent = '🔉';
+        else volIcon.textContent = '🔊';
+      }
+    });
   }
-  volIcon.addEventListener('click', () => {
-    if (audioEl.volume > 0) { audioEl.dataset.prevVol = audioEl.volume; audioEl.volume = 0; volume.value = 0; }
-    else { const prev = parseFloat(audioEl.dataset.prevVol) || 1; audioEl.volume = prev; volume.value = Math.round(prev * 100); }
-    updateVolIcon(audioEl.volume);
-  });
-  speedBtn.addEventListener('click', () => {
-    speedIdx = (speedIdx + 1) % speeds.length;
-    const s = speeds[speedIdx];
-    audioEl.playbackRate = s;
-    speedBtn.textContent = s + '×';
-  });
+  if (volIcon) {
+    volIcon.addEventListener('click', () => {
+      if (audioEl.volume > 0) {
+        audioEl.dataset.prevVol = audioEl.volume;
+        audioEl.volume = 0;
+        if (volume) volume.value = 0;
+      } else {
+        const prev = parseFloat(audioEl.dataset.prevVol) || 1;
+        audioEl.volume = prev;
+        if (volume) volume.value = Math.round(prev * 100);
+      }
+      if (volIcon) {
+        if (audioEl.volume === 0) volIcon.textContent = '🔇';
+        else if (audioEl.volume < 0.5) volIcon.textContent = '🔉';
+        else volIcon.textContent = '🔊';
+      }
+    });
+  }
+  if (speedBtn) {
+    speedBtn.addEventListener('click', () => {
+      speedIdx = (speedIdx + 1) % speeds.length;
+      const s = speeds[speedIdx];
+      audioEl.playbackRate = s;
+      speedBtn.textContent = s + '×';
+    });
+  }
   if (prevBtn) prevBtn.addEventListener('click', () => goToAdjacentStory(-1, false));
   if (nextBtn) nextBtn.addEventListener('click', () => goToAdjacentStory(1, false));
   if (loopBtn) {
@@ -2507,312 +2525,489 @@ function setupCustomAudioPlayer(root){
   }
   audioEl.volume = 1;
 }
-function loadStoryForEdit(id){
+
+function applyRepeatButtonState(btn){
+  if (!btn) return;
+  btn.classList.remove('repeat-1', 'repeat-2', 'auto-next', 'repeat-inf');
+  const oldBadge = btn.querySelector('.repeat-badge');
+  if (oldBadge) oldBadge.remove();
+  btn.textContent = '🔁';
+  if (repeatMode === 0) { btn.title = 'حالت تکرار: خاموش'; }
+  else if (repeatMode === 1) { btn.classList.add('repeat-1'); const b = document.createElement('span'); b.className = 'repeat-badge'; b.textContent = '1'; btn.appendChild(b); btn.title = 'تکرار ۱ بار'; }
+  else if (repeatMode === 2) { btn.classList.add('repeat-2'); const b = document.createElement('span'); b.className = 'repeat-badge'; b.textContent = '2'; btn.appendChild(b); btn.title = 'تکرار ۲ بار'; }
+  else if (repeatMode === 3) { btn.classList.add('auto-next'); const b = document.createElement('span'); b.className = 'repeat-badge'; b.textContent = 'A'; btn.appendChild(b); btn.title = 'خودکار بعدی'; }
+  else if (repeatMode === 4) { btn.classList.add('repeat-inf'); const b = document.createElement('span'); b.className = 'repeat-badge'; b.textContent = '∞'; btn.appendChild(b); btn.title = 'تکرار بی‌نهایت'; }
+}
+
+function goToAdjacentStory(direction, autoAdvance){
+  const stories = getStories();
+  const letters = getLetters();
+  const dialogues = getDialogues();
+  let list = [];
+  let kind = 'story';
+  if (stories.find(s => s.id === currentStoryId)) { list = stories; kind = 'story'; }
+  else if (letters.find(l => l.id === currentStoryId)) { list = letters; kind = 'letter'; }
+  else if (dialogues.find(d => d.id === currentStoryId)) { list = dialogues; kind = 'dialogue'; }
+  if (!list.length) return false;
+  let idx = list.findIndex(s => s.id === currentStoryId);
+  if (idx === -1) return false;
+  let nextIdx = idx + direction;
+  if (nextIdx >= list.length) {
+    if (!autoAdvance) return false;
+    nextIdx = 0;
+  }
+  if (nextIdx < 0) {
+    if (!autoAdvance) return false;
+    nextIdx = list.length - 1;
+  }
+  currentStoryId = list[nextIdx].id;
+  if (autoAdvance) repeatCounter = 0;
+  if (stories.find(s => s.id === currentStoryId)) openStory(currentStoryId);
+  else if (letters.find(l => l.id === currentStoryId)) openLetter(currentStoryId);
+  else if (dialogues.find(d => d.id === currentStoryId)) openDialogue(currentStoryId);
+  return true;
+}
+
+/* ============================================================
+   WORD VIEW
+   ============================================================ */
+function openWordView(wordId){
+  const word = getWords().find(w => w.id === wordId);
+  if (!word) { toast('کلمه پیدا نشد', 'error'); return; }
+  const modal = document.getElementById('wordViewModal');
+  const content = document.getElementById('wordViewContent');
+  const notes = word.notes || [];
+  const st = normalizeStatus(word);
+  const srs = ensureSrs(word);
+  const statusLabels = { new: 'جدید ⚪', learning: 'در یادگیری 🟡', good: 'مسلط 🟢', bad: 'بلد نیستم ❌' };
+  const wt = getWordType(word);
+  const forms = word.forms || {};
+  const synonyms = word.synonyms || [];
+  const related = word.related || [];
+  const collocations = word.collocations || [];
+  const commonMistakes = word.commonMistakes || [];
+  const contextExamples = word.contextExamples || [];
+  const formLabels = { present: 'حال', past: 'گذشته', perfect: 'ماضی نقلی', future: 'آینده', imperative: 'امری', participle: 'اسم مفعول' };
+  const allExamples = buildExamplesForCard(word);
+
+  let html = `
+    <button class="word-view-close" id="wvClose">✕</button>
+    <button class="word-view-edit-btn" id="wvEdit">✏️ ادیت</button>
+    <button class="word-view-delete-btn" id="wvDelete">🗑 حذف</button>
+    <div class="word-view-header">
+      ${word.art && word.art !== '–' ? `<span class="word-view-art ${articleClass(word.art)}">${esc(word.art)}</span>` : ''}
+      <span class="word-view-de">${esc(word.de)}</span>
+      ${word.plural && word.plural !== '–' ? `<span class="word-view-plural">جمع: ${esc(word.plural)}</span>` : ''}
+    </div>
+    ${word.ipa ? `<div class="word-view-ipa">🔊 ${esc(word.ipa)}</div>` : ''}
+    <div class="word-view-fa">${esc(word.fa)}</div>
+    <div class="word-view-actions-row">
+      <span class="word-type-badge ${wt.type}">${wt.icon} ${wt.label}</span>
+      <button class="btn btn-sm btn-primary" id="wvSpeak">🔊 تلفظ</button>
+      <span class="btn btn-sm" style="background:${st === 'good' ? 'var(--accent)' : st === 'learning' ? 'var(--warning)' : st === 'bad' ? 'var(--danger)' : 'var(--bg-3)'};color:#fff;cursor:default;">${statusLabels[st] || st}</span>
+      <span class="btn btn-sm" style="background:var(--bg-3);cursor:default;">📦 جعبه ${srs.box}</span>
+    </div>
+  `;
+  if (allExamples.length) {
+    html += `<div class="word-view-section" style="border-right-color:var(--warning);">
+      <h4>📚 جملات نمونه (${allExamples.length})</h4>
+      <div class="extra-examples-list">
+        ${allExamples.map(ex => {
+          const sourceBadge = ex.source === 'auto'
+            ? `<span class="ex-source-badge auto">🤖 خودکار</span>`
+            : ex.source === 'context'
+            ? `<span class="ex-source-badge context">🎯 بافت</span>`
+            : '';
+          return `<div class="extra-example-item ${ex.source === 'main' ? 'main-example' : ''}">
+            ${sourceBadge}
+            ${renderSentenceWithAudio(ex.de, ex.fa, ex.audio, { className: 'wv-example' })}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+  const formsKeys = Object.keys(forms).filter(k => forms[k] && String(forms[k]).trim());
+  if (formsKeys.length) {
+    html += `<div class="word-view-section"><h4>🔤 صرف فعل</h4><div class="conjugation-grid">`;
+    formsKeys.forEach(key => {
+      html += `<div class="conj-row"><span class="conj-label">${esc(formLabels[key] || key)}</span><span class="conj-value">${esc(forms[key])}</span></div>`;
+    });
+    html += `</div></div>`;
+  }
+  if (collocations.length) {
+    html += `<div class="word-view-section" style="border-right-color:var(--info);">
+      <h4>🔗 ترکیب‌های رایج</h4>
+      <div class="chips-list">${collocations.map(c => `<span class="chip collocation">${esc(c.de || c)}${c.fa ? ' — ' + esc(c.fa) : ''}</span>`).join('')}</div>
+    </div>`;
+  }
+  if (synonyms.length) {
+    html += `<div class="word-view-section" style="border-right-color:var(--accent);">
+      <h4>🔗 مترادف‌ها</h4>
+      <div class="chips-list">${synonyms.map(s => `<span class="chip synonym">${esc(s)}</span>`).join('')}</div>
+    </div>`;
+  }
+  if (related.length) {
+    html += `<div class="word-view-section" style="border-right-color:var(--purple);">
+      <h4>📎 کلمات مرتبط</h4>
+      <div class="chips-list">${related.map(s => `<span class="chip related">${esc(s)}</span>`).join('')}</div>
+    </div>`;
+  }
+  if (contextExamples.length) {
+    html += `<div class="word-view-section" style="border-right-color:var(--info);">
+      <h4>🎯 جملات در بافت (${contextExamples.length})</h4>
+      <div class="extra-examples-list">
+        ${contextExamples.map(ex => {
+          const typeLabel = ex.type === 'question' ? '❓ سؤالی' : ex.type === 'negative' ? '🚫 منفی' : ex.type === 'past' ? '⏪ گذشته' : '';
+          return `<div class="extra-example-item">
+            ${typeLabel ? `<div class="context-type">${typeLabel}</div>` : ''}
+            ${renderSentenceWithAudio(ex.de || '', ex.fa || '', ex.audio || '', { className: 'wv-example' })}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+  if (word.note) {
+    html += `<div class="word-view-section" style="border-right-color:var(--info);">
+      <h4>📝 یادداشت</h4>
+      <div style="font-size:14px;line-height:1.7;color:var(--text);">${esc(word.note)}</div>
+    </div>`;
+  }
+  if (notes.length) {
+    html += `<div class="word-view-section" style="border-right-color:var(--warning);">
+      <h4>💡 نکات (${notes.length})</h4>
+      <div class="notes-inline-list">${notes.map(n => `<div class="note-inline-item">${esc(n)}</div>`).join('')}</div>
+    </div>`;
+  }
+  if (commonMistakes.length) {
+    html += `<div class="word-view-section" style="border-right-color:var(--danger);">
+      <h4>⚠️ اشتباهات رایج</h4>
+      <div class="notes-inline-list">${commonMistakes.map(m => `<div class="note-inline-item" style="border-right-color:var(--danger);">${esc(m)}</div>`).join('')}</div>
+    </div>`;
+  }
+  content.innerHTML = html;
+  modal.classList.add('active');
+  document.body.classList.add('locked');
+
+  document.getElementById('wvClose').addEventListener('click', () => {
+    modal.classList.remove('active');
+    document.body.classList.remove('locked');
+  });
+  document.getElementById('wvEdit').addEventListener('click', () => {
+    modal.classList.remove('active');
+    document.body.classList.remove('locked');
+    openWordEdit(word.id);
+  });
+  document.getElementById('wvDelete').addEventListener('click', () => {
+    if (!confirm(`حذف «${word.de}»؟`)) return;
+    const l = getLesson();
+    l.words = l.words.filter(x => x.id !== word.id);
+    save();
+    modal.classList.remove('active');
+    document.body.classList.remove('locked');
+    renderAll(); populateLessonTargets();
+    toast('حذف شد', 'success');
+  });
+  document.getElementById('wvSpeak').addEventListener('click', () => speakTTS(word.de));
+  wireClickableWords(content);
+  wireSentenceAudio(content);
+  modal.addEventListener('click', e => {
+    if (e.target === modal) { modal.classList.remove('active'); document.body.classList.remove('locked'); }
+  }, { once: true });
+  if (autoPlayWord) setTimeout(() => speakTTS(word.de), 200);
+}
+
+/* ============================================================
+   WORD EDIT
+   ============================================================ */
+function openWordEdit(wordId){
+  const word = getWords().find(w => w.id === wordId);
+  if (!word) { toast('کلمه پیدا نشد', 'error'); return; }
+  const modal = document.getElementById('wordEditModal');
+  const content = document.getElementById('wordEditContent');
+  const forms = word.forms || {};
+  const formLabels = { present: 'حال', past: 'گذشته', perfect: 'ماضی نقلی', future: 'آینده', imperative: 'امری', participle: 'اسم مفعول' };
+  const synonyms = (word.synonyms || []).join(', ');
+  const related = (word.related || []).join(', ');
+  const notes = (word.notes || []).join('\n');
+  const collocations = (word.collocations || []).map(c => (c.de || c) + (c.fa ? ' | ' + c.fa : '')).join('\n');
+  const extraExamples = (word.extraExamples || []).map(ex => {
+    const de = typeof ex === 'string' ? ex : ex.de;
+    const fa = typeof ex === 'string' ? '' : ex.fa;
+    return de + ' | ' + fa;
+  }).join('\n');
+  let html = `
+    <div class="word-edit-header"><h3>✏️ ویرایش کامل لغت</h3><button class="word-edit-close" id="weClose">✕</button></div>
+    <div class="word-edit-form-group">
+      <h4>📝 اطلاعات اصلی</h4>
+      <div class="word-edit-row">
+        <div class="word-edit-field"><label>کلمه آلمانی *</label><input id="weDe" value="${esc(word.de || '')}" dir="ltr"></div>
+        <div class="word-edit-field"><label>نوع کلمه</label>
+          <select id="weArt">
+            <option value="–" ${word.art === '–' ? 'selected' : ''}>–</option>
+            <option value="der" ${word.art === 'der' ? 'selected' : ''}>der</option>
+            <option value="die" ${word.art === 'die' ? 'selected' : ''}>die</option>
+            <option value="das" ${word.art === 'das' ? 'selected' : ''}>das</option>
+            <option value="Verb" ${word.art === 'Verb' ? 'selected' : ''}>Verb</option>
+            <option value="Adj" ${word.art === 'Adj' ? 'selected' : ''}>Adj</option>
+            <option value="Adv" ${word.art === 'Adv' ? 'selected' : ''}>Adv</option>
+          </select>
+        </div>
+      </div>
+      <div class="word-edit-row">
+        <div class="word-edit-field"><label>جمع</label><input id="wePlural" value="${esc(word.plural || '')}" dir="ltr"></div>
+        <div class="word-edit-field"><label>ترجمه فارسی *</label><input id="weFa" value="${esc(word.fa || '')}"></div>
+      </div>
+      <div class="word-edit-row">
+        <div class="word-edit-field"><label>IPA</label><input id="weIpa" value="${esc(word.ipa || '')}" dir="ltr"></div>
+        <div class="word-edit-field"><label>سطح</label><input id="weDifficulty" value="${esc(word.difficulty || '')}" dir="ltr"></div>
+      </div>
+    </div>
+    <div class="word-edit-form-group">
+      <h4>📌 جمله مثال</h4>
+      <div class="word-edit-field"><label>جمله آلمانی</label><input id="weEx" value="${esc(word.ex || '')}" dir="ltr"></div>
+      <div class="word-edit-field"><label>ترجمه جمله</label><input id="weExMean" value="${esc(word.exMean || '')}"></div>
+      <div class="word-edit-field"><label>🎵 لینک صوتی جمله</label><input id="weExAudio" value="${esc(word.exAudio || '')}" dir="ltr"></div>
+    </div>
+    <div class="word-edit-form-group">
+      <h4>🔤 صرف فعل</h4>
+      ${Object.keys(formLabels).map(key => `<div class="word-edit-field"><label>${formLabels[key]}</label><input id="weForm_${key}" value="${esc(forms[key] || '')}" dir="ltr"></div>`).join('')}
+    </div>
+    <div class="word-edit-form-group"><h4>🔗 مترادف‌ها (با کاما)</h4><div class="word-edit-field"><input id="weSynonyms" value="${esc(synonyms)}" dir="ltr"></div></div>
+    <div class="word-edit-form-group"><h4>📎 کلمات مرتبط (با کاما)</h4><div class="word-edit-field"><input id="weRelated" value="${esc(related)}" dir="ltr"></div></div>
+    <div class="word-edit-form-group"><h4>🎯 ترکیب‌های رایج (هر خط: آلمانی | فارسی)</h4><div class="word-edit-field"><textarea id="weCollocations" dir="ltr">${esc(collocations)}</textarea></div></div>
+    <div class="word-edit-form-group"><h4>📚 جملات بیشتر (هر خط: آلمانی | فارسی)</h4><div class="word-edit-field"><textarea id="weExtraExamples" dir="ltr">${esc(extraExamples)}</textarea></div></div>
+    <div class="word-edit-form-group"><h4>📝 یادداشت</h4><div class="word-edit-field"><textarea id="weNote">${esc(word.note || '')}</textarea></div></div>
+    <div class="word-edit-form-group"><h4>💡 نکات (هر خط یک نکته)</h4><div class="word-edit-field"><textarea id="weNotes">${esc(notes)}</textarea></div></div>
+    <div class="word-edit-actions">
+      <button class="btn btn-primary" id="weSave">💾 ذخیره</button>
+      <button class="btn" id="weCancel">لغو</button>
+    </div>
+  `;
+  content.innerHTML = html;
+  modal.classList.add('active');
+  document.body.classList.add('locked');
+  const close = () => { modal.classList.remove('active'); document.body.classList.remove('locked'); };
+  document.getElementById('weClose').addEventListener('click', close);
+  document.getElementById('weCancel').addEventListener('click', close);
+  document.getElementById('weSave').addEventListener('click', () => {
+    const de = document.getElementById('weDe').value.trim();
+    const fa = document.getElementById('weFa').value.trim();
+    if (!de || !fa) { toast('کلمه و ترجمه لازمه', 'error'); return; }
+    word.de = de;
+    word.art = document.getElementById('weArt').value;
+    word.plural = document.getElementById('wePlural').value.trim() || '–';
+    word.fa = fa;
+    word.ipa = document.getElementById('weIpa').value.trim();
+    word.difficulty = document.getElementById('weDifficulty').value.trim();
+    word.ex = document.getElementById('weEx').value.trim();
+    word.exMean = document.getElementById('weExMean').value.trim();
+    word.exAudio = document.getElementById('weExAudio').value.trim();
+    word.forms = {};
+    Object.keys(formLabels).forEach(key => {
+      const val = document.getElementById('weForm_' + key).value.trim();
+      if (val) word.forms[key] = val;
+    });
+    word.synonyms = document.getElementById('weSynonyms').value.split(',').map(s => s.trim()).filter(Boolean);
+    word.related = document.getElementById('weRelated').value.split(',').map(s => s.trim()).filter(Boolean);
+    const collocLines = document.getElementById('weCollocations').value.split(/\r?\n/);
+    const collocs = [];
+    collocLines.forEach(line => {
+      if (!line.trim()) return;
+      const sep = line.indexOf('|');
+      if (sep < 1) { collocs.push({ de: line.trim(), fa: '' }); return; }
+      collocs.push({ de: line.slice(0, sep).trim(), fa: line.slice(sep + 1).trim() });
+    });
+    word.collocations = collocs;
+    const extraLines = document.getElementById('weExtraExamples').value.split(/\r?\n/);
+    const extra = [];
+    extraLines.forEach(line => {
+      if (!line.trim()) return;
+      const sep = line.indexOf('|');
+      if (sep < 1) return;
+      extra.push({ de: line.slice(0, sep).trim(), fa: line.slice(sep + 1).trim() });
+    });
+    word.extraExamples = extra;
+    word.note = document.getElementById('weNote').value.trim();
+    word.notes = document.getElementById('weNotes').value.split(/\r?\n/).map(n => n.trim()).filter(Boolean);
+    save();
+    close();
+    renderAll(); populateLessonTargets();
+    toast('✅ تغییرات ذخیره شد', 'success');
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) close(); }, { once: true });
+}
+
+/* ============================================================
+   STORY/CONTENT EDIT — load & save
+   ============================================================ */
+function loadContentForEdit(id, kind){
   const book = getBook();
   if (!book) return;
-  let foundStory = null;
+  let found = null;
   let foundLesson = null;
   for (const l of book.lessons) {
-    const s = (l.stories || []).find(x => x.id === id);
-    if (s) { foundStory = s; foundLesson = l; break; }
+    if (kind === 'story') {
+      const s = (l.stories || []).find(x => x.id === id);
+      if (s) { found = s; foundLesson = l; break; }
+    } else if (kind === 'letter') {
+      const s = (l.letters || []).find(x => x.id === id);
+      if (s) { found = s; foundLesson = l; break; }
+    } else if (kind === 'dialogue') {
+      const s = (l.dialogues || []).find(x => x.id === id);
+      if (s) { found = s; foundLesson = l; break; }
+    }
   }
-  if (!foundStory) { toast('داستان پیدا نشد', 'error'); return; }
-
+  if (!found) { toast('محتوا پیدا نشد', 'error'); return; }
   storyEditId = id;
+  storyEditId_kind = kind;
   if (foundLesson && state.activeLessonId !== foundLesson.id) {
     state.activeLessonId = foundLesson.id;
     save();
     renderAll();
   }
-
-  document.getElementById('storyTitleInput').value = foundStory.title || '';
-  document.getElementById('storyAudioInput').value = foundStory.audio || '';
-  document.getElementById('storyCoverInput').value = foundStory.coverImage || '';
-  document.getElementById('storyColorInput').value = safeCoverColor(foundStory.coverColor);
-  document.getElementById('storySentencesInput').value = (foundStory.sentences || []).map(x => x.de + ' | ' + x.fa).join('\n');
-
+  const typeSel = document.getElementById('contentTypeSelect');
+  if (kind === 'story') typeSel.value = 'story';
+  else if (kind === 'letter') typeSel.value = found.type === 'letter-formal' ? 'letter-formal' : 'letter-informal';
+  else if (kind === 'dialogue') typeSel.value = 'dialogue';
+  document.getElementById('storyTitleInput').value = found.title || '';
+  document.getElementById('storyAudioInput').value = found.audio || '';
+  document.getElementById('storyCoverInput').value = found.coverImage || '';
+  document.getElementById('storyColorInput').value = safeCoverColor(found.coverColor);
+  if (kind === 'letter') {
+    const deLines = (found.de || '').split(/\r?\n/);
+    const faLines = (found.fa || '').split(/\r?\n/);
+    const lines = [];
+    const max = Math.max(deLines.length, faLines.length);
+    for (let i = 0; i < max; i++) {
+      const de = (deLines[i] || '').trim();
+      const fa = (faLines[i] || '').trim();
+      if (de || fa) lines.push(de + ' | ' + fa);
+    }
+    document.getElementById('storySentencesInput').value = lines.join('\n');
+  } else if (kind === 'dialogue') {
+    document.getElementById('storySentencesInput').value = (found.lines || []).map(l => l.de + ' | ' + l.fa).join('\n');
+  } else {
+    document.getElementById('storySentencesInput').value = (found.sentences || []).map(x => x.de + ' | ' + x.fa).join('\n');
+  }
   switchTab('manage-story');
   setTimeout(() => {
     const tsel = document.getElementById('storyTargetLesson');
     if (tsel) tsel.value = foundLesson.id;
-    const cb = document.getElementById('cancelStoryEditBtn');
-    if (cb) cb.style.display = 'inline-block';
+    document.getElementById('cancelStoryEditBtn').style.display = 'inline-block';
     document.getElementById('storyTitleInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 100);
 }
+
 function saveStory(){
   const title = document.getElementById('storyTitleInput').value.trim();
   if (!title) { toast('عنوان لازمه', 'error'); return; }
   const targetId = document.getElementById('storyTargetLesson').value;
   const target = getLessonById(targetId);
   if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
+  const contentType = document.getElementById('contentTypeSelect').value;
   const audio = document.getElementById('storyAudioInput').value.trim();
   const cover = document.getElementById('storyCoverInput').value.trim();
   const color = safeCoverColor(document.getElementById('storyColorInput').value);
   const lines = document.getElementById('storySentencesInput').value.split(/\r?\n/);
-  const sentences = [];
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const sep = line.indexOf('|');
-    if (sep < 1) { toast('فرمت: «آلمانی | فارسی»', 'error'); return; }
-    const de = line.slice(0, sep).trim();
-    const fa = line.slice(sep + 1).trim();
-    if (!de || !fa) { toast('فرمت خط اشتباه', 'error'); return; }
-    sentences.push({ de, fa });
-  }
-  if (!sentences.length) { toast('حداقل یک جمله لازمه', 'error'); return; }
-
   let isEdit = false;
+  let found = null;
+  let foundLesson = null;
   if (storyEditId) {
     const book = getBook();
-    let foundStory = null;
     if (book) {
       for (const l of book.lessons) {
-        const s = (l.stories || []).find(x => x.id === storyEditId);
-        if (s) { foundStory = s; break; }
+        if (storyEditId_kind === 'story') {
+          const s = (l.stories || []).find(x => x.id === storyEditId);
+          if (s) { found = s; foundLesson = l; break; }
+        } else if (storyEditId_kind === 'letter') {
+          const s = (l.letters || []).find(x => x.id === storyEditId);
+          if (s) { found = s; foundLesson = l; break; }
+        } else if (storyEditId_kind === 'dialogue') {
+          const s = (l.dialogues || []).find(x => x.id === storyEditId);
+          if (s) { found = s; foundLesson = l; break; }
+        }
       }
     }
-    if (foundStory) {
-      foundStory.title = title;
-      foundStory.audio = audio;
-      foundStory.coverImage = cover;
-      foundStory.coverColor = color;
-      foundStory.sentences = sentences;
-      isEdit = true;
+    if (found) isEdit = true;
+  }
+  if (contentType === 'story') {
+    const sentences = [];
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const sep = line.indexOf('|');
+      if (sep < 1) { toast('فرمت: «آلمانی | فارسی»', 'error'); return; }
+      const de = line.slice(0, sep).trim();
+      const fa = line.slice(sep + 1).trim();
+      if (!de) continue;
+      sentences.push({ de, fa });
+    }
+    if (!sentences.length) { toast('حداقل یک جمله لازمه', 'error'); return; }
+    if (isEdit && foundLesson) {
+      found.title = title; found.type = 'story';
+      found.audio = audio; found.coverImage = cover; found.coverColor = color;
+      found.sentences = sentences;
+    } else {
+      if (!Array.isArray(target.stories)) target.stories = [];
+      target.stories.push({ id: uid(), title, type: 'story', audio, coverImage: cover, coverColor: color, sentences });
+    }
+  } else if (contentType === 'letter-formal' || contentType === 'letter-informal') {
+    const deLines = [];
+    const faLines = [];
+    for (const line of lines) {
+      const sep = line.indexOf('|');
+      if (sep < 1) { deLines.push(line); faLines.push(''); }
+      else { deLines.push(line.slice(0, sep).trim()); faLines.push(line.slice(sep + 1).trim()); }
+    }
+    if (!deLines.length) { toast('حداقل یک خط لازمه', 'error'); return; }
+    if (isEdit && foundLesson) {
+      found.title = title; found.type = contentType;
+      found.audio = audio; found.coverImage = cover; found.coverColor = color;
+      found.de = deLines.join('\n'); found.fa = faLines.join('\n');
+    } else {
+      if (!Array.isArray(target.letters)) target.letters = [];
+      target.letters.push({ id: uid(), title, type: contentType, audio, coverImage: cover, coverColor: color, de: deLines.join('\n'), fa: faLines.join('\n') });
+    }
+  } else if (contentType === 'dialogue') {
+    const dialogueLines = [];
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const sep = line.indexOf('|');
+      if (sep < 1) { toast('فرمت: «آلمانی | فارسی»', 'error'); return; }
+      const de = line.slice(0, sep).trim();
+      const fa = line.slice(sep + 1).trim();
+      if (!de) continue;
+      dialogueLines.push({ speaker: '', de, fa });
+    }
+    if (!dialogueLines.length) { toast('حداقل یک خط لازمه', 'error'); return; }
+    if (isEdit && foundLesson) {
+      found.title = title;
+      found.audio = audio; found.coverImage = cover; found.coverColor = color;
+      found.lines = dialogueLines;
+    } else {
+      if (!Array.isArray(target.dialogues)) target.dialogues = [];
+      target.dialogues.push({ id: uid(), title, type: 'dialogue', audio, coverImage: cover, coverColor: color, lines: dialogueLines });
     }
   }
-  if (!isEdit) {
-    if (!Array.isArray(target.stories)) target.stories = [];
-    target.stories.push({ id: uid(), title, audio, coverImage: cover, coverColor: color, sentences });
-  }
-
   save();
   resetStoryForm();
   renderAll(); populateLessonTargets();
-  document.getElementById('storyTitleInput').value = '';
-  document.getElementById('storyAudioInput').value = '';
-  document.getElementById('storyCoverInput').value = '';
-  document.getElementById('storyColorInput').value = '#6366f1';
-  document.getElementById('storySentencesInput').value = '';
-  toast(isEdit ? `✅ داستان «${title}» ویرایش شد` : `✅ داستان «${title}» به «${target.title}» اضافه شد`, 'success');
+  toast(isEdit ? `✅ ویرایش شد` : `✅ اضافه شد`, 'success');
 }
+
 function resetStoryForm(){
   storyEditId = null;
+  storyEditId_kind = null;
   document.getElementById('storyTitleInput').value = '';
   document.getElementById('storyAudioInput').value = '';
   document.getElementById('storyCoverInput').value = '';
   document.getElementById('storyColorInput').value = '#6366f1';
   document.getElementById('storySentencesInput').value = '';
-  const cancelBtn = document.getElementById('cancelStoryEditBtn');
-  if (cancelBtn) cancelBtn.style.display = 'none';
+  document.getElementById('cancelStoryEditBtn').style.display = 'none';
 }
 
 /* ============================================================
-   DELETE BOOK
+   EXPORT
    ============================================================ */
-function openDeleteBookModal(){
-  const b = getBook();
-  if (!b) { toast('کتابی انتخاب نشده', 'error'); return; }
-  document.getElementById('delBookName').textContent = b.name;
-  document.getElementById('delBookConfirmInput').value = '';
-  document.getElementById('confirmDeleteBookBtn').disabled = true;
-  document.getElementById('modalDeleteBook').classList.add('active');
-  document.body.classList.add('locked');
-}
-function checkDeleteBookConfirm(){
-  const b = getBook();
-  if (!b) return;
-  const input = document.getElementById('delBookConfirmInput');
-  const btn = document.getElementById('confirmDeleteBookBtn');
-  btn.disabled = input.value.trim() !== b.name;
-}
-function confirmDeleteBook(){
-  const b = getBook();
-  if (!b) return;
-  const input = document.getElementById('delBookConfirmInput');
-  if (input.value.trim() !== b.name) { toast('نام کتاب مطابقت ندارد', 'error'); return; }
-  state.books = state.books.filter(x => x.id !== b.id);
-  if (state.books.length) {
-    state.activeBookId = state.books[0].id;
-    state.activeLessonId = state.books[0].lessons[0]?.id || null;
-  } else {
-    state.activeBookId = null;
-    state.activeLessonId = null;
-  }
-  save();
-  LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
-  document.getElementById('modalDeleteBook').classList.remove('active');
-  document.body.classList.remove('locked');
-  if (state.books.length === 0) showBookLibrary();
-  else { renderAll(); populateLessonTargets(); }
-  toast(`🗑 کتاب «${b.name}» حذف شد`, 'success');
-}
-
-/* ============================================================
-   JSON - ADD LESSON
-   ============================================================ */
-function addFullLessonFromJson(data, textareaEl, statusEl){
-  const book = getBook();
-  if (!book) { toast('اول یک کتاب انتخاب کن', 'error'); return; }
-  const title = (data.title || data.lesson || data.lessonTitle || data.name || '').toString().trim();
-  const words = (data.words || []).map(normalizeWord).filter(Boolean);
-  const stories = (data.stories || []).map(normalizeStory).filter(Boolean);
-  if (!words.length && !stories.length) { toast('نه لغتی نه داستانی برای اضافه کردن هست', 'warning'); return; }
-
-  if (title) {
-    const newLesson = { id: uid(), title: title, words: words, stories: stories, isSample: false };
-    if (!Array.isArray(book.lessons)) book.lessons = [];
-    book.lessons.push(newLesson);
-    state.activeLessonId = newLesson.id;
-    save();
-    renderAll(); populateLessonTargets();
-    if (textareaEl) textareaEl.value = '';
-    if (statusEl) statusEl.innerHTML = `<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>📝 ${words.length} لغت &nbsp;•&nbsp; 📖 ${stories.length} داستان</div>`;
-    toast(`✅ درس «${newLesson.title}» اضافه شد`, 'success');
-    return;
-  }
-
-  const targetId = document.getElementById('jsonTargetLesson').value;
-  const target = getLessonById(targetId);
-  if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
-  if (!Array.isArray(target.words)) target.words = [];
-  if (!Array.isArray(target.stories)) target.stories = [];
-  let addedW = 0, dupW = 0, addedS = 0;
-  words.forEach(w => {
-    if (target.words.some(x => x.de.toLowerCase() === w.de.toLowerCase())) { dupW++; return; }
-    target.words.push(w); addedW++;
-  });
-  stories.forEach(s => { target.stories.push(s); addedS++; });
-  save(); renderAll(); populateLessonTargets();
-  if (textareaEl) textareaEl.value = '';
-  if (statusEl) statusEl.innerHTML = `<div style="color:var(--accent);font-size:13px;">✅ ${addedW} لغت و ${addedS} داستان به «${esc(target.title)}» اضافه شد${dupW ? ` (${dupW} تکراری رد شد)` : ''}</div>`;
-  toast(`✅ ${addedW} لغت + ${addedS} داستان اضافه شد`, 'success');
-}
-
-/* ============================================================
-   JSON IMPORT / EXPORT
-   ============================================================ */
-function importFullBook(file){
-  const status = document.getElementById('fullBookStatus');
-  status.innerHTML = `<div style="color:var(--info);font-size:13px;">⏳ در حال خواندن...</div>`;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      let rawBooks = [];
-      if (data.books && Array.isArray(data.books)) rawBooks = data.books;
-      else if (data.lessons && Array.isArray(data.lessons)) rawBooks = [data];
-      else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
-      else if (Array.isArray(data) && data.length > 0 && data[0].words) {
-        rawBooks = [{ name: file.name.replace('.json',''), level: 'A1.1', lessons: [{ title: 'درس 1', words: data }] }];
-      } else { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ فرمت کتاب شناسایی نشد</div>`; return; }
-      const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
-      if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`; return; }
-      newBooks.forEach(nb => { ensureSingleSampleLesson(nb); state.books.push(nb); });
-      state.activeBookId = newBooks[0].id;
-      state.activeLessonId = newBooks[0].lessons[0]?.id;
-      save(); renderAll(); populateLessonTargets();
-      let totalLessons = 0, totalWords = 0;
-      newBooks.forEach(nb => { totalLessons += nb.lessons.length; nb.lessons.forEach(l => totalWords += l.words.length); });
-      status.innerHTML = `<div style="background:rgba(16,185,129,0.1);border:1px solid var(--accent);border-radius:8px;padding:12px;font-size:13px;">✅ <b>${newBooks.length}</b> کتاب، <b>${totalLessons}</b> درس، <b>${totalWords}</b> کلمه اضافه شد</div>`;
-      toast(`${newBooks.length} کتاب اضافه شد (با درس نمونه)`, 'success');
-    } catch(err) {
-      status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا: ${esc(err.message)}</div>`;
-    }
-  };
-  reader.readAsText(file);
-}
-function replaceFullBook(file){
-  const status = document.getElementById('fullBookStatus');
-  if (!confirm('⚠️ همه کتاب‌ها پاک می‌شن. مطمئنی؟')) return;
-  status.innerHTML = `<div style="color:var(--info);font-size:13px;">⏳ در حال خواندن...</div>`;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      let rawBooks = [];
-      if (data.books && Array.isArray(data.books)) rawBooks = data.books;
-      else if (data.lessons && Array.isArray(data.lessons)) rawBooks = [data];
-      else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
-      else { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ فرمت شناسایی نشد</div>`; return; }
-      const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
-      if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`; return; }
-      newBooks.forEach(nb => ensureSingleSampleLesson(nb));
-      state.books = newBooks;
-      state.activeBookId = newBooks[0].id;
-      state.activeLessonId = newBooks[0].lessons[0]?.id;
-      save(); renderAll(); populateLessonTargets();
-      status.innerHTML = `<div style="color:var(--accent);font-size:13px;">✅ ${newBooks.length} کتاب جایگزین شد</div>`;
-      toast('جایگزین شد (با درس نمونه)', 'success');
-    } catch(err) {
-      status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا: ${esc(err.message)}</div>`;
-    }
-  };
-  reader.readAsText(file);
-}
-function importJsonWords(){
-  const raw = document.getElementById('jsonInput').value.trim();
-  if (!raw) { toast('JSON خالیه', 'error'); return; }
-  let data;
-  try { data = JSON.parse(raw); }
-  catch(e){ toast('JSON نامعتبر: ' + e.message, 'error'); return; }
-
-  if (!Array.isArray(data) && (data.title || data.lesson || data.words || data.stories) && !data.name && !data.lessons) {
-    addFullLessonFromJson(data, document.getElementById('jsonInput'), document.getElementById('jsonPreview'));
-    return;
-  }
-
-  let arr = null;
-  if (Array.isArray(data)) arr = data;
-  else if (data.words && Array.isArray(data.words)) arr = data.words;
-  if (!arr) { toast('فرمت نامعتبر — باید آرایه لغات یا آبجکت درس باشد', 'warning'); return; }
-
-  const targetId = document.getElementById('jsonTargetLesson').value;
-  const target = getLessonById(targetId);
-  if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
-  if (!Array.isArray(target.words)) target.words = [];
-
-  let added = 0, dup = 0, skip = 0;
-  arr.forEach(item => {
-    const w = normalizeWord(item);
-    if (!w) { skip++; return; }
-    if (target.words.some(x => x.de.toLowerCase() === w.de.toLowerCase())) { dup++; return; }
-    target.words.push(w); added++;
-  });
-  save(); renderAll(); populateLessonTargets();
-  document.getElementById('jsonInput').value = '';
-  document.getElementById('jsonPreview').innerHTML = '';
-  const msg = `✅ ${added} اضافه${dup ? `، ${dup} تکراری` : ''}${skip ? `، ${skip} نامعتبر` : ''} به «${target.title}»`;
-  toast(msg, added ? 'success' : 'warning');
-  document.getElementById('jsonPreview').innerHTML = `<div style="color:var(--accent);font-size:13px;">${msg}</div>`;
-}
-function validateJson(){
-  const raw = document.getElementById('jsonInput').value.trim();
-  const preview = document.getElementById('jsonPreview');
-  if (!raw) { preview.innerHTML = ''; return; }
-  let data;
-  try { data = JSON.parse(raw); }
-  catch(e){ preview.innerHTML = `<div style="color:var(--danger);">❌ ${esc(e.message)}</div>`; return; }
-
-  if (!Array.isArray(data) && (data.title || data.lesson || data.words || data.stories) && !data.name && !data.lessons) {
-    const words = (data.words || []).map(normalizeWord).filter(Boolean);
-    const stories = (data.stories || []).map(normalizeStory).filter(Boolean);
-    const title = data.title || data.lesson || data.name || '';
-    preview.innerHTML = `<div style="background:var(--bg);padding:10px;border-radius:8px;font-size:13px;">
-      <div style="color:var(--accent);">✅ آبجکت درس: «${esc(title || 'بدون عنوان')}»</div>
-      <div style="color:var(--accent);">✅ ${words.length} لغت معتبر</div>
-      <div style="color:var(--accent);">✅ ${stories.length} داستان معتبر</div>
-    </div>`;
-    return;
-  }
-  let arr = Array.isArray(data) ? data : (data.words && Array.isArray(data.words) ? data.words : null);
-  if (!arr) { preview.innerHTML = `<div style="color:var(--danger);">❌ باید آرایه لغات یا آبجکت درس باشد</div>`; return; }
-  const valid = arr.map(normalizeWord).filter(Boolean);
-  preview.innerHTML = `<div style="background:var(--bg);padding:10px;border-radius:8px;font-size:13px;">
-    <div style="color:var(--accent);">✅ ${valid.length} معتبر</div>
-    <div style="color:var(--danger);">❌ ${arr.length - valid.length} نامعتبر</div>
-  </div>`;
-}
 function exportData(data, filename){
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -2827,11 +3022,9 @@ function exportBook(){
 }
 function exportLesson(){
   const l = getLesson(), b = getBook();
-  if (!l) { toast('درسی انتخاب نشده', 'error'); return; }
-  const out = { book: b ? b.name : '', lesson: l.title, words: l.words || [], stories: l.stories || [] };
-  const safeName = (b ? b.name : 'book') + '-' + l.title;
-  exportData(out, `${safeName}.json`);
-  toast(`📥 درس «${l.title}» دانلود شد`, 'success');
+  if (!l) return;
+  exportData(l, `${b ? b.name : 'book'}-${l.title}.json`);
+  toast('درس دانلود شد', 'success');
 }
 function exportBad(){
   const words = getWords().filter(w => normalizeStatus(w) === 'bad');
@@ -2841,8 +3034,26 @@ function exportBad(){
 }
 
 /* ============================================================
-   LIBRARY JSON IMPORT MODAL
+   IMPORT — کتاب، درس، لغت
    ============================================================ */
+function processLibraryImportData(data, fileName){
+  let rawBooks = [];
+  if (data.books && Array.isArray(data.books)) rawBooks = data.books;
+  else if (data.lessons && Array.isArray(data.lessons)) rawBooks = [data];
+  else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
+  else { toast('❌ فرمت کتاب شناسایی نشد', 'error'); return; }
+  const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
+  if (!newBooks.length) { toast('❌ کتاب معتبری نبود', 'error'); return; }
+  newBooks.forEach(nb => ensureSampleLesson(nb));
+  newBooks.forEach(nb => state.books.push(nb));
+  state.activeBookId = newBooks[0].id;
+  state.activeLessonId = newBooks[0].lessons[0]?.id;
+  save();
+  renderBookLibrary();
+  closeLibraryImportModal();
+  toast(`✅ ${newBooks.length} کتاب اضافه شد`, 'success');
+}
+
 function openLibraryImportModal(){
   document.getElementById('modalLibraryImport').classList.add('active');
   document.body.classList.add('locked');
@@ -2854,71 +3065,183 @@ function openLibraryImportModal(){
   document.getElementById('libImportPasteInput').value = '';
 }
 function closeLibraryImportModal(){
-  document.getElementById('modalLibraryImport').classList.remove('active');
+  document.getElementById('modalLibraryImport')?.classList.remove('active');
   document.body.classList.remove('locked');
 }
-function processLibraryImportData(data, fileName){
-  let rawBooks = [];
-  if (data.books && Array.isArray(data.books)) rawBooks = data.books;
-  else if (data.lessons && Array.isArray(data.lessons)) rawBooks = [data];
-  else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
-  else if (Array.isArray(data) && data.length > 0 && data[0].words) {
-    rawBooks = [{ name: (fileName || 'کتاب جدید').replace('.json',''), level: 'A1.1', lessons: [{ title: 'درس 1', words: data }] }];
-  } else { toast('❌ فرمت کتاب شناسایی نشد', 'error'); return; }
 
-  const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
-  if (!newBooks.length) { toast('❌ کتاب معتبری نبود', 'error'); return; }
-  newBooks.forEach(nb => ensureSingleSampleLesson(nb));
-  newBooks.forEach(nb => state.books.push(nb));
-  state.activeBookId = newBooks[0].id;
-  state.activeLessonId = newBooks[0].lessons[0]?.id;
-  save();
-  renderBookLibrary();
-  closeLibraryImportModal();
-  let totalLessons = 0, totalWords = 0;
-  newBooks.forEach(nb => { totalLessons += nb.lessons.length; nb.lessons.forEach(l => totalWords += l.words.length); });
-  toast(`✅ ${newBooks.length} کتاب (${totalLessons} درس، ${totalWords} کلمه) اضافه شد`, 'success');
+function importFullBook(file){
+  const status = document.getElementById('fullBookStatus');
+  status.innerHTML = `<div style="color:var(--info);font-size:13px;">⏳ در حال خواندن...</div>`;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let rawBooks = [];
+      if (data.books && Array.isArray(data.books)) rawBooks = data.books;
+      else if (data.lessons && Array.isArray(data.lessons)) rawBooks = [data];
+      else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
+      else { status.innerHTML = `<div style="color:var(--danger);">❌ فرمت شناسایی نشد</div>`; return; }
+      const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
+      if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);">❌ کتاب معتبری نبود</div>`; return; }
+      newBooks.forEach(nb => ensureSampleLesson(nb));
+      newBooks.forEach(nb => state.books.push(nb));
+      state.activeBookId = newBooks[0].id;
+      state.activeLessonId = newBooks[0].lessons[0]?.id;
+      save(); renderAll(); populateLessonTargets();
+      let totalLessons = 0, totalWords = 0;
+      newBooks.forEach(nb => {
+        totalLessons += nb.lessons.length;
+        nb.lessons.forEach(l => totalWords += l.words.length);
+      });
+      status.innerHTML = `<div style="background:rgba(16,185,129,0.1);border:1px solid var(--accent);border-radius:8px;padding:12px;font-size:13px;">✅ <b>${newBooks.length}</b> کتاب، <b>${totalLessons}</b> درس، <b>${totalWords}</b> کلمه اضافه شد</div>`;
+      toast('کتاب اضافه شد', 'success');
+    } catch(err) {
+      status.innerHTML = `<div style="color:var(--danger);">❌ ${esc(err.message)}</div>`;
+    }
+  };
+  reader.readAsText(file);
 }
-function fetchLibraryFromUrl(){
-  const urlInput = document.getElementById('libImportUrlInput');
-  const status = document.getElementById('libImportUrlStatus');
-  const url = urlInput.value.trim();
-  if (!url) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">آدرس لازمه</div>`; return; }
-  status.innerHTML = `<div style="color:var(--info);font-size:13px;">⏳ در حال دریافت...</div>`;
-  fetch(url)
-    .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
-    .then(text => {
-      try {
-        const data = JSON.parse(text);
-        const fileName = url.split('/').pop() || 'book.json';
-        processLibraryImportData(data, fileName);
-      } catch(err) {
-        status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ JSON نامعتبر: ${esc(err.message)}</div>`;
-      }
-    })
-    .catch(err => {
-      status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ خطا: ${esc(err.message)}<br><small>ممکنه CORS باشه.</small></div>`;
-    });
+
+function replaceFullBook(file){
+  if (!confirm('⚠️ همه کتاب‌ها پاک می‌شن. مطمئنی؟')) return;
+  const status = document.getElementById('fullBookStatus');
+  status.innerHTML = `<div style="color:var(--info);">⏳...</div>`;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let rawBooks = [];
+      if (data.books && Array.isArray(data.books)) rawBooks = data.books;
+      else if (data.lessons && Array.isArray(data.lessons)) rawBooks = [data];
+      else if (Array.isArray(data) && data.length > 0 && data[0].lessons) rawBooks = data;
+      else { status.innerHTML = `<div style="color:var(--danger);">❌ فرمت شناسایی نشد</div>`; return; }
+      const newBooks = rawBooks.map(b => normalizeBook(b)).filter(Boolean);
+      if (!newBooks.length) { status.innerHTML = `<div style="color:var(--danger);">❌ کتاب معتبری نبود</div>`; return; }
+      newBooks.forEach(nb => ensureSampleLesson(nb));
+      state.books = newBooks;
+      state.activeBookId = newBooks[0].id;
+      state.activeLessonId = newBooks[0].lessons[0]?.id;
+      save(); renderAll(); populateLessonTargets();
+      status.innerHTML = `<div style="color:var(--accent);">✅ ${newBooks.length} کتاب جایگزین شد</div>`;
+      toast('جایگزین شد', 'success');
+    } catch(err) {
+      status.innerHTML = `<div style="color:var(--danger);">❌ ${esc(err.message)}</div>`;
+    }
+  };
+  reader.readAsText(file);
 }
-function addLibraryFromPaste(){
-  const input = document.getElementById('libImportPasteInput');
-  const status = document.getElementById('libImportPasteStatus');
-  const raw = input.value.trim();
-  if (!raw) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">JSON خالیه</div>`; return; }
+
+function importJsonWords(){
+  const raw = document.getElementById('jsonInput').value.trim();
+  if (!raw) { toast('JSON خالیه', 'error'); return; }
   let data;
   try { data = JSON.parse(raw); }
-  catch(e) { status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ JSON نامعتبر: ${esc(e.message)}</div>`; return; }
-  processLibraryImportData(data, 'pasted-book.json');
+  catch(e){ toast('JSON نامعتبر: ' + e.message, 'error'); return; }
+  if (!Array.isArray(data) && (data.title || data.lesson || data.words || data.stories || data.grammar) && !data.name && !data.lessons) {
+    addFullLessonFromJson(data, document.getElementById('jsonInput'), document.getElementById('jsonPreview'));
+    return;
+  }
+  let arr = null;
+  if (Array.isArray(data)) arr = data;
+  else if (data.words && Array.isArray(data.words)) arr = data.words;
+  if (!arr) { toast('فرمت نامعتبر', 'warning'); return; }
+  const targetId = document.getElementById('jsonTargetLesson').value;
+  const target = getLessonById(targetId);
+  if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
+  if (!Array.isArray(target.words)) target.words = [];
+  let added = 0, dup = 0, skip = 0;
+  arr.forEach(item => {
+    const w = normalizeWord(item);
+    if (!w) { skip++; return; }
+    if (target.words.some(x => x.de.toLowerCase() === w.de.toLowerCase())) { dup++; return; }
+    target.words.push(w); added++;
+  });
+  save(); renderAll(); populateLessonTargets();
+  document.getElementById('jsonInput').value = '';
+  document.getElementById('jsonPreview').innerHTML = '';
+  toast(`✅ ${added} اضافه${dup ? `، ${dup} تکراری` : ''}${skip ? `، ${skip} نامعتبر` : ''}`, 'success');
 }
 
-/* ============================================================
-   FILE UPLOAD (تب JSON)
-   ============================================================ */
+function addFullLessonFromJson(data, textareaEl, statusEl){
+  const book = getBook();
+  if (!book) { toast('اول یک کتاب انتخاب کن', 'error'); return; }
+  const title = (data.title || data.lesson || data.lessonTitle || data.name || '').toString().trim();
+  const words = (data.words || []).map(normalizeWord).filter(Boolean);
+  const stories = (data.stories || []).map(normalizeStory).filter(Boolean);
+  const grammar = (data.grammar || []).map(normalizeGrammar).filter(Boolean);
+  const letters = (data.letters || []).map(normalizeLetter).filter(Boolean);
+  const dialogues = (data.dialogues || []).map(normalizeDialogue).filter(Boolean);
+  if (!words.length && !stories.length && !grammar.length && !letters.length && !dialogues.length) {
+    toast('محتوایی برای اضافه کردن نیست', 'warning'); return;
+  }
+  if (title) {
+    const newLesson = { id: uid(), title, words, stories, grammar, letters, dialogues, isSample: false };
+    if (!Array.isArray(book.lessons)) book.lessons = [];
+    book.lessons.push(newLesson);
+    state.activeLessonId = newLesson.id;
+    save(); renderAll(); populateLessonTargets();
+    if (textareaEl) textareaEl.value = '';
+    if (statusEl) statusEl.innerHTML = `<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">✅ درس «${esc(newLesson.title)}» ساخته شد<br>📝 ${words.length} لغت • 📖 ${stories.length} داستان • 📘 ${grammar.length} گرامر</div>`;
+    toast(`✅ درس «${title}» ساخته شد`, 'success');
+    return;
+  }
+  const targetId = document.getElementById('jsonTargetLesson').value;
+  const target = getLessonById(targetId);
+  if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
+  if (!Array.isArray(target.words)) target.words = [];
+  if (!Array.isArray(target.stories)) target.stories = [];
+  if (!Array.isArray(target.grammar)) target.grammar = [];
+  if (!Array.isArray(target.letters)) target.letters = [];
+  if (!Array.isArray(target.dialogues)) target.dialogues = [];
+  let addedW = 0, addedS = 0, addedG = 0;
+  words.forEach(w => {
+    if (!target.words.some(x => x.de.toLowerCase() === w.de.toLowerCase())) { target.words.push(w); addedW++; }
+  });
+  stories.forEach(s => { target.stories.push(s); addedS++; });
+  grammar.forEach(g => { target.grammar.push(g); addedG++; });
+  letters.forEach(l => target.letters.push(l));
+  dialogues.forEach(d => target.dialogues.push(d));
+  save(); renderAll(); populateLessonTargets();
+  if (textareaEl) textareaEl.value = '';
+  if (statusEl) statusEl.innerHTML = `<div style="color:var(--accent);font-size:13px;">✅ ${addedW} لغت، ${addedS} داستان، ${addedG} گرامر اضافه شد</div>`;
+  toast(`✅ ${addedW} لغت + ${addedS} داستان + ${addedG} گرامر اضافه شد`, 'success');
+}
+
+function validateJson(){
+  const raw = document.getElementById('jsonInput').value.trim();
+  const preview = document.getElementById('jsonPreview');
+  if (!raw) { preview.innerHTML = ''; return; }
+  let data;
+  try { data = JSON.parse(raw); }
+  catch(e){ preview.innerHTML = `<div style="color:var(--danger);">❌ ${esc(e.message)}</div>`; return; }
+  if (!Array.isArray(data) && (data.title || data.lesson || data.words || data.stories || data.grammar) && !data.name && !data.lessons) {
+    const words = (data.words || []).map(normalizeWord).filter(Boolean);
+    const stories = (data.stories || []).map(normalizeStory).filter(Boolean);
+    const grammar = (data.grammar || []).map(normalizeGrammar).filter(Boolean);
+    const letters = (data.letters || []).map(normalizeLetter).filter(Boolean);
+    const dialogues = (data.dialogues || []).map(normalizeDialogue).filter(Boolean);
+    preview.innerHTML = `<div style="background:var(--bg-3);padding:10px;border-radius:8px;font-size:13px;">
+      <div style="color:var(--accent);">✅ آبجکت درس: «${esc(data.title || data.lesson || 'بدون عنوان')}»</div>
+      <div style="color:var(--accent);">📝 ${words.length} لغت</div>
+      <div style="color:var(--accent);">📖 ${stories.length} داستان</div>
+      <div style="color:var(--accent);">📘 ${grammar.length} گرامر</div>
+      <div style="color:var(--accent);">💌 ${letters.length} نامه</div>
+      <div style="color:var(--accent);">💬 ${dialogues.length} دیالوگ</div>
+    </div>`;
+    return;
+  }
+  let arr = Array.isArray(data) ? data : (data.words && Array.isArray(data.words) ? data.words : null);
+  if (!arr) { preview.innerHTML = `<div style="color:var(--danger);">❌ باید آرایه لغات یا آبجکت درس باشد</div>`; return; }
+  const valid = arr.map(normalizeWord).filter(Boolean);
+  preview.innerHTML = `<div style="background:var(--bg-3);padding:10px;border-radius:8px;font-size:13px;">
+    <div style="color:var(--accent);">✅ ${valid.length} معتبر</div>
+    <div style="color:var(--danger);">❌ ${arr.length - valid.length} نامعتبر</div>
+  </div>`;
+}
+
 function setupFileDropZone(){
   const zone = document.getElementById('bigDropZone');
   const input = document.getElementById('jsonFileInput');
-  const quickBtn = document.getElementById('quickJsonBtn');
-  const quickInput = document.getElementById('quickJsonFile');
   if (!zone || !input) return;
   zone.addEventListener('click', () => input.click());
   zone.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); });
@@ -2932,15 +3255,9 @@ function setupFileDropZone(){
     if (e.target.files[0]) handleFileUpload(e.target.files[0]);
     e.target.value = '';
   });
-  document.addEventListener('dragover', e => e.preventDefault());
-  document.addEventListener('drop', e => {
-    if (zone && !zone.contains(e.target) && e.dataTransfer.files.length > 0) {
-      e.preventDefault();
-      handleFileUpload(e.dataTransfer.files[0]);
-    }
-  });
-  const browseBtn = document.getElementById('browseFileBtn');
-  if (browseBtn) browseBtn.addEventListener('click', e => { e.stopPropagation(); input.click(); });
+  document.getElementById('browseFileBtn')?.addEventListener('click', e => { e.stopPropagation(); input.click(); });
+  const quickBtn = document.getElementById('quickJsonBtn');
+  const quickInput = document.getElementById('quickJsonFile');
   if (quickBtn && quickInput) {
     quickBtn.addEventListener('click', () => quickInput.click());
     quickInput.addEventListener('change', e => {
@@ -2949,12 +3266,13 @@ function setupFileDropZone(){
     });
   }
 }
+
 function handleFileUpload(file, forceActiveLesson){
   const status = document.getElementById('fileStatus');
   if (status) status.innerHTML = `<div style="color:var(--info);font-size:13px;">⏳ در حال خواندن...</div>`;
   if (!file.name.toLowerCase().endsWith('.json')) {
     if (status) status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ فقط .json</div>`;
-    toast('فقط .json', 'error'); return;
+    return;
   }
   const reader = new FileReader();
   reader.onload = e => {
@@ -2962,12 +3280,12 @@ function handleFileUpload(file, forceActiveLesson){
       const data = JSON.parse(e.target.result);
       processUploadedData(data, file.name, status, forceActiveLesson);
     } catch(err) {
-      if (status) status.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ JSON نامعتبر</div>`;
-      toast('JSON نامعتبر', 'error');
+      if (status) status.innerHTML = `<div style="color:var(--danger);">❌ JSON نامعتبر</div>`;
     }
   };
   reader.readAsText(file);
 }
+
 function processUploadedData(data, filename, status, forceActiveLesson){
   const book = getBook();
   if (!book) { toast('اول یک کتاب انتخاب کن', 'error'); return; }
@@ -2980,78 +3298,74 @@ function processUploadedData(data, filename, status, forceActiveLesson){
     const title = extractLessonTitle(lessonObj) || fallbackTitle || 'درس جدید';
     const nWords = Array.isArray(lessonObj.words) ? lessonObj.words.map(normalizeWord).filter(Boolean) : [];
     const nStories = Array.isArray(lessonObj.stories) ? lessonObj.stories.map(normalizeStory).filter(Boolean) : [];
-    if (!nWords.length && !nStories.length) return null;
-    const newLesson = { id: uid(), title: title, words: nWords, stories: nStories, isSample: false };
+    const nGrammar = Array.isArray(lessonObj.grammar) ? lessonObj.grammar.map(normalizeGrammar).filter(Boolean) : [];
+    const nLetters = Array.isArray(lessonObj.letters) ? lessonObj.letters.map(normalizeLetter).filter(Boolean) : [];
+    const nDialogues = Array.isArray(lessonObj.dialogues) ? lessonObj.dialogues.map(normalizeDialogue).filter(Boolean) : [];
+    if (!nWords.length && !nStories.length && !nGrammar.length && !nLetters.length && !nDialogues.length) return null;
+    const newLesson = { id: uid(), title, words: nWords, stories: nStories, grammar: nGrammar, letters: nLetters, dialogues: nDialogues, isSample: false };
     if (!Array.isArray(book.lessons)) book.lessons = [];
     book.lessons.push(newLesson);
     return newLesson;
   }
 
-  if (data && typeof data === 'object' && !Array.isArray(data)) {
-    const hasRootWords = Array.isArray(data.words);
-    const hasRootStories = Array.isArray(data.stories);
-    const hasLessonsArray = Array.isArray(data.lessons);
-
-    if ((hasRootWords || hasRootStories) && !hasLessonsArray) {
-      const newLesson = addNewLessonFromObject(data, 'درس جدید');
-      if (!newLesson) { show(`<div style="color:var(--danger);font-size:13px;">❌ داده معتبری نبود</div>`); return; }
-      state.activeLessonId = newLesson.id;
-      save(); renderAll(); populateLessonTargets();
-      show(`<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>📝 ${newLesson.words.length} لغت &nbsp;•&nbsp; 📖 ${newLesson.stories.length} داستان</div>`);
-      toast(`✅ درس «${newLesson.title}» اضافه شد`, 'success');
-      return;
-    }
-    if (Array.isArray(data.books)) {
-      const booksData = data.books.map(b => normalizeBook(b)).filter(Boolean);
-      if (!booksData.length) { show(`<div style="color:var(--danger);font-size:13px;">❌ کتاب معتبری نبود</div>`); return; }
-      show('');
-      openImportBookPopup({ type: 'multi', data: booksData });
-      return;
-    }
-    if (hasLessonsArray) {
-      const bookData = {
-        name: data.name || data.title || data.book || filename.replace('.json', ''),
-        level: data.level || 'A1.1',
-        coverImage: data.coverImage || '',
-        lessons: data.lessons.map((l, i) => normalizeLesson(l, 'درس ' + (i+1))).filter(Boolean)
-      };
-      if (!bookData.lessons.length) { show(`<div style="color:var(--danger);font-size:13px;">❌ درس معتبری نبود</div>`); return; }
-      show('');
-      openImportBookPopup({ type: 'single', data: bookData });
-      return;
-    }
+  // حالت ۱: کتاب کامل
+  if (data && typeof data === 'object' && Array.isArray(data.books)) {
+    const booksData = data.books.map(b => normalizeBook(b)).filter(Boolean);
+    if (!booksData.length) { show(`<div style="color:var(--danger);">❌ کتاب معتبری نبود</div>`); return; }
+    processLibraryImportData(data, filename);
+    show(`<div style="color:var(--accent);">✅ ${booksData.length} کتاب اضافه شد</div>`);
+    return;
   }
 
+  // حالت ۲: آبجکت کتاب با lessons
+  if (data && typeof data === 'object' && Array.isArray(data.lessons)) {
+    processLibraryImportData(data, filename);
+    show(`<div style="color:var(--accent);">✅ کتاب اضافه شد</div>`);
+    return;
+  }
+
+  // حالت ۳: آبجکت تک درس (words/stories/grammar/...)
+  if (data && typeof data === 'object' && (Array.isArray(data.words) || Array.isArray(data.stories) || Array.isArray(data.grammar))) {
+    const newLesson = addNewLessonFromObject(data, 'درس جدید');
+    if (!newLesson) { show(`<div style="color:var(--danger);">❌ داده معتبری نبود</div>`); return; }
+    state.activeLessonId = newLesson.id;
+    save(); renderAll(); populateLessonTargets();
+    show(`<div style="background:rgba(16,185,129,0.12);border:1px solid var(--accent);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;">✅ درس جدید «${esc(newLesson.title)}» ساخته شد<br>📝 ${newLesson.words.length} لغت</div>`);
+    toast(`✅ درس «${newLesson.title}» اضافه شد`, 'success');
+    return;
+  }
+
+  // حالت ۴: آرایه درس‌ها
   if (Array.isArray(data)) {
     const looksLikeLessons = data.length > 0 && data.every(item =>
       item && typeof item === 'object' &&
       (item.title || item.lesson || item.name) &&
-      (Array.isArray(item.words) || Array.isArray(item.stories))
+      (Array.isArray(item.words) || Array.isArray(item.stories) || Array.isArray(item.grammar))
     );
     if (looksLikeLessons) {
-      let addedLessons = 0, totalWords = 0, totalStories = 0;
+      let addedLessons = 0, totalWords = 0;
       let lastLesson = null;
       data.forEach(lessonRaw => {
         const nl = addNewLessonFromObject(lessonRaw, 'درس');
         if (!nl) return;
         addedLessons++;
         totalWords += nl.words.length;
-        totalStories += nl.stories.length;
         lastLesson = nl;
       });
       if (addedLessons > 0) {
         state.activeLessonId = lastLesson.id;
         save(); renderAll(); populateLessonTargets();
-        show(`<div style="color:var(--accent);font-size:13px;">✅ ${addedLessons} درس جدید با ${totalWords} لغت و ${totalStories} داستان اضافه شد</div>`);
+        show(`<div style="color:var(--accent);font-size:13px;">✅ ${addedLessons} درس با ${totalWords} لغت اضافه شد</div>`);
         toast(`✅ ${addedLessons} درس اضافه شد`, 'success');
       } else {
-        show(`<div style="color:var(--danger);font-size:13px;">❌ هیچ درس معتبری نبود</div>`);
+        show(`<div style="color:var(--danger);">❌ هیچ درس معتبری نبود</div>`);
       }
       return;
     }
+    // آرایه لغات
     const targetId = forceActiveLesson ? state.activeLessonId : (document.getElementById('fileTargetLesson').value || state.activeLessonId);
     const target = getLessonById(targetId);
-    if (!target) { show(`<div style="color:var(--danger);font-size:13px;">❌ درس مقصد انتخاب نشده</div>`); return; }
+    if (!target) { show(`<div style="color:var(--danger);">❌ درس مقصد انتخاب نشده</div>`); return; }
     let added = 0, dup = 0, skip = 0;
     data.forEach(item => {
       const w = normalizeWord(item);
@@ -3065,10 +3379,11 @@ function processUploadedData(data, filename, status, forceActiveLesson){
     return;
   }
 
+  // حالت ۵: آبجکت با words فقط
   if (data && typeof data === 'object' && Array.isArray(data.words)) {
     const targetId = forceActiveLesson ? state.activeLessonId : (document.getElementById('fileTargetLesson').value || state.activeLessonId);
     const target = getLessonById(targetId);
-    if (!target) { show(`<div style="color:var(--danger);font-size:13px;">❌ درس مقصد انتخاب نشده</div>`); return; }
+    if (!target) { show(`<div style="color:var(--danger);">❌ درس مقصد</div>`); return; }
     let added = 0, dup = 0;
     data.words.forEach(item => {
       const w = normalizeWord(item);
@@ -3077,17 +3392,17 @@ function processUploadedData(data, filename, status, forceActiveLesson){
       target.words.push(w); added++;
     });
     save(); renderAll(); populateLessonTargets();
-    show(`<div style="color:var(--accent);font-size:13px;">✅ ${added} لغت اضافه شد به «${esc(target.title)}»${dup ? `، ${dup} تکراری` : ''}</div>`);
+    show(`<div style="color:var(--accent);font-size:13px;">✅ ${added} لغت اضافه شد</div>`);
     toast(`${added} لغت اضافه شد`, 'success');
     return;
   }
 
-  show(`<div style="color:var(--danger);font-size:13px;">❌ فرمت شناسایی نشد</div>`);
+  show(`<div style="color:var(--danger);">❌ فرمت شناسایی نشد</div>`);
   toast('فرمت نامعتبر', 'error');
 }
 
 /* ============================================================
-   TABS / RENDER ALL
+   TABS
    ============================================================ */
 function switchTab(name){
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -3095,19 +3410,24 @@ function switchTab(name){
   const el = document.getElementById('tab-' + name);
   if (el) el.classList.remove('hidden');
   if (name === 'practice') renderFolders();
-  if (name === 'stories') renderStories();
-  if (name === 'list') renderWordTable();
+  if (name === 'grammar') renderGrammar();
+  if (name === 'stories') { renderContentTabs(); renderContentGrid(); }
+  if (name === 'list') { renderWordTable(); renderArticleQuickFilters(); }
   if (name === 'cards') renderCards();
   if (name === 'quiz') renderQuizHome();
   if (name === 'json' || name === 'manage' || name === 'manage-story') populateLessonTargets();
 }
+
 function renderAll(){
   renderLessonSelect();
   renderStats();
   renderWordTable();
+  renderArticleQuickFilters();
   renderFolders();
-  renderStories();
+  renderContentTabs();
+  renderContentGrid();
   renderCards();
+  renderGrammar();
   populateLessonTargets();
   updateAppTitle();
   updateReviewBanner();
@@ -3119,227 +3439,164 @@ function renderAll(){
    ============================================================ */
 function openBookModal(){
   editingBookId = null;
-  const titleEl = document.getElementById('bookModalTitle');
-  const nameEl = document.getElementById('bookNameInput');
-  const levelEl = document.getElementById('bookLevelInput');
-  const coverEl = document.getElementById('bookCoverInput');
-  const saveBtn = document.getElementById('saveBookBtn');
-  if (titleEl) titleEl.textContent = '📚 کتاب جدید';
-  nameEl.value = '';
-  levelEl.value = 'A1.1';
-  if (coverEl) coverEl.value = '';
-  if (saveBtn) saveBtn.textContent = '💾 ذخیره';
+  document.getElementById('bookModalTitle').textContent = '📚 کتاب جدید';
+  document.getElementById('bookNameInput').value = '';
+  document.getElementById('bookLevelInput').value = 'A1.1';
+  document.getElementById('bookCoverInput').value = '';
+  document.getElementById('saveBookBtn').textContent = '💾 ذخیره';
   document.getElementById('modalBook').classList.add('active');
   document.body.classList.add('locked');
 }
 function openEditBookModal(bookId){
   const book = state.books.find(b => b.id === bookId);
-  if (!book) { toast('کتاب پیدا نشد', 'error'); return; }
+  if (!book) return;
   editingBookId = bookId;
-  const titleEl = document.getElementById('bookModalTitle');
-  const nameEl = document.getElementById('bookNameInput');
-  const levelEl = document.getElementById('bookLevelInput');
-  const coverEl = document.getElementById('bookCoverInput');
-  const saveBtn = document.getElementById('saveBookBtn');
-  if (titleEl) titleEl.textContent = '✏️ ویرایش کتاب';
-  nameEl.value = book.name || '';
-  levelEl.value = book.level || 'A1.1';
-  if (coverEl) coverEl.value = book.coverImage || '';
-  if (saveBtn) saveBtn.textContent = '💾 ذخیره تغییرات';
+  document.getElementById('bookModalTitle').textContent = '✏️ ویرایش کتاب';
+  document.getElementById('bookNameInput').value = book.name || '';
+  document.getElementById('bookLevelInput').value = book.level || 'A1.1';
+  document.getElementById('bookCoverInput').value = book.coverImage || '';
+  document.getElementById('saveBookBtn').textContent = '💾 ذخیره تغییرات';
   document.getElementById('modalBook').classList.add('active');
   document.body.classList.add('locked');
 }
 function openLessonModal(){
   const b = getBook();
-  if (!b) { toast('اول یه کتاب انتخاب کن یا بساز', 'error'); return; }
-  const input = document.getElementById('lessonTitleInput');
+  if (!b) { toast('اول یه کتاب انتخاب کن', 'error'); return; }
+  document.getElementById('lessonTitleInput').value = '';
+  document.getElementById('modalLessonTitle').textContent = '➕ درس جدید';
   const saveBtn = document.getElementById('saveLessonBtn');
-  const titleEl = document.getElementById('modalLessonTitle');
-  if (input) input.value = '';
-  if (titleEl) titleEl.textContent = '➕ درس جدید';
-  if (saveBtn) { saveBtn.textContent = '💾 ذخیره'; delete saveBtn.dataset.editId; }
-  const modal = document.getElementById('modalLesson');
-  if (modal) modal.classList.add('active');
+  saveBtn.textContent = '💾 ذخیره';
+  delete saveBtn.dataset.editId;
+  document.getElementById('modalLesson').classList.add('active');
   document.body.classList.add('locked');
-  setTimeout(() => { if (input) input.focus(); }, 100);
+  setTimeout(() => document.getElementById('lessonTitleInput').focus(), 100);
 }
 function openEditLessonModal(){
   const l = getLesson();
-  if (!l) { toast('درسی انتخاب نشده', 'error'); return; }
-  if (l.isSample) { toast('🔒 عنوان درس نمونه قابل ویرایش نیست', 'warning'); return; }
-  const input = document.getElementById('lessonTitleInput');
+  if (!l) return;
+  if (l.isSample) { toast('🔒 درس نمونه قابل ویرایش نیست', 'warning'); return; }
+  document.getElementById('lessonTitleInput').value = l.title || '';
+  document.getElementById('modalLessonTitle').textContent = '✏️ ویرایش نام درس';
   const saveBtn = document.getElementById('saveLessonBtn');
-  const titleEl = document.getElementById('modalLessonTitle');
-  if (input) input.value = l.title || '';
-  if (titleEl) titleEl.textContent = '✏️ ویرایش نام درس';
-  if (saveBtn) { saveBtn.textContent = '💾 ذخیره تغییرات'; saveBtn.dataset.editId = l.id; }
+  saveBtn.textContent = '💾 ذخیره تغییرات';
+  saveBtn.dataset.editId = l.id;
   document.getElementById('modalLesson').classList.add('active');
   document.body.classList.add('locked');
-  setTimeout(() => { if (input) { input.focus(); input.select(); } }, 100);
+  setTimeout(() => { document.getElementById('lessonTitleInput').focus(); document.getElementById('lessonTitleInput').select(); }, 100);
 }
 
 /* ============================================================
-   ⭐ EVENTS — با رفع مشکل Space در جستجو
+   EVENTS
    ============================================================ */
 function bindEvents(){
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => switchTab(t.dataset.tab));
   });
+  document.getElementById('themeToggleLibrary')?.addEventListener('click', toggleTheme);
+  document.getElementById('themeToggleMain')?.addEventListener('click', toggleTheme);
 
-  const lessonSel = document.getElementById('lessonSelect');
-  if (lessonSel) lessonSel.addEventListener('change', e => {
+  document.getElementById('lessonSelect')?.addEventListener('change', e => {
     if (practice.active) exitPractice();
     state.activeLessonId = e.target.value;
+    currentContentType = 'all';
     save(); renderAll();
   });
-
-  const addLessonBtn = document.getElementById('addLessonBtn');
-  if (addLessonBtn) addLessonBtn.addEventListener('click', openLessonModal);
-  const editLessonBtn = document.getElementById('editLessonBtn');
-  if (editLessonBtn) editLessonBtn.addEventListener('click', openEditLessonModal);
-
-  const delLessonBtn = document.getElementById('delLessonBtn');
-  if (delLessonBtn) delLessonBtn.addEventListener('click', () => {
+  document.getElementById('addLessonBtn')?.addEventListener('click', openLessonModal);
+  document.getElementById('editLessonBtn')?.addEventListener('click', openEditLessonModal);
+  document.getElementById('delLessonBtn')?.addEventListener('click', () => {
     const l = getLesson(), b = getBook();
-    if (!l) { toast('درسی انتخاب نشده', 'warning'); return; }
-    if (!b) { toast('کتابی انتخاب نشده', 'warning'); return; }
-    if (l.isSample) { toast('🔒 درس نمونه قابل حذف نیست', 'error'); return; }
+    if (!l || !b) return;
+    if (l.isSample) { toast('🔒 درس نمونه', 'error'); return; }
     if (b.lessons.length <= 1) {
-      if (!confirm(`«${l.title}» تنها درس این کتابه.\nحذف بشه و یه درس خالی جدید ساخته بشه؟`)) return;
-      const emptyLesson = { id: uid(), title: 'Lektion 1', words: [], stories: [], isSample: false };
-      b.lessons = [emptyLesson];
-      state.activeLessonId = emptyLesson.id;
+      if (!confirm('تنها درس این کتابه. حذف بشه و یه درس خالی ساخته بشه؟')) return;
+      const empty = { id: uid(), title: 'Lektion 1', words: [], stories: [], grammar: [], letters: [], dialogues: [], isSample: false };
+      b.lessons = [empty];
+      state.activeLessonId = empty.id;
       save(); renderAll(); populateLessonTargets();
-      toast('🗑 درس حذف و یه درس خالی جدید ساخته شد', 'success');
       return;
     }
-    const wordCount = (l.words || []).length;
-    const storyCount = (l.stories || []).length;
-    if (!confirm(`⚠️ حذف درس «${l.title}»\n\n${wordCount} لغت • ${storyCount} داستان\n\nبرگشت‌پذیر نیست. مطمئنی؟`)) return;
+    if (!confirm(`⚠️ حذف «${l.title}»؟`)) return;
     const idx = b.lessons.findIndex(x => x.id === l.id);
     b.lessons = b.lessons.filter(x => x.id !== l.id);
-    const nextIdx = Math.min(idx, b.lessons.length - 1);
-    state.activeLessonId = b.lessons[nextIdx].id;
+    state.activeLessonId = b.lessons[Math.min(idx, b.lessons.length - 1)].id;
     save(); renderAll(); populateLessonTargets();
-    toast(`🗑 درس «${l.title}» حذف شد`, 'success');
+    toast('حذف شد', 'success');
   });
 
-  const searchBox = document.getElementById('searchBox');
-  if (searchBox) searchBox.addEventListener('input', renderWordTable);
-  const filterStatus = document.getElementById('filterStatus');
-  if (filterStatus) filterStatus.addEventListener('change', renderWordTable);
+  document.getElementById('searchBox')?.addEventListener('input', renderWordTable);
+  document.getElementById('filterStatus')?.addEventListener('change', renderWordTable);
+  document.getElementById('filterArticle')?.addEventListener('change', renderWordTable);
+  document.getElementById('cardSearch')?.addEventListener('input', renderCards);
+  document.getElementById('cardFilter')?.addEventListener('change', renderCards);
+  document.getElementById('cardArticleFilter')?.addEventListener('change', renderCards);
+  document.getElementById('cardSortAlpha')?.addEventListener('click', () => { cardSortMode = 'alpha'; renderCards(); });
+  document.getElementById('cardSortRandom')?.addEventListener('click', () => { cardSortMode = 'random'; renderCards(); });
+  document.getElementById('cardSortStatus')?.addEventListener('click', () => { cardSortMode = 'status'; renderCards(); });
 
-  const cardSearch = document.getElementById('cardSearch');
-  if (cardSearch) cardSearch.addEventListener('input', renderCards);
-  const cardFilter = document.getElementById('cardFilter');
-  if (cardFilter) cardFilter.addEventListener('change', renderCards);
-  const csa = document.getElementById('cardSortAlpha');
-  if (csa) csa.addEventListener('click', () => { cardSortMode = 'alpha'; renderCards(); });
-  const csr = document.getElementById('cardSortRandom');
-  if (csr) csr.addEventListener('click', () => { cardSortMode = 'random'; renderCards(); });
-  const css = document.getElementById('cardSortStatus');
-  if (css) css.addEventListener('click', () => { cardSortMode = 'status'; renderCards(); });
+  document.getElementById('startSrsBtn')?.addEventListener('click', () => startPractice('due'));
+  document.getElementById('exitPractice')?.addEventListener('click', exitPractice);
 
-  const startSrsBtn = document.getElementById('startSrsBtn');
-  if (startSrsBtn) startSrsBtn.addEventListener('click', () => startPractice('due'));
-
-  const exitPracticeBtn = document.getElementById('exitPractice');
-  if (exitPracticeBtn) exitPracticeBtn.addEventListener('click', exitPractice);
-
-  // ✅ چرخش کارت + قطع صدا هنگام چرخش
   const flashcardStage = document.getElementById('flashcardStage');
   if (flashcardStage) flashcardStage.addEventListener('click', () => {
     const inner = document.getElementById('flashcardInner');
     inner.classList.toggle('flipped');
     if (inner.classList.contains('flipped')) {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
-      if (currentAudio) { try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){} currentAudio = null; }
+      if (currentAudio) { try { currentAudio.pause(); } catch(e){} currentAudio = null; }
     }
   });
-
-  const fcSpeakBtn = document.getElementById('fcSpeakBtn');
-  if (fcSpeakBtn) fcSpeakBtn.addEventListener('click', () => {
+  document.getElementById('fcSpeakBtn')?.addEventListener('click', () => {
     const w = practice.queue[practice.index];
     if (w) speak(w.de, w.exAudio);
   });
   document.querySelectorAll('[data-rate]').forEach(btn => {
     btn.addEventListener('click', () => rateCurrent(btn.dataset.rate));
   });
-  const prevPracticeBtn = document.getElementById('prevPracticeBtn');
-  if (prevPracticeBtn) prevPracticeBtn.addEventListener('click', () => {
+  document.getElementById('prevPracticeBtn')?.addEventListener('click', () => {
     if (!practice.active || practice.index === 0) return;
     practice.index--;
     const w = practice.queue[practice.index];
     const hadRating = practice.ratings && practice.ratings[practice.index];
     if (hadRating && w) { undoReviewWord(w); delete practice.ratings[practice.index]; }
     showCurrentPracticeCard(); renderStats();
-    if (hadRating) toast('🔄 برگشت', 'warning');
   });
-  const autoPlayToggle = document.getElementById('autoPlayToggle');
-  if (autoPlayToggle) autoPlayToggle.addEventListener('click', toggleAutoPlay);
-  const autoPlayToggleSession = document.getElementById('autoPlayToggleSession');
-  if (autoPlayToggleSession) autoPlayToggleSession.addEventListener('click', toggleAutoPlay);
-
-  const muteAudioBtn = document.getElementById('muteAudioBtn');
-  if (muteAudioBtn) {
-    muteAudioBtn.addEventListener('click', () => {
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
-      if (currentAudio) { try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){} currentAudio = null; }
-      if (autoPlayWord) {
-        autoPlayWord = false;
-        try { localStorage.setItem(AUTOPLAY_KEY, 'false'); } catch(e){}
-        updateAutoPlayUI();
-        toast('🔇 صدا قطع و پخش خودکار خاموش شد', 'warning');
-      } else {
-        toast('🔇 صدا قطع شد', 'warning');
-      }
-    });
-  }
-
-  const flipDirBtn = document.getElementById('flipDirectionBtn');
-  if (flipDirBtn) flipDirBtn.addEventListener('click', togglePracticeDirection);
-  const flipDirFolderBtn = document.getElementById('flipDirectionFolderBtn');
-  if (flipDirFolderBtn) flipDirFolderBtn.addEventListener('click', togglePracticeDirection);
-  updateDirectionLabel();
-
-  const practiceFullscreenBtn = document.getElementById('practiceFullscreenBtn');
-  if (practiceFullscreenBtn) practiceFullscreenBtn.addEventListener('click', toggleTheaterMode);
-  const practiceTheaterClose = document.getElementById('practiceTheaterClose');
-  if (practiceTheaterClose) practiceTheaterClose.addEventListener('click', exitTheaterMode);
-
-  const hamburgerBtn = document.getElementById('practiceHamburgerBtn');
-  if (hamburgerBtn) hamburgerBtn.addEventListener('click', () => {
+  document.getElementById('autoPlayToggle')?.addEventListener('click', toggleAutoPlay);
+  document.getElementById('autoPlayToggleSession')?.addEventListener('click', toggleAutoPlay);
+  document.getElementById('muteAudioBtn')?.addEventListener('click', () => {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (currentAudio) { try { currentAudio.pause(); } catch(e){} currentAudio = null; }
+    autoPlayWord = false;
+    try { localStorage.setItem(AUTOPLAY_KEY, 'false'); } catch(e){}
+    updateAutoPlayUI();
+    toast('🔇 صدا قطع شد', 'warning');
+  });
+  document.getElementById('flipDirectionBtn')?.addEventListener('click', togglePracticeDirection);
+  document.getElementById('flipDirectionFolderBtn')?.addEventListener('click', togglePracticeDirection);
+  document.getElementById('practiceFullscreenBtn')?.addEventListener('click', toggleTheaterMode);
+  document.getElementById('practiceTheaterClose')?.addEventListener('click', exitTheaterMode);
+  document.getElementById('practiceHamburgerBtn')?.addEventListener('click', () => {
     buildFolderMenu();
     document.getElementById('practiceFolderMenu').classList.remove('hidden');
   });
-  const closeFolderMenuBtn = document.getElementById('closeFolderMenuBtn');
-  if (closeFolderMenuBtn) closeFolderMenuBtn.addEventListener('click', () => {
+  document.getElementById('closeFolderMenuBtn')?.addEventListener('click', () => {
     document.getElementById('practiceFolderMenu').classList.add('hidden');
   });
+  document.getElementById('resetPracticeSettingsBtn')?.addEventListener('click', resetPracticeSettings);
 
-  const resetPracticeSettingsBtn = document.getElementById('resetPracticeSettingsBtn');
-  if (resetPracticeSettingsBtn) resetPracticeSettingsBtn.addEventListener('click', resetPracticeSettings);
-
-  const addStoryBtn = document.getElementById('addStoryBtn');
-  if (addStoryBtn) addStoryBtn.addEventListener('click', () => {
+  document.getElementById('addStoryBtn')?.addEventListener('click', () => {
     switchTab('manage-story');
     resetStoryForm();
-    setTimeout(() => document.getElementById('storyTitleInput').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   });
-  const saveStoryBtn = document.getElementById('saveStoryBtn');
-  if (saveStoryBtn) saveStoryBtn.addEventListener('click', saveStory);
-  const cancelStoryBtn = document.getElementById('cancelStoryEditBtn');
-  if (cancelStoryBtn) cancelStoryBtn.addEventListener('click', () => { resetStoryForm(); });
-  const closeStoryReaderBtn = document.getElementById('closeStoryReader');
-  if (closeStoryReaderBtn) closeStoryReaderBtn.addEventListener('click', () => {
+  document.getElementById('saveStoryBtn')?.addEventListener('click', saveStory);
+  document.getElementById('cancelStoryEditBtn')?.addEventListener('click', resetStoryForm);
+  document.getElementById('closeStoryReader')?.addEventListener('click', () => {
     document.getElementById('storyReaderModal').classList.remove('active');
     document.body.classList.remove('locked');
   });
 
-  const saveWordBtn = document.getElementById('saveWordBtn');
-  if (saveWordBtn) saveWordBtn.addEventListener('click', () => {
+  document.getElementById('saveWordBtn')?.addEventListener('click', () => {
     const target = getLessonById(document.getElementById('wordTargetLesson').value);
-    if (!target) { toast('درس مقصد رو انتخاب کن', 'error'); return; }
+    if (!target) { toast('درس مقصد', 'error'); return; }
     const de = document.getElementById('wDe').value.trim();
     const fa = document.getElementById('wFa').value.trim();
     if (!de || !fa) { toast('کلمه و ترجمه لازمه', 'error'); return; }
@@ -3352,66 +3609,49 @@ function bindEvents(){
       exAudio: document.getElementById('wExAudio').value.trim(),
       note: document.getElementById('wNote').value.trim(),
       notes: [], status: 'new',
-      srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0 }
+      srs: { box: 1, nextReview: Date.now(), correctCount: 0, wrongCount: 0, streak: 0 }
     });
     save();
     ['wDe','wPlural','wFa','wEx','wExMean','wExAudio','wNote'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
+      document.getElementById(id).value = '';
     });
     document.getElementById('wDe').focus();
     renderAll(); populateLessonTargets();
     toast(`✅ به «${target.title}» اضافه شد`, 'success');
   });
 
-  const importFullBookBtn = document.getElementById('importFullBookBtn');
-  if (importFullBookBtn) importFullBookBtn.addEventListener('click', () => document.getElementById('fullBookFileInput').click());
-  const replaceFullBookBtn = document.getElementById('replaceFullBookBtn');
-  if (replaceFullBookBtn) replaceFullBookBtn.addEventListener('click', () => document.getElementById('replaceBookFileInput').click());
-  const fullBookFileInput = document.getElementById('fullBookFileInput');
-  if (fullBookFileInput) fullBookFileInput.addEventListener('change', e => {
+  document.getElementById('importFullBookBtn')?.addEventListener('click', () => document.getElementById('fullBookFileInput').click());
+  document.getElementById('replaceFullBookBtn')?.addEventListener('click', () => document.getElementById('replaceBookFileInput').click());
+  document.getElementById('fullBookFileInput')?.addEventListener('change', e => {
     if (e.target.files[0]) importFullBook(e.target.files[0]);
     e.target.value = '';
   });
-  const replaceBookFileInput = document.getElementById('replaceBookFileInput');
-  if (replaceBookFileInput) replaceBookFileInput.addEventListener('change', e => {
+  document.getElementById('replaceBookFileInput')?.addEventListener('change', e => {
     if (e.target.files[0]) replaceFullBook(e.target.files[0]);
     e.target.value = '';
   });
-  const exportFullBookBtn = document.getElementById('exportFullBookBtn');
-  if (exportFullBookBtn) exportFullBookBtn.addEventListener('click', exportBook);
-  const exportAllBooksBtn = document.getElementById('exportAllBooksBtn');
-  if (exportAllBooksBtn) exportAllBooksBtn.addEventListener('click', () => {
+  document.getElementById('exportFullBookBtn')?.addEventListener('click', exportBook);
+  document.getElementById('exportAllBooksBtn')?.addEventListener('click', () => {
     exportData(state, `german-vocab-backup-${new Date().toISOString().slice(0,10)}.json`);
     toast('دانلود شد', 'success');
   });
-
-  const importJsonBtn = document.getElementById('importJsonBtn');
-  if (importJsonBtn) importJsonBtn.addEventListener('click', importJsonWords);
-  const validateJsonBtn = document.getElementById('validateJsonBtn');
-  if (validateJsonBtn) validateJsonBtn.addEventListener('click', validateJson);
-  const clearJsonBtn = document.getElementById('clearJsonBtn');
-  if (clearJsonBtn) clearJsonBtn.addEventListener('click', () => {
+  document.getElementById('importJsonBtn')?.addEventListener('click', importJsonWords);
+  document.getElementById('validateJsonBtn')?.addEventListener('click', validateJson);
+  document.getElementById('clearJsonBtn')?.addEventListener('click', () => {
     document.getElementById('jsonInput').value = '';
     document.getElementById('jsonPreview').innerHTML = '';
   });
-
-  const exportLessonBtn = document.getElementById('exportLessonBtn');
-  if (exportLessonBtn) exportLessonBtn.addEventListener('click', exportLesson);
-  const exportBadBtn = document.getElementById('exportBadBtn');
-  if (exportBadBtn) exportBadBtn.addEventListener('click', exportBad);
-  const exportAllBtn = document.getElementById('exportAllBtn');
-  if (exportAllBtn) exportAllBtn.addEventListener('click', () => {
+  document.getElementById('exportLessonBtn')?.addEventListener('click', exportLesson);
+  document.getElementById('exportBadBtn')?.addEventListener('click', exportBad);
+  document.getElementById('exportAllBtn')?.addEventListener('click', () => {
     exportData(state, `german-vocab-backup-${new Date().toISOString().slice(0,10)}.json`);
     toast('دانلود شد', 'success');
   });
-  const backupAllBtn = document.getElementById('backupAllBtn');
-  if (backupAllBtn) backupAllBtn.addEventListener('click', () => {
+  document.getElementById('backupAllBtn')?.addEventListener('click', () => {
     exportData(state, `german-vocab-backup-${new Date().toISOString().slice(0,10)}.json`);
     toast('دانلود شد', 'success');
   });
-  const resetBtn = document.getElementById('resetBtn');
-  if (resetBtn) resetBtn.addEventListener('click', () => {
+  document.getElementById('resetBtn')?.addEventListener('click', () => {
     if (!confirm('همه داده‌ها ریست بشن؟')) return;
     try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
     LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
@@ -3420,257 +3660,188 @@ function bindEvents(){
     toast('ریست شد — یک کتاب با درس نمونه ساخته شد', 'success');
   });
 
-  const cancelDeleteBookBtn = document.getElementById('cancelDeleteBookBtn');
-  if (cancelDeleteBookBtn) cancelDeleteBookBtn.addEventListener('click', () => {
+  document.getElementById('cancelDeleteBookBtn')?.addEventListener('click', () => {
     document.getElementById('modalDeleteBook').classList.remove('active');
     document.body.classList.remove('locked');
   });
-  const delBookConfirmInput = document.getElementById('delBookConfirmInput');
-  if (delBookConfirmInput) delBookConfirmInput.addEventListener('input', checkDeleteBookConfirm);
-  const confirmDeleteBookBtn = document.getElementById('confirmDeleteBookBtn');
-  if (confirmDeleteBookBtn) confirmDeleteBookBtn.addEventListener('click', confirmDeleteBook);
+  document.getElementById('delBookConfirmInput')?.addEventListener('input', () => {
+    const b = getBook(); if (!b) return;
+    document.getElementById('confirmDeleteBookBtn').disabled = document.getElementById('delBookConfirmInput').value.trim() !== b.name;
+  });
+  document.getElementById('confirmDeleteBookBtn')?.addEventListener('click', () => {
+    const b = getBook(); if (!b) return;
+    if (document.getElementById('delBookConfirmInput').value.trim() !== b.name) { toast('نام مطابقت ندارد', 'error'); return; }
+    state.books = state.books.filter(x => x.id !== b.id);
+    state.activeBookId = state.books[0]?.id || null;
+    state.activeLessonId = getBook()?.lessons[0]?.id || null;
+    save();
+    document.getElementById('modalDeleteBook').classList.remove('active');
+    document.body.classList.remove('locked');
+    if (!state.books.length) showBookLibrary();
+    else { renderAll(); populateLessonTargets(); }
+    toast('حذف شد', 'success');
+  });
 
   document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', e => {
-      if (e.target === m) {
-        m.classList.remove('active');
-        document.body.classList.remove('locked');
-      }
+      if (e.target === m) { m.classList.remove('active'); document.body.classList.remove('locked'); }
     });
   });
-  const wdm = document.getElementById('wordViewModal');
-  if (wdm) wdm.addEventListener('click', e => { if (e.target === wdm) { wdm.classList.remove('active'); document.body.classList.remove('locked'); } });
-  const wem = document.getElementById('wordEditModal');
-  if (wem) wem.addEventListener('click', e => { if (e.target === wem) closeWordEdit(); });
+  document.getElementById('wordViewModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) { e.currentTarget.classList.remove('active'); document.body.classList.remove('locked'); }
+  });
+  document.getElementById('wordEditModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) { e.currentTarget.classList.remove('active'); document.body.classList.remove('locked'); }
+  });
 
-  const cancelBookBtn = document.getElementById('cancelBookBtn');
-  if (cancelBookBtn) cancelBookBtn.addEventListener('click', () => {
+  document.getElementById('cancelBookBtn')?.addEventListener('click', () => {
     document.getElementById('modalBook').classList.remove('active');
     document.body.classList.remove('locked');
     editingBookId = null;
   });
-  const cancelLessonBtn = document.getElementById('cancelLessonBtn');
-  if (cancelLessonBtn) cancelLessonBtn.addEventListener('click', () => {
+  document.getElementById('cancelLessonBtn')?.addEventListener('click', () => {
     document.getElementById('modalLesson').classList.remove('active');
     document.body.classList.remove('locked');
-    const saveBtn = document.getElementById('saveLessonBtn');
-    if (saveBtn) delete saveBtn.dataset.editId;
+    delete document.getElementById('saveLessonBtn').dataset.editId;
   });
-  const saveBookBtn = document.getElementById('saveBookBtn');
-  if (saveBookBtn) saveBookBtn.addEventListener('click', () => {
+  document.getElementById('saveBookBtn')?.addEventListener('click', () => {
     const name = document.getElementById('bookNameInput').value.trim();
     const level = document.getElementById('bookLevelInput').value;
-    const coverInput = document.getElementById('bookCoverInput');
-    const coverImage = coverInput ? safeImageSrc(coverInput.value.trim()) : '';
+    const coverImage = safeImageSrc(document.getElementById('bookCoverInput').value.trim());
     if (!name) { toast('نام لازمه', 'error'); return; }
-    const isLibrary = !document.getElementById('bookLibraryScreen').classList.contains('hidden');
     if (editingBookId) {
       const book = state.books.find(b => b.id === editingBookId);
-      if (!book) { toast('کتاب پیدا نشد', 'error'); return; }
+      if (!book) return;
       book.name = name; book.level = level; book.coverImage = coverImage;
       save();
       document.getElementById('modalBook').classList.remove('active');
       document.body.classList.remove('locked');
       editingBookId = null;
-      if (isLibrary) { renderBookLibrary(); toast(`✅ «${name}» ویرایش شد`, 'success'); }
-      else { renderAll(); toast('✅ ویرایش شد', 'success'); }
+      renderBookLibrary();
+      toast('✅ ویرایش شد', 'success');
     } else {
       const nb = { id: uid(), name, level, coverImage, lessons: [] };
-      ensureSingleSampleLesson(nb);
+      ensureSampleLesson(nb);
       state.books.push(nb);
       state.activeBookId = nb.id;
       state.activeLessonId = nb.lessons[0].id;
       save();
       document.getElementById('modalBook').classList.remove('active');
       document.body.classList.remove('locked');
-      if (isLibrary) { renderBookLibrary(); toast(`✅ «${name}» اضافه شد (با درس نمونه)`, 'success'); }
-      else { renderAll(); toast('✅ ذخیره شد', 'success'); }
+      renderBookLibrary();
+      toast('✅ اضافه شد', 'success');
     }
   });
-  const saveLessonBtn = document.getElementById('saveLessonBtn');
-  if (saveLessonBtn) saveLessonBtn.addEventListener('click', () => {
-    const titleInput = document.getElementById('lessonTitleInput');
-    const title = (titleInput ? titleInput.value : '').trim();
-    if (!title) { toast('عنوان درس رو بنویس', 'error'); if (titleInput) titleInput.focus(); return; }
-    const b = getBook();
-    if (!b) {
-      toast('اول یه کتاب انتخاب کن', 'error');
-      document.getElementById('modalLesson').classList.remove('active');
-      document.body.classList.remove('locked');
-      return;
-    }
-    const editId = saveLessonBtn.dataset.editId;
+
+  document.getElementById('saveLessonBtn')?.addEventListener('click', () => {
+    const title = document.getElementById('lessonTitleInput').value.trim();
+    if (!title) { toast('عنوان لازمه', 'error'); return; }
+    const b = getBook(); if (!b) return;
+    const saveBtn = document.getElementById('saveLessonBtn');
+    const editId = saveBtn.dataset.editId;
     if (editId) {
       const target = b.lessons.find(x => x.id === editId);
-      if (!target) { toast('درس پیدا نشد', 'error'); return; }
-      if (target.isSample) { toast('🔒 درس نمونه قابل ویرایش نیست', 'error'); return; }
-      if ((b.lessons || []).some(l => l.id !== editId && l.title.trim().toLowerCase() === title.toLowerCase())) {
-        if (!confirm(`درسی با عنوان «${title}» قبلاً هست. ادامه؟`)) return;
-      }
+      if (!target || target.isSample) return;
       target.title = title;
       save();
-      delete saveLessonBtn.dataset.editId;
+      delete saveBtn.dataset.editId;
       document.getElementById('modalLesson').classList.remove('active');
       document.body.classList.remove('locked');
       renderAll(); populateLessonTargets();
-      toast(`✅ نام درس به «${title}» تغییر کرد`, 'success');
+      toast('✅ ویرایش شد', 'success');
       return;
     }
-    if ((b.lessons || []).some(l => l.title.trim().toLowerCase() === title.toLowerCase())) {
-      if (!confirm(`درسی با عنوان «${title}» قبلاً هست. بازم بسازی؟`)) return;
-    }
-    const nl = { id: uid(), title, words: [], stories: [], isSample: false };
-    if (!Array.isArray(b.lessons)) b.lessons = [];
+    const nl = { id: uid(), title, words: [], stories: [], grammar: [], letters: [], dialogues: [], isSample: false };
     b.lessons.push(nl);
     state.activeLessonId = nl.id;
     save();
     document.getElementById('modalLesson').classList.remove('active');
     document.body.classList.remove('locked');
     renderAll(); populateLessonTargets();
-    toast(`✅ درس «${title}» اضافه شد`, 'success');
+    toast('✅ درس اضافه شد', 'success');
   });
-  const lessonTitleInput = document.getElementById('lessonTitleInput');
-  if (lessonTitleInput) {
-    lessonTitleInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const btn = document.getElementById('saveLessonBtn');
-        if (btn) btn.click();
-      }
-    });
-  }
-
-  const libraryAddBookBtn = document.getElementById('libraryAddBookBtn');
-  if (libraryAddBookBtn) libraryAddBookBtn.addEventListener('click', openBookModal);
-  const libraryImportBtn = document.getElementById('libraryImportBtn');
-  if (libraryImportBtn) libraryImportBtn.addEventListener('click', openLibraryImportModal);
-  const backToLibraryBtn = document.getElementById('backToLibraryBtn');
-  if (backToLibraryBtn) backToLibraryBtn.addEventListener('click', showBookLibrary);
-
-  const changeBookBtn = document.getElementById('changeBookBtn');
-  if (changeBookBtn) changeBookBtn.addEventListener('click', openBookPicker);
-  const globalSearchBtn = document.getElementById('globalSearchBtn');
-  if (globalSearchBtn) globalSearchBtn.addEventListener('click', openGlobalSearch);
-  const closeGlobalSearchBtn = document.getElementById('closeGlobalSearchBtn');
-  if (closeGlobalSearchBtn) closeGlobalSearchBtn.addEventListener('click', closeGlobalSearch);
-  const globalSearchInput = document.getElementById('globalSearchInput');
-  if (globalSearchInput) {
-    globalSearchInput.addEventListener('input', e => searchAllWords(e.target.value));
-  }
-
-  const closeBookPickerBtn = document.getElementById('closeBookPickerBtn');
-  if (closeBookPickerBtn) closeBookPickerBtn.addEventListener('click', closeBookPicker);
-  const bookPickerAddBtn = document.getElementById('bookPickerAddBtn');
-  if (bookPickerAddBtn) bookPickerAddBtn.addEventListener('click', () => { closeBookPicker(); openBookModal(); });
-  const bookPickerImportBtn = document.getElementById('bookPickerImportBtn');
-  if (bookPickerImportBtn) bookPickerImportBtn.addEventListener('click', () => { closeBookPicker(); openLibraryImportModal(); });
-
-  const cancelLibraryImportBtn = document.getElementById('cancelLibraryImportBtn');
-  if (cancelLibraryImportBtn) cancelLibraryImportBtn.addEventListener('click', closeLibraryImportModal);
-
-  const libImportFileCard = document.getElementById('libImportFileCard');
-  if (libImportFileCard) libImportFileCard.addEventListener('click', () => {
-    document.getElementById('libImportFileInput').click();
+  document.getElementById('lessonTitleInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('saveLessonBtn').click(); }
   });
-  const libImportFileInput = document.getElementById('libImportFileInput');
-  if (libImportFileInput) libImportFileInput.addEventListener('change', e => {
+
+  document.getElementById('libraryAddBookBtn')?.addEventListener('click', openBookModal);
+  document.getElementById('libraryImportBtn')?.addEventListener('click', openLibraryImportModal);
+  document.getElementById('backToLibraryBtn')?.addEventListener('click', showBookLibrary);
+  document.getElementById('changeBookBtn')?.addEventListener('click', openBookPicker);
+  document.getElementById('globalSearchBtn')?.addEventListener('click', openGlobalSearch);
+  document.getElementById('closeGlobalSearchBtn')?.addEventListener('click', closeGlobalSearch);
+  document.getElementById('globalSearchInput')?.addEventListener('input', e => searchAllWords(e.target.value));
+  document.getElementById('closeBookPickerBtn')?.addEventListener('click', closeBookPicker);
+  document.getElementById('bookPickerAddBtn')?.addEventListener('click', () => { closeBookPicker(); openBookModal(); });
+  document.getElementById('bookPickerImportBtn')?.addEventListener('click', () => { closeBookPicker(); openLibraryImportModal(); });
+  document.getElementById('cancelLibraryImportBtn')?.addEventListener('click', closeLibraryImportModal);
+
+  document.getElementById('libImportFileCard')?.addEventListener('click', () => document.getElementById('libImportFileInput').click());
+  document.getElementById('libImportFileInput')?.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.json')) { toast('فقط .json', 'error'); return; }
     const reader = new FileReader();
     reader.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
         processLibraryImportData(data, file.name);
-      } catch(err) {
-        toast('❌ JSON نامعتبر: ' + err.message, 'error');
-      }
+      } catch(err) { toast('❌ ' + err.message, 'error'); }
     };
     reader.readAsText(file);
     e.target.value = '';
   });
-
-  const libImportUrlCard = document.getElementById('libImportUrlCard');
-  if (libImportUrlCard) libImportUrlCard.addEventListener('click', () => {
+  document.getElementById('libImportUrlCard')?.addEventListener('click', () => {
     document.getElementById('libImportUrlBox').classList.remove('hidden');
     document.getElementById('libImportPasteBox').classList.add('hidden');
   });
-  const libImportUrlFetchBtn = document.getElementById('libImportUrlFetchBtn');
-  if (libImportUrlFetchBtn) libImportUrlFetchBtn.addEventListener('click', fetchLibraryFromUrl);
-  const libImportUrlCancelBtn = document.getElementById('libImportUrlCancelBtn');
-  if (libImportUrlCancelBtn) libImportUrlCancelBtn.addEventListener('click', () => {
-    document.getElementById('libImportUrlBox').classList.add('hidden');
+  document.getElementById('libImportUrlFetchBtn')?.addEventListener('click', () => {
+    const url = document.getElementById('libImportUrlInput').value.trim();
+    const status = document.getElementById('libImportUrlStatus');
+    if (!url) { status.innerHTML = `<div style="color:var(--danger);">آدرس لازمه</div>`; return; }
+    status.innerHTML = `<div style="color:var(--info);">⏳...</div>`;
+    fetch(url).then(r => r.text()).then(text => {
+      try {
+        const data = JSON.parse(text);
+        processLibraryImportData(data, url.split('/').pop() || 'book.json');
+      } catch(err) {
+        status.innerHTML = `<div style="color:var(--danger);">❌ ${esc(err.message)}</div>`;
+      }
+    }).catch(err => {
+      status.innerHTML = `<div style="color:var(--danger);">❌ ${esc(err.message)}<br><small>ممکنه CORS باشه</small></div>`;
+    });
   });
-
-  const libImportPasteCard = document.getElementById('libImportPasteCard');
-  if (libImportPasteCard) libImportPasteCard.addEventListener('click', () => {
+  document.getElementById('libImportUrlCancelBtn')?.addEventListener('click', () => document.getElementById('libImportUrlBox').classList.add('hidden'));
+  document.getElementById('libImportPasteCard')?.addEventListener('click', () => {
     document.getElementById('libImportPasteBox').classList.remove('hidden');
     document.getElementById('libImportUrlBox').classList.add('hidden');
   });
-  const libImportPasteAddBtn = document.getElementById('libImportPasteAddBtn');
-  if (libImportPasteAddBtn) libImportPasteAddBtn.addEventListener('click', addLibraryFromPaste);
-  const libImportPasteCancelBtn = document.getElementById('libImportPasteCancelBtn');
-  if (libImportPasteCancelBtn) libImportPasteCancelBtn.addEventListener('click', () => {
-    document.getElementById('libImportPasteBox').classList.add('hidden');
+  document.getElementById('libImportPasteAddBtn')?.addEventListener('click', () => {
+    const raw = document.getElementById('libImportPasteInput').value.trim();
+    const status = document.getElementById('libImportPasteStatus');
+    if (!raw) { status.innerHTML = `<div style="color:var(--danger);">JSON خالیه</div>`; return; }
+    try {
+      const data = JSON.parse(raw);
+      processLibraryImportData(data, 'pasted.json');
+    } catch(e) { status.innerHTML = `<div style="color:var(--danger);">❌ ${esc(e.message)}</div>`; }
   });
-
-  const importAsNewBookBtn = document.getElementById('importAsNewBookBtn');
-  if (importAsNewBookBtn) importAsNewBookBtn.addEventListener('click', chooseImportAsNewBook);
-  const importAsReplaceBtn = document.getElementById('importAsReplaceBtn');
-  if (importAsReplaceBtn) importAsReplaceBtn.addEventListener('click', chooseImportAsReplace);
-  const cancelImportBookBtn = document.getElementById('cancelImportBookBtn');
-  if (cancelImportBookBtn) cancelImportBookBtn.addEventListener('click', closeImportBookPopup);
-  const confirmNewBookBtn = document.getElementById('confirmNewBookBtn');
-  if (confirmNewBookBtn) confirmNewBookBtn.addEventListener('click', confirmNewBookFromImport);
-  const cancelNewBookBtn = document.getElementById('cancelNewBookBtn');
-  if (cancelNewBookBtn) cancelNewBookBtn.addEventListener('click', () => {
-    document.getElementById('modalNewBookFromImport').classList.remove('active');
-    document.body.classList.remove('locked');
-    closeImportBookPopup();
-  });
-  const confirmReplaceBookBtn = document.getElementById('confirmReplaceBookBtn');
-  if (confirmReplaceBookBtn) confirmReplaceBookBtn.addEventListener('click', confirmReplaceBook);
-  const cancelReplaceBookBtn = document.getElementById('cancelReplaceBookBtn');
-  if (cancelReplaceBookBtn) cancelReplaceBookBtn.addEventListener('click', () => {
-    document.getElementById('modalReplaceTargetBook').classList.remove('active');
-    document.body.classList.remove('locked');
-    closeImportBookPopup();
-  });
+  document.getElementById('libImportPasteCancelBtn')?.addEventListener('click', () => document.getElementById('libImportPasteBox').classList.add('hidden'));
 
   setupFileDropZone();
 
-  /* ⭐ FIX: Space در input ها کار کنه، فقط برای تمرین بلاک بشه */
   document.addEventListener('keydown', e => {
     const target = e.target;
-    const isTyping = target && (
-      target.tagName === 'INPUT' ||
-      target.tagName === 'TEXTAREA' ||
-      target.tagName === 'SELECT' ||
-      target.isContentEditable
-    );
-
+    const isTyping = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
     if (e.key === 'Escape') {
-      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
-      const sr = document.getElementById('storyReaderModal');
-      if (sr && sr.classList.contains('active')) { sr.classList.remove('active'); document.body.classList.remove('locked'); }
-      const wv = document.getElementById('wordViewModal');
-      if (wv && wv.classList.contains('active')) { wv.classList.remove('active'); document.body.classList.remove('locked'); }
-      const we = document.getElementById('wordEditModal');
-      if (we && we.classList.contains('active')) closeWordEdit();
-      const libImp = document.getElementById('modalLibraryImport');
-      if (libImp && libImp.classList.contains('active')) closeLibraryImportModal();
-      const bp = document.getElementById('modalBookPicker');
-      if (bp && bp.classList.contains('active')) closeBookPicker();
-      const gs = document.getElementById('modalGlobalSearch');
-      if (gs && gs.classList.contains('active')) closeGlobalSearch();
+      document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+      document.getElementById('storyReaderModal')?.classList.remove('active');
+      document.getElementById('wordViewModal')?.classList.remove('active');
+      document.getElementById('wordEditModal')?.classList.remove('active');
+      document.getElementById('wordTooltipModal')?.classList.remove('active');
       if (practice.active) exitPractice();
       if (document.body.classList.contains('practice-theater')) exitTheaterMode();
-      const menu = document.getElementById('practiceFolderMenu');
-      if (menu) menu.classList.add('hidden');
+      document.getElementById('practiceFolderMenu')?.classList.add('hidden');
       document.body.classList.remove('locked');
     }
-
-    // ✅ Space فقط وقتی توی فیلد تایپ نیستیم، کارت رو بچرخونه
     if (e.key === ' ' && practice.active && !isTyping) {
       e.preventDefault();
       const inner = document.getElementById('flashcardInner');
@@ -3678,7 +3849,7 @@ function bindEvents(){
       inner.classList.toggle('flipped');
       if (inner.classList.contains('flipped')) {
         if (window.speechSynthesis) window.speechSynthesis.cancel();
-        if (currentAudio) { try { currentAudio.pause(); currentAudio.currentTime = 0; } catch(e){} currentAudio = null; }
+        if (currentAudio) { try { currentAudio.pause(); } catch(e){} currentAudio = null; }
       }
     }
   });
@@ -3688,13 +3859,14 @@ function bindEvents(){
    INIT
    ============================================================ */
 function init(){
+  applyTheme(currentTheme);
   state = load();
   if (!state.lastLessonByBook) state.lastLessonByBook = {};
   if (!Array.isArray(state.quizHistory)) state.quizHistory = [];
+  if (!Array.isArray(state.articleHistory)) state.articleHistory = [];
 
   if (!state.activeBookId && state.books.length) state.activeBookId = state.books[0].id;
   const b = getBook();
-
   if (b && b.lessons.length) {
     const saved = state.lastLessonByBook[state.activeBookId];
     if (saved && b.lessons.find(l => l.id === saved)) state.activeLessonId = saved;
@@ -3702,7 +3874,7 @@ function init(){
   }
 
   state.books.forEach(bk => {
-    if (!Array.isArray(bk.lessons) || !bk.lessons.length) ensureSingleSampleLesson(bk);
+    if (!Array.isArray(bk.lessons) || !bk.lessons.length) ensureSampleLesson(bk);
     const samples = bk.lessons.filter(l => l.isSample);
     if (samples.length > 1) {
       const firstSample = samples[0];
@@ -3711,12 +3883,18 @@ function init(){
     bk.lessons.forEach(l => {
       if (!Array.isArray(l.words)) l.words = [];
       if (!Array.isArray(l.stories)) l.stories = [];
+      if (!Array.isArray(l.grammar)) l.grammar = [];
+      if (!Array.isArray(l.letters)) l.letters = [];
+      if (!Array.isArray(l.dialogues)) l.dialogues = [];
       l.words.forEach(w => {
         if (!w.status) w.status = normalizeStatus(w);
         if (!Array.isArray(w.notes)) w.notes = [];
         if (!Array.isArray(w.synonyms)) w.synonyms = [];
         if (!Array.isArray(w.related)) w.related = [];
         if (!Array.isArray(w.extraExamples)) w.extraExamples = [];
+        if (!Array.isArray(w.collocations)) w.collocations = [];
+        if (!Array.isArray(w.commonMistakes)) w.commonMistakes = [];
+        if (!Array.isArray(w.contextExamples)) w.contextExamples = [];
         if (!w.forms) w.forms = {};
         ensureSrs(w);
       });
