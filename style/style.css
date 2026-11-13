@@ -1419,7 +1419,6 @@ tr:hover td { background: var(--hover-bg); cursor: pointer; }
 }
 [data-theme="dark"] .fc-example { color: #d1fae5; }
 [data-theme="light"] .fc-example { color: #065f46; }
-
 /* ============================================================
    PRACTICE
    ============================================================ */
@@ -1935,7 +1934,7 @@ body.practice-theater .practice-theater-close { display: flex; }
 .story-card-wrapper:hover .story-del-btn { opacity: 1; }
 
 /* ============================================================
-   STORY READER — طراحی نهایی و شیک
+   STORY READER
    ============================================================ */
 .story-reader-modal {
   position: fixed;
@@ -1970,20 +1969,19 @@ body.practice-theater .practice-theater-close { display: flex; }
 
 .story-reader-close {
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 10px;
+  left: 10px;
   background: var(--danger);
   color: #fff;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   cursor: pointer;
   font-size: 18px;
   z-index: 10;
 }
 
-/* ⭐ هدر: نوار سبز و عنوان کنار هم (خواهر و برادر!) */
 .story-reader-header-row {
   display: flex;
   justify-content: space-between;
@@ -2004,7 +2002,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   font-weight: 800;
   flex-shrink: 0;
   white-space: nowrap;
-  order: 1; /* اول در RTL یعنی سمت راست */
+  order: 1;
 }
 .content-reader-type-badge.type-story { background: rgba(52, 211, 153, 0.18); color: var(--accent); }
 .content-reader-type-badge.type-letter-formal { background: rgba(96, 165, 250, 0.18); color: var(--info); }
@@ -2017,15 +2015,14 @@ body.practice-theater .practice-theater-close { display: flex; }
   font-size: clamp(16px, 4vw, 20px);
   line-height: 1.4;
   font-weight: 900;
-  text-align: left;  /* عنوان سمت چپ */
+  text-align: left;
   flex: 1;
   word-break: break-word;
-  order: 2; /* دوم در RTL یعنی سمت چپ */
+  order: 2;
 }
 [data-theme="dark"] .story-reader-title { color: #c7d2fe; }
 [data-theme="light"] .story-reader-title { color: #4f46e5; }
 
-/* ⭐ اسکرول‌بار افقی مخفی */
 .story-quick-nav {
   display: flex;
   gap: 6px;
@@ -2066,7 +2063,6 @@ body.practice-theater .practice-theater-close { display: flex; }
   font-weight: 800;
 }
 
-/* ⭐ اسکرول‌بار عمودی نازک */
 .story-reader-body-scroll {
   flex: 1;
   min-height: 0;
@@ -2084,7 +2080,6 @@ body.practice-theater .practice-theater-close { display: flex; }
 }
 .story-reader-body-scroll::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
-/* ⭐ ظاهر جمله‌ها */
 .story-sentence {
   padding: 12px 8px;
   border-bottom: 1px dashed var(--border-soft);
@@ -2178,7 +2173,7 @@ body.practice-theater .practice-theater-close { display: flex; }
 }
 
 /* ============================================================
-   🎵 AUDIO PLAYER (فقط اسلایدر صدا عریض‌تر)
+   🎵 AUDIO PLAYER
    ============================================================ */
 .audio-player {
   border-radius: var(--radius-sm);
@@ -2423,6 +2418,7 @@ body.practice-theater .practice-theater-close { display: flex; }
   flex-shrink: 0;
   margin-left: auto;
 }
+
 /* ============================================================
    WORD VIEW / EDIT
    ============================================================ */
@@ -3082,6 +3078,31 @@ body.practice-theater .practice-theater-close { display: flex; }
 @keyframes pulse-listen {
   0%, 100% { box-shadow: 0 10px 32px rgba(192, 132, 252, 0.35); }
   50% { box-shadow: 0 15px 45px rgba(192, 132, 252, 0.65); }
+}
+
+/* ⭐ حالت فول‌اسکرین آزمون */
+.quiz-question-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: var(--bg);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+[data-theme="dark"] .quiz-question-fullscreen {
+  background: radial-gradient(circle at top right, #161d36, #0d1224);
+}
+[data-theme="light"] .quiz-question-fullscreen {
+  background: radial-gradient(circle at top right, #ffffff, #f5f7fb);
+}
+.quiz-question-fullscreen .panel {
+  margin: auto;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-strong);
 }
 
 .quiz-report-hero {
@@ -3765,41 +3786,20 @@ body.practice-theater .practice-theater-close { display: flex; }
   .conj-label { min-width: 65px; font-size: 11px; }
   .conj-value { font-size: 12px; }
 
-  /* ⭐ کارت‌های آزمون — بزرگ‌تر و خواناتر در موبایل */
+  /* ⭐ کارت‌های آزمون — دو ستونه و کوچک‌تر در موبایل */
   .quiz-mode-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin: 16px 0;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 12px 0;
   }
   .quiz-mode-card {
-    padding: 22px 18px 20px;
-    border-radius: 16px;
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    position: relative;
+    padding: 12px 8px;
+    border-radius: 12px;
   }
-  .quiz-mode-card .mode-icon {
-    font-size: 42px;
-    margin-bottom: 10px;
-  }
-  .quiz-mode-card .mode-title {
-    font-size: 16px;
-    font-weight: 900;
-    margin-bottom: 6px;
-  }
-  .quiz-mode-card .mode-desc {
-    font-size: 12px;
-    line-height: 1.5;
-    opacity: 0.85;
-  }
-  .quiz-mode-stats {
-    margin-top: 10px;
-    padding-top: 10px;
-    font-size: 11px;
-  }
+  .quiz-mode-card .mode-icon { font-size: 26px; margin-bottom: 4px; }
+  .quiz-mode-card .mode-title { font-size: 12px; font-weight: 800; margin-bottom: 2px; }
+  .quiz-mode-card .mode-desc { font-size: 9px; }
+  .quiz-mode-card .quiz-mode-stats { font-size: 8px; margin-top: 4px; padding-top: 4px; gap: 4px; }
 
   .quiz-word { font-size: clamp(20px, 6vw, 26px); margin: 12px 0; }
   .quiz-sentence { font-size: 14px; padding: 12px; }
@@ -3823,6 +3823,18 @@ body.practice-theater .practice-theater-close { display: flex; }
     grid-column: 1 / -1;
     text-align: left;
     font-size: 9px;
+  }
+
+  /* ⭐ فول‌اسکرین آزمون در موبایل */
+  .quiz-question-fullscreen { padding: 8px; }
+  .quiz-question-fullscreen .panel {
+    margin: 8px auto;
+    max-width: 100%;
+    min-height: calc(100vh - 16px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding-top: 20px;
   }
 
   .review-banner { padding: 10px 12px; margin-top: 8px; border-radius: 11px; }
@@ -3938,13 +3950,11 @@ body.practice-theater .practice-theater-close { display: flex; }
   body.practice-theater .fc-meaning { font-size: 17px; }
 
   /* ⭐ کارت‌های آزمون در موبایل خیلی کوچک */
-  .quiz-mode-card {
-    padding: 18px 14px;
-    min-height: 100px;
-  }
-  .quiz-mode-card .mode-icon { font-size: 36px; }
-  .quiz-mode-card .mode-title { font-size: 14px; }
-  .quiz-mode-card .mode-desc { font-size: 11px; }
+  .quiz-mode-grid { grid-template-columns: 1fr; gap: 6px; }
+  .quiz-mode-card { padding: 10px; min-height: 100px; }
+  .quiz-mode-card .mode-icon { font-size: 22px; }
+  .quiz-mode-card .mode-title { font-size: 11px; }
+  .quiz-mode-card .mode-desc { font-size: 9px; }
 
   .de-speak-xs { width: 16px; height: 16px; font-size: 8px; }
   .de-speak-sm { width: 20px; height: 20px; font-size: 10px; }
