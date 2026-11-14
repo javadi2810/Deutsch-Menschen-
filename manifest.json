@@ -2,7 +2,7 @@
   "name": "German Vocab Pro",
   "short_name": "GermanVocab",
   "description": "اپلیکیشن جامع یادگیری لغات آلمانی با فلش‌کارت، آزمون و تکرار فاصله‌دار",
-  "start_url": "./index.html",
+  "start_url": "/",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
