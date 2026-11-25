@@ -7,26 +7,16 @@
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>German Vocab Pro</title>
- 
-  <!-- ------------------------------------------------------------------------------------------------------------------------- -->
+  <title>JD Deutsch</title>
 
-  
   <meta name="description" content="اپلیکیشن جامع یادگیری لغات آلمانی">
   <meta name="theme-color" content="#6366f1">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="./manifest.json?v=2">
   <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png?v=2">
   <link rel="icon" type="image/png" sizes="512x512" href="./assets/icon-512.png">
   <link rel="apple-touch-icon" href="./assets/icon-192.png?v=2">
 
-
-
-  <!-- --------------------------------------------------------------------------------------------------------------------- -->
-
-
-  <link rel="stylesheet" href="./style/style.css">
+  <link rel="stylesheet" href="./style/style2.css">
 </head>
 
 <body>
@@ -79,6 +69,7 @@
 
     <div class="container">
 
+      <!-- ═══ پنل درس + آمار ═══ -->
       <div class="panel">
         <h3>📚 درس</h3>
         <div class="row">
@@ -91,6 +82,8 @@
             <button class="btn btn-sm" id="editLessonBtn" title="ویرایش نام درس"
               style="background:var(--warning);color:#000;">✏️</button>
             <button class="btn btn-sm btn-danger" id="delLessonBtn" title="حذف درس">🗑</button>
+            <button class="btn btn-sm" id="sortLessonsBtn" title="مرتب‌سازی درس‌ها"
+              style="background:var(--purple);color:#fff;">↕️</button>
           </div>
         </div>
         <div id="lessonStatsBox" style="margin-top:12px;">
@@ -102,22 +95,54 @@
         </div>
       </div>
 
+      <!-- ═══ نوار تب‌ها (۱۵ تب) ═══ -->
       <div class="tabs">
         <button class="tab active" data-tab="list">📋 لغات</button>
         <button class="tab" data-tab="cards">📇 کارت‌ها</button>
         <button class="tab" data-tab="practice">🃏 تمرین</button>
         <button class="tab" data-tab="quiz">✅ آزمون</button>
         <button class="tab" data-tab="grammar">📘 گرامر</button>
+        <button class="tab" data-tab="verbs">⚡ افعال</button>
         <button class="tab" data-tab="stories">📖 داستان‌ها</button>
+        <button class="tab" data-tab="favorites">❤️⭐🔥 علاقه‌مندی‌ها</button>
+        <button class="tab" data-tab="videos">🎬 ویدیوها</button>
+        <button class="tab" data-tab="audios">🎙 آدیوها</button>
+        <button class="tab" data-tab="playlists">🎵 پلی‌لیست</button>
         <button class="tab" data-tab="json">📥 JSON</button>
         <button class="tab" data-tab="manage">➕ لغت جدید</button>
         <button class="tab" data-tab="manage-story">➕ محتوای جدید</button>
+        <button class="tab" data-tab="admin">🎛️ پنل مدیریت</button>
       </div>
 
-      <!-- TAB LIST -->
+      <!-- ============ TAB LIST — لغات ============ -->
       <div id="tab-list" class="tab-content">
         <div class="panel">
           <h3>📋 لغات این درس</h3>
+
+          <!-- فیلتر سریع ❤️⭐🔥 -->
+          <div class="quick-filter-bar">
+            <button class="quick-filter-btn active" id="qfAll" data-qf="all">
+              <span class="qf-icon">📋</span>
+              <span class="qf-label">همه</span>
+              <span class="qf-count" id="qfAllCount">0</span>
+            </button>
+            <button class="quick-filter-btn qf-heart" id="qfHeart" data-qf="heart">
+              <span class="qf-icon">❤️</span>
+              <span class="qf-label">موردعلاقه‌ها</span>
+              <span class="qf-count" id="qfHeartCount">0</span>
+            </button>
+            <button class="quick-filter-btn qf-star" id="qfStar" data-qf="star">
+              <span class="qf-icon">⭐</span>
+              <span class="qf-label">مهم‌ها</span>
+              <span class="qf-count" id="qfStarCount">0</span>
+            </button>
+            <button class="quick-filter-btn qf-fire" id="qfFire" data-qf="fire">
+              <span class="qf-icon">🔥</span>
+              <span class="qf-label">خیلی مهم</span>
+              <span class="qf-count" id="qfFireCount">0</span>
+            </button>
+          </div>
+
           <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
             <input id="searchBox" placeholder="🔍 جستجو..." style="flex:3;min-width:120px;">
             <select id="filterStatus" style="flex:1;min-width:100px;">
@@ -139,6 +164,12 @@
               <option value="non-noun">غیر اسم</option>
               <option value="none">بدون آرتیکل</option>
             </select>
+            <select id="filterSpecial" style="display:none;">
+              <option value="all">همه</option>
+              <option value="heart">❤️</option>
+              <option value="star">⭐</option>
+              <option value="fire">🔥</option>
+            </select>
             <button class="btn btn-primary" id="quickJsonBtn" style="flex:0 0 auto;">📥 JSON</button>
             <input type="file" id="quickJsonFile" accept=".json,application/json" style="display:none;">
           </div>
@@ -147,7 +178,7 @@
         </div>
       </div>
 
-      <!-- TAB CARDS -->
+      <!-- ============ TAB CARDS — کارت‌ها ============ -->
       <div id="tab-cards" class="tab-content hidden">
         <div class="panel">
           <h3>📇 کارت‌های لغت این درس</h3>
@@ -173,6 +204,12 @@
               <option value="noun">فقط اسم‌ها</option>
               <option value="non-noun">غیر اسم</option>
             </select>
+            <select id="cardSpecialFilter" style="flex:1;min-width:100px;">
+              <option value="all">همه</option>
+              <option value="heart">❤️</option>
+              <option value="star">⭐</option>
+              <option value="fire">🔥</option>
+            </select>
           </div>
           <div class="row tight" style="margin-bottom:10px;flex-wrap:wrap;">
             <button class="btn btn-sm" id="cardSortAlpha">🔤 الفبایی</button>
@@ -183,7 +220,17 @@
         </div>
       </div>
 
-      <!-- TAB PRACTICE -->
+      <!-- ═══════════════════════════════════════════════════════
+           ادامه در HTML-2:
+           - tab-practice
+           - tab-quiz
+           - tab-grammar
+           - tab-verbs
+           - tab-stories
+           - tab-favorites
+           ═══════════════════════════════════════════════════════ -->
+
+      <!-- ============ TAB PRACTICE — تمرین ============ -->
       <div id="tab-practice" class="tab-content hidden">
         <div id="practiceFolderView">
           <div class="panel">
@@ -271,14 +318,14 @@
         </div>
       </div>
 
-      <!-- TAB QUIZ -->
+      <!-- ============ TAB QUIZ — آزمون ============ -->
       <div id="tab-quiz" class="tab-content hidden">
         <div id="quizHome"></div>
         <div id="quizSession" class="hidden"></div>
         <div id="quizReport" class="hidden"></div>
       </div>
 
-      <!-- TAB GRAMMAR -->
+      <!-- ============ TAB GRAMMAR — گرامر ============ -->
       <div id="tab-grammar" class="tab-content hidden">
         <div class="panel">
           <h3>📘 گرامر و نکات این درس</h3>
@@ -286,7 +333,19 @@
         </div>
       </div>
 
-      <!-- TAB STORIES -->
+      <!-- ============ TAB VERBS — افعال ============ -->
+      <div id="tab-verbs" class="tab-content hidden">
+        <div class="panel">
+          <h3>⚡ افعال این درس</h3>
+          <p class="muted" style="font-size:12px;margin-bottom:12px;">
+            همه افعال با صرف کامل ضمایر. برای افزودن فعل جدید، کلمه‌ای با نوع <strong>Verb</strong> اضافه کن و
+            صرف‌های آن را در فیلد <strong>forms</strong> پر کن.
+          </p>
+          <div id="verbsList"></div>
+        </div>
+      </div>
+
+      <!-- ============ TAB STORIES — داستان‌ها ============ -->
       <div id="tab-stories" class="tab-content hidden">
         <div class="panel">
           <h3>📖 محتوای این درس</h3>
@@ -296,7 +355,302 @@
         </div>
       </div>
 
-      <!-- TAB JSON -->
+      <!-- ============ TAB FAVORITES — ❤️⭐🔥 ============ -->
+      <div id="tab-favorites" class="tab-content hidden">
+        <div class="panel">
+          <h3>❤️⭐🔥 علاقه‌مندی‌ها</h3>
+
+          <!-- ۳ سطح -->
+          <div class="quick-filter-bar fav-level-bar">
+            <button class="quick-filter-btn qf-heart active" data-fav-level="heart">
+              <span class="qf-icon">❤️</span>
+              <span class="qf-label">موردعلاقه</span>
+              <span class="qf-count" id="favHeartCount">0</span>
+            </button>
+            <button class="quick-filter-btn qf-star" data-fav-level="star">
+              <span class="qf-icon">⭐</span>
+              <span class="qf-label">مهم</span>
+              <span class="qf-count" id="favStarCount">0</span>
+            </button>
+            <button class="quick-filter-btn qf-fire" data-fav-level="fire">
+              <span class="qf-icon">🔥</span>
+              <span class="qf-label">خیلی مهم</span>
+              <span class="qf-count" id="favFireCount">0</span>
+            </button>
+          </div>
+
+          <!-- ۵ زیربخش -->
+          <div class="fav-type-tabs">
+            <button class="fav-type-btn active" data-fav-type="all">📚 همه</button>
+            <button class="fav-type-btn" data-fav-type="words">📝 لغات</button>
+            <button class="fav-type-btn" data-fav-type="sentences">💬 جملات</button>
+            <button class="fav-type-btn" data-fav-type="videos">🎬 ویدیوها</button>
+            <button class="fav-type-btn" data-fav-type="audios">🎙 آدیوها</button>
+          </div>
+
+          <!-- فیلتر درس + جستجو -->
+          <div class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <input id="favSearch" placeholder="🔍 جستجو در علاقه‌مندی‌ها..." style="flex:3;min-width:120px;">
+            <select id="favLessonFilter" style="flex:1;min-width:120px;">
+              <option value="all">همه درس‌ها</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="favPracticeBtn" style="flex:0 0 auto;">🎯 تمرین</button>
+            <button class="btn btn-success btn-sm" id="favExportBtn" style="flex:0 0 auto;">📤 خروجی</button>
+          </div>
+
+          <!-- نمایش محتوا -->
+          <div id="favoritesContainer"></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           ادامه در HTML-3:
+           - tab-videos (۴ زیربخش)
+           - tab-audios (۵ زیربخش)
+           - tab-playlists (فیلتر)
+           - tab-json
+           - tab-manage
+           - tab-manage-story
+           - tab-admin
+           ═══════════════════════════════════════════════════════ -->
+
+      <!-- ============ TAB VIDEOS — ویدیوها ============ -->
+      <div id="tab-videos" class="tab-content hidden">
+        <!-- نوار زیربخش -->
+        <div class="media-sub-tabs">
+          <button class="media-sub-tab active" data-video-tab="home">🏠 خانه</button>
+          <button class="media-sub-tab" data-video-tab="playlists">🎵 پلی‌لیست</button>
+          <button class="media-sub-tab" data-video-tab="collections">📁 مجموعه</button>
+          <button class="media-sub-tab" data-video-tab="singles">🎬 تک</button>
+        </div>
+
+        <!-- ===== زیربخش: خانه ===== -->
+        <div id="videoTabHome" class="media-tab-panel">
+          <div id="fireVideosSliderSection" class="fire-slider-section hidden">
+            <div class="fire-slider-head">
+              <h3>🔥 ویدیوهای خیلی مهم</h3>
+              <button class="fire-slider-list-btn" id="fireVideosListBtn" title="نمایش همه">⋯</button>
+            </div>
+            <div class="fire-slider-wrap">
+              <div class="fire-slider" id="fireVideosSlider"></div>
+            </div>
+            <div class="fire-slider-dots" id="fireVideosDots"></div>
+          </div>
+
+          <div id="videoHomePlaylistsSection" class="panel hidden">
+            <div class="media-section-head">
+              <h3>🎵 پلی‌لیست‌های اخیر</h3>
+              <button class="btn btn-sm" data-goto-video-tab="playlists">مشاهده همه →</button>
+            </div>
+            <div id="videoHomePlaylistsGrid" class="playlists-grid"></div>
+          </div>
+
+          <div id="videoHomeCollectionsSection" class="panel hidden">
+            <div class="media-section-head">
+              <h3>📁 مجموعه‌های ویدیویی</h3>
+              <button class="btn btn-sm" data-goto-video-tab="collections">مشاهده همه →</button>
+            </div>
+            <div id="videoHomeCollectionsGrid" class="media-collections-grid"></div>
+          </div>
+
+          <div id="videoHomeSinglesSection" class="panel hidden">
+            <div class="media-section-head">
+              <h3>🎬 ویدیوهای تک</h3>
+              <button class="btn btn-sm" data-goto-video-tab="singles">مشاهده همه →</button>
+            </div>
+            <div id="videoHomeSinglesGrid" class="media-singles-grid"></div>
+          </div>
+
+          <div id="videoHomeEmpty" class="panel hidden">
+            <div class="empty">هنوز هیچ ویدیویی اضافه نشده — از پنل مدیریت یا دکمه‌های زیر اضافه کن</div>
+          </div>
+
+          <div class="panel">
+            <div class="row tight" style="flex-wrap:wrap;">
+              <button class="btn btn-primary" id="addVideoCollectionBtn">➕ مجموعه جدید</button>
+              <button class="btn" id="addSingleVideoBtn">➕ ویدیو تک</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== زیربخش: پلی‌لیست ===== -->
+        <div id="videoTabPlaylists" class="media-tab-panel hidden">
+          <div class="panel">
+            <div class="media-section-head">
+              <h3>🎵 پلی‌لیست‌های ویدیویی</h3>
+              <button class="btn btn-primary btn-sm" id="addVideoPlaylistBtn">➕ پلی‌لیست جدید</button>
+            </div>
+            <div id="videoPlaylistsGrid" class="playlists-grid"></div>
+          </div>
+        </div>
+
+        <!-- ===== زیربخش: مجموعه ===== -->
+        <div id="videoTabCollections" class="media-tab-panel hidden">
+          <div class="panel">
+            <div class="media-section-head">
+              <h3>📁 مجموعه‌های ویدیویی</h3>
+              <button class="btn btn-primary btn-sm" id="addVideoCollectionBtn2">➕ مجموعه جدید</button>
+            </div>
+            <div id="videoCollectionsGrid" class="media-collections-grid"></div>
+          </div>
+        </div>
+
+        <!-- ===== زیربخش: تک ===== -->
+        <div id="videoTabSingles" class="media-tab-panel hidden">
+          <div class="panel">
+            <div class="media-section-head">
+              <h3>🎬 ویدیوهای تک</h3>
+              <button class="btn btn-primary btn-sm" id="addSingleVideoBtn2">➕ ویدیو تک</button>
+            </div>
+            <div id="singleVideosGrid" class="media-singles-grid"></div>
+          </div>
+        </div>
+
+        <!-- View های داخلی -->
+        <div id="videoCollectionView" class="hidden"></div>
+        <div id="videoPlayerView" class="hidden"></div>
+      </div>
+
+      <!-- ============ TAB AUDIOS — آدیوها ============ -->
+      <div id="tab-audios" class="tab-content hidden">
+        <!-- نوار زیربخش -->
+        <div class="media-sub-tabs">
+          <button class="media-sub-tab active" data-audio-tab="home">🏠 خانه</button>
+          <button class="media-sub-tab" data-audio-tab="playlists">🎵 پلی‌لیست</button>
+          <button class="media-sub-tab" data-audio-tab="artists">🎤 خواننده</button>
+          <button class="media-sub-tab" data-audio-tab="collections">📁 مجموعه</button>
+          <button class="media-sub-tab" data-audio-tab="all">🎧 همه</button>
+        </div>
+
+        <!-- ===== زیربخش: خانه ===== -->
+        <div id="audioTabHome" class="media-tab-panel">
+          <div id="fireAudiosSliderSection" class="fire-slider-section hidden">
+            <div class="fire-slider-head">
+              <h3>🔥 آدیوهای خیلی مهم</h3>
+              <button class="fire-slider-list-btn" id="fireAudiosListBtn" title="نمایش همه">⋯</button>
+            </div>
+            <div class="fire-slider-wrap">
+              <div class="fire-slider" id="fireAudiosSlider"></div>
+            </div>
+            <div class="fire-slider-dots" id="fireAudiosDots"></div>
+          </div>
+
+          <div id="audioHomePlaylistsSection" class="panel hidden">
+            <div class="media-section-head">
+              <h3>🎵 پلی‌لیست‌های اخیر</h3>
+              <button class="btn btn-sm" data-goto-audio-tab="playlists">مشاهده همه →</button>
+            </div>
+            <div id="audioHomePlaylistsGrid" class="playlists-grid"></div>
+          </div>
+
+          <div id="audioHomeArtistsSection" class="panel hidden">
+            <div class="media-section-head">
+              <h3>🎤 خواننده‌ها</h3>
+              <button class="btn btn-sm" data-goto-audio-tab="artists">مشاهده همه →</button>
+            </div>
+            <div id="audioHomeArtistsGrid" class="artists-grid"></div>
+          </div>
+
+          <div id="audioHomeCollectionsSection" class="panel hidden">
+            <div class="media-section-head">
+              <h3>📁 مجموعه‌های آدیو</h3>
+              <button class="btn btn-sm" data-goto-audio-tab="collections">مشاهده همه →</button>
+            </div>
+            <div id="audioHomeCollectionsGrid" class="media-collections-grid"></div>
+          </div>
+
+          <div id="audioHomeEmpty" class="panel hidden">
+            <div class="empty">هنوز هیچ آدیویی اضافه نشده — از پنل مدیریت یا دکمه‌های زیر اضافه کن</div>
+          </div>
+
+          <div class="panel">
+            <div class="row tight" style="flex-wrap:wrap;">
+              <button class="btn btn-primary" id="addAudioCollectionBtn">➕ مجموعه جدید</button>
+              <button class="btn" id="addSingleAudioBtn">➕ آدیو تک</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== زیربخش: پلی‌لیست ===== -->
+        <div id="audioTabPlaylists" class="media-tab-panel hidden">
+          <div class="panel">
+            <div class="media-section-head">
+              <h3>🎵 پلی‌لیست‌های آدیو</h3>
+              <button class="btn btn-primary btn-sm" id="addAudioPlaylistBtn">➕ پلی‌لیست جدید</button>
+            </div>
+            <div id="audioPlaylistsGrid" class="playlists-grid"></div>
+          </div>
+        </div>
+
+        <!-- ===== زیربخش: خواننده ===== -->
+        <div id="audioTabArtists" class="media-tab-panel hidden">
+          <div class="panel">
+            <div class="media-section-head">
+              <h3>🎤 همه خواننده‌ها</h3>
+            </div>
+            <div id="audioArtistsGrid" class="artists-grid"></div>
+          </div>
+        </div>
+
+        <!-- ===== زیربخش: مجموعه ===== -->
+        <div id="audioTabCollections" class="media-tab-panel hidden">
+          <div class="panel">
+            <div class="media-section-head">
+              <h3>📁 مجموعه‌های آدیو</h3>
+              <button class="btn btn-primary btn-sm" id="addAudioCollectionBtn2">➕ مجموعه جدید</button>
+            </div>
+            <div id="audioCollectionsGrid" class="media-collections-grid"></div>
+          </div>
+        </div>
+
+        <!-- ===== زیربخش: همه ===== -->
+        <div id="audioTabAll" class="media-tab-panel hidden">
+          <div class="panel">
+            <div class="media-section-head" style="flex-wrap:wrap;">
+              <h3>🎧 همه آدیوها</h3>
+              <div class="row tight" style="gap:6px;">
+                <input id="audioAllSearch" placeholder="🔍 جستجو..." style="min-width:150px;">
+                <select id="audioAllSort">
+                  <option value="new">جدیدترین</option>
+                  <option value="alpha">الفبایی</option>
+                  <option value="duration">مدت زمان</option>
+                </select>
+              </div>
+            </div>
+            <div id="audioAllGrid" class="media-singles-grid"></div>
+          </div>
+        </div>
+
+        <!-- View های داخلی -->
+        <div id="audioCollectionView" class="hidden"></div>
+        <div id="audioArtistView" class="hidden"></div>
+        <div id="audioPlayerView" class="hidden"></div>
+      </div>
+
+      <!-- ============ TAB PLAYLISTS — پلی‌لیست ============ -->
+      <div id="tab-playlists" class="tab-content hidden">
+        <div id="playlistsHome">
+          <div class="panel">
+            <h3>🎵 پلی‌لیست‌های من</h3>
+
+            <div class="playlist-filter-bar">
+              <button class="playlist-filter-btn active" data-pl-filter="all">همه</button>
+              <button class="playlist-filter-btn" data-pl-filter="video">🎬 ویدیو</button>
+              <button class="playlist-filter-btn" data-pl-filter="audio">🎙 آدیو</button>
+              <button class="playlist-filter-btn" data-pl-filter="mixed">🔀 ترکیبی</button>
+            </div>
+
+            <div class="row" style="margin-bottom:12px;">
+              <button class="btn btn-primary" id="addPlaylistBtn">➕ پلی‌لیست جدید</button>
+              <button class="btn" id="exportAllPlaylistsBtn">📤 خروجی همه</button>
+            </div>
+            <div id="playlistsGrid" class="playlists-grid"></div>
+          </div>
+        </div>
+        <div id="playlistDetailView" class="hidden"></div>
+      </div>
+
+      <!-- ============ TAB JSON — JSON ============ -->
       <div id="tab-json" class="tab-content hidden">
         <div class="panel">
           <h3>📂 افزودن از فایل JSON</h3>
@@ -339,6 +693,11 @@
           <div class="row tight" style="margin-top:10px;flex-wrap:wrap;">
             <button class="btn btn-success" id="exportLessonBtn">📥 دانلود درس جاری</button>
             <button class="btn btn-warning" id="exportBadBtn">❌ فقط بلد نیستم‌ها</button>
+            <button class="btn" id="exportHeartBtn" style="background:var(--heart-color);color:#fff;">❤️
+              موردعلاقه‌ها</button>
+            <button class="btn" id="exportStarBtn" style="background:var(--warning);color:#000;">⭐ مهم‌ها</button>
+            <button class="btn" id="exportFireBtn" style="background:var(--fire-color);color:#fff;">🔥 خیلی
+              مهم‌ها</button>
             <button class="btn" id="exportAllBtn">💾 پشتیبان کامل</button>
           </div>
         </div>
@@ -373,7 +732,7 @@
         </div>
       </div>
 
-      <!-- TAB MANAGE WORD -->
+      <!-- ============ TAB MANAGE — لغت جدید ============ -->
       <div id="tab-manage" class="tab-content hidden">
         <div class="panel">
           <h3>➕ افزودن کلمه جدید</h3>
@@ -437,7 +796,7 @@
         </div>
       </div>
 
-      <!-- TAB MANAGE STORY -->
+      <!-- ============ TAB MANAGE-STORY — محتوای جدید ============ -->
       <div id="tab-manage-story" class="tab-content hidden">
         <div class="panel">
           <h3>📖 افزودن محتوای جدید</h3>
@@ -449,6 +808,8 @@
                 <option value="letter-formal">📧 نامه رسمی</option>
                 <option value="letter-informal">💌 نامه غیررسمی</option>
                 <option value="dialogue">💬 دیالوگ</option>
+                <option value="chat-friendly">📱 چت دوستانه</option>
+                <option value="chat-formal">📱 چت رسمی</option>
               </select>
             </div>
             <div style="flex:1;min-width:140px;">
@@ -497,8 +858,82 @@
         </div>
       </div>
 
-    </div>
-  </div>
+      <!-- ============ TAB ADMIN — پنل مدیریت ============ -->
+      <div id="tab-admin" class="tab-content hidden">
+        <div class="panel">
+          <h3>🎛️ پنل مدیریت</h3>
+          <p class="muted" style="font-size:12px;margin-bottom:14px;">
+            از اینجا می‌تونی مجموعه‌های ویدیو و آدیو بسازی، قسمت اضافه کنی، پلی‌لیست مدیریت کنی، و همه چیز رو بدون دست
+            زدن به JSON کنترل کنی.
+          </p>
+
+          <div class="admin-tabs">
+            <button class="admin-tab-btn active" data-admin-tab="videos">🎬 ویدیوها</button>
+            <button class="admin-tab-btn" data-admin-tab="audios">🎙 آدیوها</button>
+            <button class="admin-tab-btn" data-admin-tab="playlists">🎵 پلی‌لیست‌ها</button>
+            <button class="admin-tab-btn" data-admin-tab="export">📤 خروجی JSON</button>
+          </div>
+
+          <div id="adminVideosPanel" class="admin-panel">
+            <div class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+              <button class="btn btn-primary" id="adminAddVideoCollectionBtn">➕ مجموعه ویدیو جدید</button>
+              <button class="btn" id="adminAddSingleVideoBtn">➕ ویدیو تک جدید</button>
+              <button class="btn btn-success" id="adminExportVideosBtn">📤 خروجی ویدیوها</button>
+            </div>
+            <div id="adminVideoCollectionsList" class="admin-list"></div>
+            <div id="adminSingleVideosList" class="admin-list" style="margin-top:14px;"></div>
+          </div>
+
+          <div id="adminAudiosPanel" class="admin-panel hidden">
+            <div class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+              <button class="btn btn-primary" id="adminAddAudioCollectionBtn">➕ مجموعه آدیو جدید</button>
+              <button class="btn" id="adminAddSingleAudioBtn">➕ آدیو تک جدید</button>
+              <button class="btn btn-success" id="adminExportAudiosBtn">📤 خروجی آدیوها</button>
+            </div>
+            <div id="adminAudioCollectionsList" class="admin-list"></div>
+            <div id="adminSingleAudiosList" class="admin-list" style="margin-top:14px;"></div>
+          </div>
+
+          <div id="adminPlaylistsPanel" class="admin-panel hidden">
+            <div class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+              <button class="btn btn-primary" id="adminAddPlaylistBtn">➕ پلی‌لیست جدید</button>
+              <button class="btn btn-success" id="adminExportPlaylistsBtn">📤 خروجی پلی‌لیست‌ها</button>
+            </div>
+            <div id="adminPlaylistsList" class="admin-list"></div>
+          </div>
+
+          <div id="adminExportPanel" class="admin-panel hidden">
+            <p class="muted" style="font-size:12px;margin-bottom:12px;line-height:1.8;">
+              خروجی JSON کامل شامل همه تغییرات (لغات + داستان‌ها + ویدیوها + آدیوها + پلی‌لیست‌ها).
+            </p>
+            <div class="row" style="flex-wrap:wrap;gap:8px;">
+              <button class="btn btn-success" id="adminExportAllBtn">💾 پشتیبان کامل</button>
+              <button class="btn btn-primary" id="adminExportLessonBtn">📥 خروجی درس جاری</button>
+              <button class="btn" id="adminExportBookBtn">📚 خروجی کتاب جاری</button>
+            </div>
+            <div style="margin-top:16px;">
+              <label>📋 JSON کامل (قابل کپی)</label>
+              <textarea id="adminJsonOutput" readonly
+                style="min-height:300px;direction:ltr;text-align:left;font-family:monospace;font-size:11px;width:100%;"></textarea>
+              <button class="btn btn-primary btn-sm" id="adminCopyJsonBtn" style="margin-top:8px;">📋 کپی</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+    </div> <!-- پایان .container -->
+  </div> <!-- پایان #mainApp -->
+  <!-- ═══════════════════════════════════════════════════════
+           ادامه در HTML-4:
+           - همه مودال‌ها
+           - مودال‌های جدید (media، playlist، grammar explain)
+           - پلیر شناور (Sticky Player)
+           - FAB
+           - Toast
+           - Script
+           - بستن html
+           ═══════════════════════════════════════════════════════ -->
 
   <!-- ============ MODALS ============ -->
 
@@ -543,6 +978,20 @@
     </div>
   </div>
 
+  <!-- MODAL LESSON SORT -->
+  <div class="modal-overlay" id="modalLessonSort">
+    <div class="modal-box" style="max-width:600px;">
+      <h3>↕️ مرتب‌سازی درس‌ها</h3>
+      <p class="muted" style="font-size:12px;margin-bottom:14px;">
+        با کشیدن دسته (⠿) یا دکمه‌های ⬆️/⬇️ ترتیب درس‌ها رو تغییر بده. درس نمونه (🔒) قابل جابه‌جایی نیست.
+      </p>
+      <ul class="lesson-sort-list" id="lessonSortList"></ul>
+      <div class="row tight" style="margin-top:14px;justify-content:center;">
+        <button class="btn" id="closeLessonSortBtn">بستن</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DELETE BOOK -->
   <div class="modal-overlay" id="modalDeleteBook">
     <div class="modal-box">
@@ -563,7 +1012,7 @@
     </div>
   </div>
 
-  <!-- MODAL: LIBRARY JSON IMPORT -->
+  <!-- MODAL LIBRARY JSON IMPORT -->
   <div class="modal-overlay" id="modalLibraryImport">
     <div class="modal-box" style="max-width:600px;">
       <h3>📥 افزودن کتاب از JSON</h3>
@@ -619,7 +1068,7 @@
     </div>
   </div>
 
-  <!-- MODAL IMPORT BOOK (انتخاب نوع افزودن) -->
+  <!-- MODAL IMPORT BOOK -->
   <div class="modal-overlay" id="modalImportBook">
     <div class="modal-box">
       <h3>📥 وارد کردن کتاب از JSON</h3>
@@ -708,7 +1157,7 @@
     </div>
   </div>
 
-  <!-- MODAL: BOOK PICKER -->
+  <!-- MODAL BOOK PICKER -->
   <div class="modal-overlay" id="modalBookPicker">
     <div class="modal-box" style="max-width:900px;">
       <div class="book-picker-head">
@@ -747,9 +1196,332 @@
     <div class="word-tooltip-content" id="wordTooltipContent"></div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════
+       مودال‌های جدید
+       ═══════════════════════════════════════════════════════ -->
+
+  <!-- MODAL MEDIA COLLECTION -->
+  <div class="modal-overlay" id="modalMediaCollection">
+    <div class="modal-box" style="max-width:560px;">
+      <h3 id="mediaCollectionTitle">➕ مجموعه جدید</h3>
+      <label>عنوان مجموعه *</label>
+      <input id="mediaCollectionTitleInput" placeholder="مثلاً: آموزش نصرت">
+      <label style="margin-top:8px;">توضیحات</label>
+      <textarea id="mediaCollectionDescInput" placeholder="توضیح کوتاه درباره این مجموعه..."
+        style="min-height:80px;"></textarea>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px;">
+        <div style="flex:1;min-width:120px;">
+          <label>🖼 عکس کاور</label>
+          <input id="mediaCollectionCoverInput" placeholder="https://..." dir="ltr">
+        </div>
+        <div style="flex:0 0 100px;">
+          <label>🎨 رنگ</label>
+          <input type="color" id="mediaCollectionColorInput" value="#6366f1">
+        </div>
+      </div>
+      <div class="row tight" style="margin-top:14px;">
+        <button class="btn btn-primary" id="saveMediaCollectionBtn" style="flex:1;">💾 ذخیره</button>
+        <button class="btn" id="cancelMediaCollectionBtn">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL MEDIA EPISODE -->
+  <div class="modal-overlay" id="modalMediaEpisode">
+    <div class="modal-box" style="max-width:640px;">
+      <h3 id="mediaEpisodeTitle">➕ قسمت جدید</h3>
+      <label>عنوان قسمت *</label>
+      <input id="mediaEpisodeTitleInput" placeholder="مثلاً: قسمت ۱ - معرفی">
+      <label style="margin-top:8px;">توضیحات</label>
+      <textarea id="mediaEpisodeDescInput" placeholder="توضیح کوتاه..." style="min-height:60px;"></textarea>
+
+      <div style="margin-top:10px;">
+        <label>📎 منبع</label>
+        <div class="row" style="gap:6px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:4px;font-weight:600;font-size:13px;cursor:pointer;">
+            <input type="radio" name="mediaSourceType" value="url" checked style="width:auto;"> 🔗 لینک
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-weight:600;font-size:13px;cursor:pointer;">
+            <input type="radio" name="mediaSourceType" value="upload" style="width:auto;"> 📁 آپلود فایل
+          </label>
+        </div>
+      </div>
+
+      <div id="mediaUrlBox" style="margin-top:10px;">
+        <label>آدرس (URL یا YouTube یا آپارات)</label>
+        <input id="mediaEpisodeUrlInput" placeholder="https://..." dir="ltr">
+      </div>
+
+      <div id="mediaUploadBox" class="hidden" style="margin-top:10px;">
+        <label>انتخاب فایل (حداکثر ۵ مگابایت — تبدیل به Base64)</label>
+        <input type="file" id="mediaEpisodeFileInput" accept="video/*,audio/*">
+        <div id="mediaUploadStatus" class="muted" style="font-size:11px;margin-top:4px;"></div>
+      </div>
+
+      <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px;">
+        <div style="flex:1;min-width:120px;">
+          <label>🖼 عکس کاور</label>
+          <input id="mediaEpisodeCoverInput" placeholder="https://..." dir="ltr">
+        </div>
+        <div style="flex:0 0 100px;">
+          <label>⏱ مدت</label>
+          <input id="mediaEpisodeDurationInput" placeholder="05:20" dir="ltr">
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label>🎤 خواننده / سازنده (اختیاری)</label>
+        <input id="mediaEpisodeArtistInput" placeholder="مثلاً: نصرت" dir="ltr">
+      </div>
+
+      <div style="margin-top:10px;padding:10px;background:var(--bg-3);border-radius:8px;">
+        <label style="margin-bottom:6px;display:block;font-weight:700;font-size:12px;">🎯 علامت‌گذاری (یکی رو انتخاب
+          کن):</label>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="mediaEpisodeMark" value="none" checked style="width:auto;"> هیچ
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="mediaEpisodeMark" value="heart" style="width:auto;"> ❤️ موردعلاقه
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="mediaEpisodeMark" value="star" style="width:auto;"> ⭐ مهم
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="mediaEpisodeMark" value="fire" style="width:auto;"> 🔥 خیلی مهم
+          </label>
+        </div>
+      </div>
+
+      <div class="row tight" style="margin-top:14px;">
+        <button class="btn btn-primary" id="saveMediaEpisodeBtn" style="flex:1;">💾 ذخیره</button>
+        <button class="btn" id="cancelMediaEpisodeBtn">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DIALOGUE -->
+  <div class="modal-overlay" id="modalDialogue">
+    <div class="modal-box" style="max-width:620px;">
+      <h3>📝 دیالوگ‌های قسمت</h3>
+      <div id="dialogueListBox" style="max-height:300px;overflow-y:auto;margin-bottom:14px;"></div>
+      <div style="padding:12px;background:var(--bg-3);border-radius:8px;">
+        <label style="font-weight:700;font-size:13px;margin-bottom:8px;display:block;">➕ دیالوگ جدید:</label>
+        <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+          <div style="flex:0 0 90px;">
+            <label>⏱ زمان</label>
+            <input id="dialogueTimeInput" placeholder="00:15" dir="ltr">
+          </div>
+          <div style="flex:0 0 80px;">
+            <label>👤 گوینده</label>
+            <input id="dialogueSpeakerInput" placeholder="A">
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:8px;">
+          <div style="flex:1;">
+            <label>🇩🇪 آلمانی *</label>
+            <input id="dialogueDeInput" placeholder="Guten Tag!" dir="ltr">
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:8px;">
+          <div style="flex:1;">
+            <label>🇮🇷 فارسی *</label>
+            <input id="dialogueFaInput" placeholder="روز بخیر!">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="addDialogueLineBtn">➕ افزودن</button>
+      </div>
+      <div class="row tight" style="margin-top:14px;justify-content:center;">
+        <button class="btn" id="closeDialogueModalBtn">بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PLAYLIST -->
+  <div class="modal-overlay" id="modalPlaylist">
+    <div class="modal-box">
+      <h3 id="playlistModalTitle">➕ پلی‌لیست جدید</h3>
+      <label>نام پلی‌لیست *</label>
+      <input id="playlistNameInput" placeholder="مثلاً: آهنگ‌های صبح">
+      <div style="margin-top:8px;">
+        <label>نوع رسانه</label>
+        <select id="playlistMediaTypeInput">
+          <option value="mixed">🔀 ترکیبی</option>
+          <option value="audio">🎙 آدیو</option>
+          <option value="video">🎬 ویدیو</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px;">
+        <div style="flex:1;min-width:120px;">
+          <label>🖼 کاور</label>
+          <input id="playlistCoverInput" placeholder="https://..." dir="ltr">
+        </div>
+        <div style="flex:0 0 100px;">
+          <label>🎨 رنگ</label>
+          <input type="color" id="playlistColorInput" value="#a855f7">
+        </div>
+      </div>
+      <div class="row tight" style="margin-top:14px;">
+        <button class="btn btn-primary" id="savePlaylistBtn" style="flex:1;">💾 ذخیره</button>
+        <button class="btn" id="cancelPlaylistBtn">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ADD TO PLAYLIST -->
+  <div class="modal-overlay" id="modalAddToPlaylist">
+    <div class="modal-box">
+      <h3>➕ افزودن به پلی‌لیست</h3>
+      <p class="muted" style="font-size:12px;margin-bottom:12px;">
+        «<strong id="addToPlaylistItemName"></strong>» رو به کدوم پلی‌لیست‌ها اضافه کنم؟
+      </p>
+      <div id="playlistCheckboxesBox"
+        style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;"></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        <label style="font-size:12px;font-weight:700;">➕ یا پلی‌لیست جدید:</label>
+        <div class="row" style="margin-top:6px;gap:6px;">
+          <input id="newPlaylistNameFromModal" placeholder="اسم پلی‌لیست جدید" style="flex:1;">
+          <button class="btn btn-primary btn-sm" id="createPlaylistFromModal">➕ ساخت</button>
+        </div>
+      </div>
+      <div class="row tight" style="margin-top:14px;justify-content:center;">
+        <button class="btn btn-primary" id="confirmAddToPlaylistBtn">✅ ذخیره</button>
+        <button class="btn" id="cancelAddToPlaylistBtn">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL GRAMMAR EXPLAIN -->
+  <div class="modal-overlay" id="modalGrammarExplain">
+    <div class="modal-box" style="max-width:700px;">
+      <h3>📖 ساختار جمله</h3>
+      <div id="grammarExplainContent"></div>
+      <div class="row tight" style="margin-top:14px;justify-content:center;">
+        <button class="btn" id="closeGrammarExplainBtn">بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL FIRE AUDIOS LIST -->
+  <div class="modal-overlay" id="modalFireAudiosList">
+    <div class="modal-box" style="max-width:700px;">
+      <h3>🔥 همه آدیوهای خیلی مهم</h3>
+      <div id="fireAudiosListBox" style="max-height:60vh;overflow-y:auto;margin-top:12px;"></div>
+      <div class="row tight" style="margin-top:14px;justify-content:center;">
+        <button class="btn" id="closeFireAudiosListBtn">بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       پلیر شناور (Sticky Player)
+       ═══════════════════════════════════════════════════════ -->
+  <div id="stickyPlayer" class="sticky-player hidden">
+    <div class="sticky-player-cover" id="stickyPlayerCover">
+      <div class="sticky-player-cover-fallback" id="stickyPlayerCoverFallback">🎵</div>
+    </div>
+    <div class="sticky-player-info">
+      <div class="sticky-player-title" id="stickyPlayerTitle">—</div>
+      <div class="sticky-player-subtitle" id="stickyPlayerSubtitle">—</div>
+    </div>
+    <div class="sticky-player-controls">
+      <button class="sticky-btn" id="stickyPrevBtn" title="قبلی">⏮</button>
+      <button class="sticky-btn sticky-play-btn" id="stickyPlayBtn" title="پخش">▶</button>
+      <button class="sticky-btn" id="stickyNextBtn" title="بعدی">⏭</button>
+    </div>
+    <div class="sticky-player-progress-wrap">
+      <input type="range" id="stickyProgress" class="sticky-progress" min="0" max="100" value="0" step="0.1">
+      <div class="sticky-time">
+        <span id="stickyCurrent">0:00</span>
+        <span id="stickyDuration">0:00</span>
+      </div>
+    </div>
+    <div class="sticky-player-extra">
+      <button class="sticky-btn" id="stickyDownloadBtn" title="دانلود">⬇</button>
+      <button class="sticky-btn" id="stickyPlaylistBtn" title="پلی‌لیست">📋</button>
+      <button class="sticky-btn sticky-close-btn" id="stickyCloseBtn" title="بستن">✕</button>
+    </div>
+    <audio id="stickyAudioEl" preload="metadata"></audio>
+  </div>
+
+  <!-- FAB مطابق نمونه ارسالی؛ آیتم‌ها به تب‌های واقعی سایت متصل‌اند -->
+  <div id="fabContainer" class="fab-container">
+    <button id="fabBtn" class="fab-btn" title="منوی سریع" aria-label="منوی سریع">
+      <span id="fabIcon" class="fab-icon">🎯</span>
+    </button>
+
+    <!-- پنل دسکتاپ -->
+    <div id="fabPanel" class="fab-panel hidden">
+      <div class="fab-section">
+        <div class="fab-section-label">📚 درس فعلی</div>
+        <select id="fabLessonSelect" class="fab-lesson-select"></select>
+      </div>
+      <div class="fab-media-box" id="fabDesktopMediaBox">
+        <button type="button" class="fab-media-close" data-fab-media-close aria-label="بستن">✕</button>
+        <div class="fab-media-info">
+          <div class="fab-media-cover" id="fabDesktopCover">🎙</div>
+          <div class="fab-media-text"><div class="fab-media-title" id="fabDesktopTitle">—</div><div class="fab-media-sub" id="fabDesktopSub">در حال پخش</div></div>
+        </div>
+        <div class="fab-media-controls">
+          <button type="button" class="fab-m-btn" data-fab-prev>⏮</button>
+          <button type="button" class="fab-m-btn fab-m-btn-play" data-fab-play>▶</button>
+          <button type="button" class="fab-m-btn" data-fab-next>⏭</button>
+        </div>
+      </div>
+      <div class="fab-section fab-menu-section">
+        <div class="fab-section-label">🧭 آیتم‌های منو</div>
+        <div id="fabMenuItems" class="fab-menu-items"></div>
+      </div>
+      <div class="fab-actions fab-desktop-actions">
+        <button type="button" class="fab-sample-btn" id="fabClosePanelBtn">بستن منو</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال موبایل مطابق نمونه ۳×۳ -->
+  <div id="fabMobileOverlay" class="fab-mobile-overlay hidden">
+    <div id="fabMobileModal" class="fab-mobile-modal">
+      <div class="fab-mobile-header"><span class="fab-mobile-title">منوی سریع</span><button type="button" class="fab-mobile-close" id="fabMobileClose">✕</button></div>
+      <div><select id="fabMobileLessonSelect" class="fab-lesson-select"></select></div>
+      <div class="fab-media-box" id="fabMobileMediaBox">
+        <button type="button" class="fab-media-close" data-fab-media-close aria-label="بستن">✕</button>
+        <div class="fab-media-info"><div class="fab-media-cover" id="fabMobileCover">🎙</div><div class="fab-media-text"><div class="fab-media-title" id="fabMobileTitle">—</div><div class="fab-media-sub" id="fabMobileSub">در حال پخش</div></div></div>
+        <div class="fab-media-controls"><button type="button" class="fab-m-btn" data-fab-prev>⏮</button><button type="button" class="fab-m-btn fab-m-btn-play" data-fab-play>▶</button><button type="button" class="fab-m-btn" data-fab-next>⏭</button></div>
+      </div>
+      <div class="fab-mobile-grid-wrap"><div id="fabMobileGrid" class="fab-mobile-grid"></div></div>
+      <div id="fabMobileDropHide" class="fab-mobile-drop-hide">🚫 رها کنید تا پنهان شود</div>
+      <div id="fabMobileHiddenTray" class="fab-mobile-hidden-tray"><div class="fab-mobile-hidden-caption">آیتم‌های پنهان (کلیک برای بازگشت):</div><div id="fabMobileHiddenList" class="fab-mobile-hidden-list"></div></div>
+      <div class="fab-mobile-footer"><button type="button" class="fab-sample-btn" id="fabMobileEditBtn">✏️ ویرایش</button><button type="button" class="fab-sample-btn fab-sample-primary fab-mobile-done" id="fabMobileDoneBtn">✅ تمام</button></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TOAST
+       ═══════════════════════════════════════════════════════ -->
   <div class="toast" id="toast"></div>
 
-  <script src="./js/app.js"></script>
+  <!-- ═══════════════════════════════════════════════════════
+       SCRIPT
+       ═══════════════════════════════════════════════════════ -->
+  <script src="./js/JS-6.js"></script>
 </body>
+
+
+
+
+
+<!-- ==========================================================================================================================
+
+
+HTML-1  (head + library + header + tabs + tab-list + tab-cards)
+  +
+HTML-2  (practice + quiz + grammar + verbs + stories + favorites)
+  +
+HTML-3  (videos + audios + playlists + json + manage + admin)
+  +
+HTML-4  (20 modal + sticky player + FAB + toast + script)
+
+
+============================================================================================================================-->
 
 </html>

@@ -4233,3 +4233,616 @@ html, body {
     margin-bottom: 8px !important;
   }
 }
+
+
+/* ============================================================
+   ⭐ بخش‌های جدید (نسخه نهایی — افزوده‌شده به انتهای فایل)
+   بدون حذف هیچ کد قبلی
+   ============================================================ */
+
+/* ============================================================
+   ⚡ VERB CARDS — کارت افعال
+   ============================================================ */
+.verb-card {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  transition: all 0.3s var(--ease-out);
+  animation: fadeInUp 0.5s var(--ease-out) backwards;
+}
+[data-theme="light"] .verb-card {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.15);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.verb-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+}
+[data-theme="light"] .verb-card:hover {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 0 24px rgba(99, 102, 241, 0.08);
+}
+.verb-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px dashed var(--border);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  direction: ltr;
+}
+.verb-word {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--primary);
+}
+[data-theme="light"] .verb-word { color: #4f46e5; }
+.verb-meaning {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: auto;
+  direction: rtl;
+}
+[data-theme="light"] .verb-meaning { color: #059669; }
+.verb-conj-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  direction: ltr;
+}
+.verb-conj-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  transition: all 0.2s;
+}
+[data-theme="light"] .verb-conj-cell {
+  background: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.12);
+}
+.verb-conj-cell:hover {
+  border-color: var(--primary);
+  background: rgba(124, 131, 247, 0.08);
+}
+.verb-pronoun {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  min-width: 55px;
+  text-align: left;
+}
+.verb-form {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--info);
+  flex: 1;
+}
+[data-theme="light"] .verb-form { color: #2563eb; }
+.verb-no-conj {
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--warning);
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px dashed var(--warning);
+  border-radius: 8px;
+}
+.verb-example {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(52, 211, 153, 0.08);
+  border-right: 3px solid var(--accent);
+  border-radius: 8px;
+}
+[data-theme="light"] .verb-example {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+/* ============================================================
+   ⭐ STAR & FLAG — ستاره و پرچم
+   ============================================================ */
+.word-star-btn, .word-flag-btn {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s var(--ease-spring);
+  flex-shrink: 0;
+  padding: 0;
+  color: var(--text);
+}
+[data-theme="light"] .word-star-btn, [data-theme="light"] .word-flag-btn {
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #475569;
+}
+.word-star-btn:hover, .word-flag-btn:hover {
+  transform: scale(1.15);
+}
+.word-star-btn.active {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: var(--warning);
+  color: var(--warning);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+.word-flag-btn.active {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: var(--danger);
+  color: var(--danger);
+  box-shadow: 0 0 12px rgba(248, 113, 113, 0.4);
+}
+.word-star-btn-mini, .word-flag-btn-mini {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 3px;
+  transition: all 0.2s;
+  color: var(--text);
+}
+[data-theme="light"] .word-star-btn-mini, [data-theme="light"] .word-flag-btn-mini {
+  color: #475569;
+}
+.word-star-btn-mini.active, .word-flag-btn-mini.active {
+  filter: drop-shadow(0 0 4px currentColor);
+}
+.word-star-btn-mini.active { color: var(--warning); }
+.word-flag-btn-mini.active { color: var(--danger); }
+.star-flag-cell {
+  width: 55px;
+  padding: 4px 2px !important;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   📘 GRAMMAR ACCORDION — گرامر آکاردئونی
+   ============================================================ */
+.grammar-progress-wrap {
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.06));
+  border: 1.5px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.grammar-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+[data-theme="light"] .grammar-progress-label { color: #4f46e5; }
+.grammar-progress-bar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+[data-theme="light"] .grammar-progress-bar { background: rgba(148, 163, 184, 0.15); }
+.grammar-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--primary), var(--purple));
+  background-size: 200% 100%;
+  border-radius: 4px;
+  transition: width 0.6s var(--ease-out);
+  animation: progressShine 3s linear infinite;
+}
+.grammar-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.grammar-accordion-item {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: all 0.3s var(--ease-out);
+  animation: fadeInUp 0.4s var(--ease-out) backwards;
+}
+[data-theme="light"] .grammar-accordion-item {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.15);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.grammar-accordion-item:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+.grammar-accordion-item.expanded {
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+}
+.grammar-accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.grammar-accordion-header:hover {
+  background: var(--hover-bg);
+}
+.grammar-priority-badge {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, var(--info), var(--primary));
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.grammar-accordion-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+[data-theme="light"] .grammar-accordion-title { color: #1e293b; }
+.grammar-accordion-item.expanded .grammar-accordion-title { color: var(--primary); }
+[data-theme="light"] .grammar-accordion-item.expanded .grammar-accordion-title { color: #4f46e5; }
+.grammar-seen-badge {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.grammar-accordion-arrow {
+  font-size: 12px;
+  color: var(--muted);
+  transition: transform 0.3s var(--ease-spring);
+  flex-shrink: 0;
+}
+.grammar-accordion-body {
+  display: none;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border-soft);
+  animation: fadeInUp 0.3s var(--ease-out);
+}
+.grammar-accordion-item.expanded .grammar-accordion-body {
+  display: block;
+  padding-top: 16px;
+}
+.grammar-mark-seen {
+  margin-top: 12px;
+  width: 100%;
+}
+.grammar-quiz-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--info);
+  padding: 8px 14px;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 10px;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+[data-theme="light"] .grammar-quiz-title {
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* ⭐ Quiz mode card برای گرامر */
+.quiz-mode-card.mode-grammar {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+  border-color: transparent;
+}
+.quiz-mode-card.mode-grammar .mode-desc { color: rgba(255, 255, 255, 0.85); }
+.quiz-mode-card.mode-grammar .mode-title { color: #fff; }
+.quiz-mode-card.mode-grammar .qms-attempts { background: rgba(255,255,255,0.25); color: #fff; }
+.quiz-mode-card.mode-grammar .qms-best { background: rgba(255,255,255,0.3); color: #fff; }
+.quiz-mode-card.mode-grammar .quiz-mode-stats.none { color: rgba(255,255,255,0.7); }
+
+/* ============================================================
+   ⭐ LESSON SORT — جابه‌جایی درس‌ها
+   ============================================================ */
+.lesson-sort-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.lesson-sort-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.2s var(--ease-out);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+[data-theme="light"] .lesson-sort-item {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.15);
+}
+.lesson-sort-item:hover {
+  border-color: var(--primary);
+  background: var(--hover-bg);
+}
+.lesson-sort-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+.lesson-sort-item.drag-over {
+  border-color: var(--accent);
+  border-style: dashed;
+  background: rgba(52, 211, 153, 0.08);
+  transform: scale(1.02);
+}
+.lesson-sort-drag {
+  font-size: 20px;
+  color: var(--muted);
+  cursor: grab;
+  flex-shrink: 0;
+  padding: 0 4px;
+  touch-action: none;
+}
+.lesson-sort-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 0;
+  word-break: break-word;
+}
+.lesson-sort-title small {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.lesson-sort-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   📱 CHAT — چت (مثل واتساپ/تلگرام)
+   ============================================================ */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 4px;
+}
+.chat-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  position: relative;
+  animation: fadeInUp 0.35s var(--ease-out);
+  direction: rtl;
+}
+[data-theme="dark"] .chat-bubble {
+  background: rgba(34, 48, 86, 0.75);
+  border: 1px solid rgba(124, 131, 247, 0.2);
+}
+[data-theme="light"] .chat-bubble {
+  background: #f1f5f9;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+.chat-bubble.from-a {
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.chat-bubble.from-b {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(124, 131, 247, 0.35), rgba(168, 85, 247, 0.25));
+  border-bottom-right-radius: 4px;
+}
+[data-theme="light"] .chat-bubble.from-b {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
+}
+.chat-sender {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+[data-theme="light"] .chat-sender { color: #4f46e5; }
+.chat-de {
+  direction: ltr;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin-bottom: 3px;
+  word-break: break-word;
+}
+[data-theme="dark"] .chat-de { color: #93c5fd; }
+[data-theme="light"] .chat-de { color: #3730a3; }
+.chat-fa {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  direction: rtl;
+  text-align: right;
+}
+
+/* ⭐ Content reader type badge برای چت */
+.content-reader-type-badge.type-chat {
+  background: rgba(192, 132, 252, 0.18);
+  color: var(--purple);
+}
+[data-theme="light"] .content-reader-type-badge.type-chat {
+  background: rgba(168, 85, 247, 0.1);
+  color: #7c3aed;
+}
+
+/* ============================================================
+   ⭐ دکمه‌های ستاره/پرچم در Tooltip و WordView
+   ============================================================ */
+.wt-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   ⭐ اسکرول‌بار نازک‌تر — همه‌جا (بدون دست زدن به ریسپانسیو)
+   ============================================================ */
+html, body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 131, 247, 0.45) !important;
+  border-radius: 10px !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary) !important;
+}
+
+/* اسکرول‌بار داخل مودال‌ها و لیست‌ها هم نازک */
+.lesson-sort-list::-webkit-scrollbar,
+#storyScrollBody::-webkit-scrollbar,
+.story-reader-body-scroll::-webkit-scrollbar,
+.practice-folder-menu::-webkit-scrollbar,
+.modal-box::-webkit-scrollbar,
+#globalSearchResults::-webkit-scrollbar,
+.word-view-content::-webkit-scrollbar,
+.word-edit-content::-webkit-scrollbar {
+  width: 3px !important;
+  height: 3px !important;
+}
+.lesson-sort-list::-webkit-scrollbar-thumb,
+#storyScrollBody::-webkit-scrollbar-thumb,
+.story-reader-body-scroll::-webkit-scrollbar-thumb,
+.practice-folder-menu::-webkit-scrollbar-thumb,
+.modal-box::-webkit-scrollbar-thumb,
+#globalSearchResults::-webkit-scrollbar-thumb,
+.word-view-content::-webkit-scrollbar-thumb,
+.word-edit-content::-webkit-scrollbar-thumb {
+  background: rgba(124, 131, 247, 0.4) !important;
+  border-radius: 10px !important;
+}
+
+/* ============================================================
+   ⭐ ریسپانسیو — فقط برای بخش‌های جدید (بدون تداخل با قبلی)
+   ============================================================ */
+@media (max-width: 640px) {
+  .verb-card {
+    padding: 12px;
+  }
+  .verb-word { font-size: 18px; }
+  .verb-meaning { font-size: 12px; }
+  .verb-conj-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .verb-conj-cell {
+    padding: 6px 8px;
+  }
+  .verb-pronoun { font-size: 10px; min-width: 42px; }
+  .verb-form { font-size: 13px; }
+
+  .word-star-btn, .word-flag-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+  .star-flag-cell { width: 48px; }
+
+  .grammar-accordion-header {
+    padding: 12px;
+    gap: 8px;
+  }
+  .grammar-priority-badge {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+  .grammar-accordion-title { font-size: 13px; }
+  .grammar-accordion-body { padding: 0 12px 12px; }
+
+  .lesson-sort-item {
+    padding: 10px;
+    gap: 8px;
+  }
+  .lesson-sort-title { font-size: 12px; }
+  .lesson-sort-drag { font-size: 18px; }
+  .lesson-sort-actions .btn-sm {
+    padding: 4px 7px;
+    font-size: 11px;
+    min-width: 30px;
+  }
+
+  .chat-bubble {
+    max-width: 90%;
+    padding: 8px 11px;
+  }
+  .chat-de { font-size: 13px; }
+  .chat-fa { font-size: 11px; }
+  .chat-sender { font-size: 10px; }
+}
+
+@media (max-width: 380px) {
+  .verb-conj-grid { grid-template-columns: 1fr; }
+  .word-star-btn, .word-flag-btn { width: 22px; height: 22px; font-size: 11px; }
+  .star-flag-cell { width: 40px; }
+  .grammar-accordion-title { font-size: 12px; }
+  .lesson-sort-title { font-size: 11px; }
+  .chat-bubble {
+    max-width: 95%;
+    padding: 7px 9px;
+  }
+  .chat-de { font-size: 12px; }
+}
+
+/* ============================================================
+   ⭐ لود شدن انیمیشن‌ها و ظاهر کلی برای بخش‌های جدید
+   ============================================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes progressShine {
+  from { background-position: 0% 50%; }
+  to { background-position: 200% 50%; }
+}
