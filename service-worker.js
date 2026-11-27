@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'german-vocab-v6';
+const CACHE_VERSION = 'german-vocab-v6.1';
 const CACHE_ASSETS = [
   './',
   './index.html',

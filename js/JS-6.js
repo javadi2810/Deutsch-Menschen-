@@ -12,6 +12,7 @@
     const GRAMMAR_SEEN_KEY = 'german-vocab-grammar-seen';
     const FAB_POS_KEY = 'german-vocab-fab-pos';
     const FAB_ORDER_KEY = 'german-vocab-fab-order';
+    const FAB_HIDDEN_KEY = 'german-vocab-fab-hidden';
     const FAV_LEVEL_KEY = 'german-vocab-fav-level';
     const FAV_TYPE_KEY = 'german-vocab-fav-type';
     const SRS_INTERVALS = { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 };
@@ -126,6 +127,12 @@
         if (Array.isArray(savedOrder)) fabOrder = savedOrder;
     } catch (e) { }
 
+    let fabHiddenItems = [];
+    try {
+        const savedHidden = JSON.parse(localStorage.getItem(FAB_HIDDEN_KEY) || '[]');
+        if (Array.isArray(savedHidden)) fabHiddenItems = savedHidden;
+    } catch (e) { }
+
     // ═══════════════════════════════════════════════════════════════════
     // THEME
     // ═══════════════════════════════════════════════════════════════════
@@ -236,8 +243,12 @@
                 const directUrl = toDirectAudioUrl(audioUrl);
                 if (directUrl) {
                     currentAudio = new Audio(directUrl);
-                    currentAudio.play().catch(() => speakTTS(text));
-                    currentAudio.addEventListener('ended', () => { currentAudio = null; });
+                    currentAudio._fabTitle = text || 'تلفظ واژه';
+                    currentAudio.addEventListener('play', updateFABMediaUI);
+                    currentAudio.addEventListener('pause', updateFABMediaUI);
+                    currentAudio.play().catch(() => { currentAudio = null; speakTTS(text); updateFABMediaUI(); });
+                    currentAudio.addEventListener('ended', () => { currentAudio = null; updateFABMediaUI(); });
+                    updateFABMediaUI();
                     return;
                 }
             } catch (e) { }
@@ -252,7 +263,12 @@
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'de-DE';
         u.rate = 0.9;
+        u._fabTitle = text;
+        u.onstart = updateFABMediaUI;
+        u.onend = updateFABMediaUI;
+        u.onerror = updateFABMediaUI;
         window.speechSynthesis.speak(u);
+        updateFABMediaUI();
     }
 
     function toDirectAudioUrl(src) {
@@ -1432,6 +1448,7 @@
                 `<option value="${l.id}" ${l.id === state.activeLessonId ? 'selected' : ''}>${l.isSample ? '🔒 ' : ''}${esc(l.title)} (${(l.words || []).length})</option>`
             ).join('');
         }
+        syncFABLessonSelects();
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -4242,8 +4259,6 @@
     // ═══════════════════════════════════════════════════════════════════
     // CUSTOM AUDIO PLAYER
     // ═══════════════════════════════════════════════════════════════════
-    let fabActiveAudio = null;
-    let fabActiveAudioRoot = null;
     function setupCustomAudioPlayer(root) {
         const audioEl = root.querySelector('[data-audio]');
         const playBtn = root.querySelector('[data-play-btn]');
@@ -4269,17 +4284,10 @@
             if (audioEl.paused) audioEl.play().catch(() => { });
             else audioEl.pause();
         });
-        audioEl.addEventListener('play', () => {
-            updatePlayState();
-            fabActiveAudio = audioEl;
-            fabActiveAudioRoot = root;
-            document.querySelectorAll('.fab-media-box').forEach(box => { delete box.dataset.dismissed; });
-            updateFABMediaUI();
-        });
-        audioEl.addEventListener('pause', () => { updatePlayState(); updateFABMediaUI(); });
+        audioEl.addEventListener('play', updatePlayState);
+        audioEl.addEventListener('pause', updatePlayState);
         audioEl.addEventListener('ended', () => {
             updatePlayState();
-            updateFABMediaUI();
             if (repeatMode === 0) return;
             if (repeatMode === 4) { audioEl.currentTime = 0; audioEl.play().catch(() => { }); return; }
             if (repeatMode === 1 || repeatMode === 2) {
@@ -5489,6 +5497,7 @@
         const item = stickyPlayerState.queue[stickyPlayerState.index];
         if (!item) { closeStickyPlayer(); return; }
         stickyPlayerState.currentItem = item;
+        updateFABMediaUI();
 
         const audioEl = document.getElementById('stickyAudioEl');
         if (!audioEl) return;
@@ -5546,6 +5555,7 @@
         if (audioEl) { audioEl.pause(); audioEl.src = ''; }
         const sp = document.getElementById('stickyPlayer');
         if (sp) sp.classList.add('hidden');
+        updateFABMediaUI();
     }
 
     function setupStickyPlayerEvents() {
@@ -5572,6 +5582,7 @@
             } else {
                 playBtn.textContent = '▶';
                 stickyPlayerState.isPlaying = false;
+                updateFABMediaUI();
             }
         });
         audioEl.addEventListener('loadedmetadata', () => {
@@ -5597,7 +5608,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // FAB — layout/behavior matched to supplied Floating button.html
+    // FAB — طراحی جدید دسکتاپ و موبایل، متصل به امکانات واقعی سایت
     // ═══════════════════════════════════════════════════════════════════
     const FAB_DEFAULT_ITEMS = [
         { key: 'list', icon: '📋', label: 'لغات' },
@@ -5613,219 +5624,484 @@
         { key: 'playlists', icon: '🎵', label: 'پلی‌لیست' },
         { key: 'json', icon: '📥', label: 'JSON' }
     ];
-    const FAB_HIDDEN_KEY = 'german-vocab-fab-hidden-v1';
-    let fabHidden = [];
-    try { fabHidden = JSON.parse(localStorage.getItem(FAB_HIDDEN_KEY) || '[]'); } catch (e) { fabHidden = []; }
+
     function getFABOrder() {
-        const order = Array.isArray(fabOrder) && fabOrder.length ? fabOrder : FAB_DEFAULT_ITEMS.map(x => x.key);
-        return order.map(k => FAB_DEFAULT_ITEMS.find(x => x.key === k)).filter(Boolean)
-            .concat(FAB_DEFAULT_ITEMS.filter(x => !order.includes(x.key)));
+        const ordered = [];
+        if (Array.isArray(fabOrder)) {
+            fabOrder.forEach(key => {
+                const item = FAB_DEFAULT_ITEMS.find(x => x.key === key);
+                if (item && !ordered.some(x => x.key === key)) ordered.push(item);
+            });
+        }
+        FAB_DEFAULT_ITEMS.forEach(item => {
+            if (!ordered.some(x => x.key === item.key)) ordered.push(item);
+        });
+        return ordered;
     }
-    function saveFABOrder() { try { localStorage.setItem(FAB_ORDER_KEY, JSON.stringify(getFABOrder().map(x => x.key))); } catch (e) { } }
-    function saveFABHidden() { try { localStorage.setItem(FAB_HIDDEN_KEY, JSON.stringify(fabHidden)); } catch (e) { } }
-    function isFABMobile() { return window.matchMedia('(max-width: 640px)').matches; }
-    function updateFABPanelPlacement() {
+
+    function saveFABOrder() {
+        try { localStorage.setItem(FAB_ORDER_KEY, JSON.stringify(fabOrder || getFABOrder().map(x => x.key))); } catch (e) { }
+    }
+
+    function saveFABHiddenItems() {
+        try { localStorage.setItem(FAB_HIDDEN_KEY, JSON.stringify(fabHiddenItems)); } catch (e) { }
+    }
+
+    function getFABVisibleItems() {
+        return getFABOrder().filter(item => !fabHiddenItems.includes(item.key));
+    }
+
+    // جای پنل دسکتاپ را با توجه به موقعیت دکمه و فضای خالی صفحه تعیین می‌کند.
+    function positionFABDesktopPanel() {
+        if (window.innerWidth <= 640) return;
         const panel = document.getElementById('fabPanel');
         const container = document.getElementById('fabContainer');
         if (!panel || !container || panel.classList.contains('hidden')) return;
-        panel.classList.remove('fab-open-up', 'fab-open-down', 'fab-align-left', 'fab-align-right');
-        const r = container.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - r.bottom;
-        const spaceAbove = r.top;
-        panel.classList.add(spaceBelow >= Math.min(420, panel.scrollHeight + 64) || spaceBelow > spaceAbove ? 'fab-open-down' : 'fab-open-up');
-        panel.classList.add(r.left + r.width / 2 < window.innerWidth / 2 ? 'fab-align-left' : 'fab-align-right');
+
+        const buttonRect = container.getBoundingClientRect();
+        const openToRight = buttonRect.left + buttonRect.width / 2 < window.innerWidth / 2;
+        const openDown = buttonRect.top + buttonRect.height / 2 < window.innerHeight / 2;
+        const availableHeight = openDown
+            ? window.innerHeight - buttonRect.bottom - 76
+            : buttonRect.top - 76;
+
+        panel.style.left = openToRight ? '64px' : 'auto';
+        panel.style.right = openToRight ? 'auto' : '0';
+        panel.style.top = openDown ? '64px' : 'auto';
+        panel.style.bottom = openDown ? 'auto' : '64px';
+        panel.style.maxHeight = Math.max(140, Math.min(620, window.innerHeight * 0.75, availableHeight)) + 'px';
+        panel.style.maxWidth = 'min(270px, calc(100vw - 24px))';
     }
-    function toggleFABPanel() { if (fabOpen) closeFABPanel(); else openFABPanel(); }
+
     function openFABPanel() {
-        document.getElementById('fabContainer')?.classList.add('active-state');
-        resetFABIdle();
-        if (isFABMobile()) {
-            document.getElementById('fabMobileOverlay')?.classList.remove('hidden');
+        fabOpen = true;
+        const panel = document.getElementById('fabPanel');
+        const mobile = document.getElementById('fabMobileOverlay');
+        const icon = document.getElementById('fabIcon');
+        const container = document.getElementById('fabContainer');
+        container?.classList.add('active-state');
+        if (icon) icon.textContent = '✕';
+        if (window.innerWidth <= 640) {
+            mobile?.classList.remove('hidden');
             renderFABMobileGrid();
         } else {
-            fabOpen = true;
-            document.getElementById('fabPanel')?.classList.remove('hidden');
-            const icon = document.getElementById('fabIcon'); if (icon) icon.textContent = '✕';
+            panel?.classList.remove('hidden');
             renderFABMenuItems();
-            updateFABPanelPlacement();
+            requestAnimationFrame(positionFABDesktopPanel);
         }
         updateFABMediaUI();
+        syncFABLessonSelects();
     }
+
     function closeFABPanel() {
-        fabOpen = false; fabEditMode = false;
-        document.getElementById('fabContainer')?.classList.remove('active-state');
+        fabOpen = false;
+        fabEditMode = false;
         document.getElementById('fabPanel')?.classList.add('hidden');
         document.getElementById('fabMobileOverlay')?.classList.add('hidden');
-        const icon = document.getElementById('fabIcon'); if (icon) icon.textContent = '🎯';
         document.getElementById('fabMobileModal')?.classList.remove('edit-mode');
-        document.getElementById('fabMobileDoneBtn')?.style && (document.getElementById('fabMobileDoneBtn').style.display = 'none');
-        document.getElementById('fabMobileEditBtn')?.style && (document.getElementById('fabMobileEditBtn').style.display = '');
-        resetFABIdle();
+        const mobileEditBtn = document.getElementById('fabMobileEditBtn');
+        const mobileDoneBtn = document.getElementById('fabMobileDoneBtn');
+        if (mobileEditBtn) mobileEditBtn.style.display = 'block';
+        if (mobileDoneBtn) mobileDoneBtn.style.display = 'none';
+        document.getElementById('fabEditMode')?.classList.add('hidden');
+        document.querySelector('.fab-menu-section')?.classList.remove('hidden');
+        document.querySelector('.fab-desktop-actions')?.classList.remove('hidden');
+        const icon = document.getElementById('fabIcon');
+        if (icon) icon.textContent = '🎯';
+        document.getElementById('fabContainer')?.classList.remove('active-state');
     }
+
+    function toggleFABPanel() {
+        if (fabOpen) closeFABPanel();
+        else openFABPanel();
+    }
+
+    function runFABItem(key) {
+        if (!FAB_DEFAULT_ITEMS.some(item => item.key === key)) return;
+        switchTab(key);
+        closeFABPanel();
+    }
+
     function renderFABMenuItems() {
-        const cont = document.getElementById('fabMenuItems'); if (!cont) return;
-        cont.innerHTML = getFABOrder().filter(item => !fabHidden.includes(item.key)).map(item =>
-            `<button type="button" class="fab-menu-item" data-fab-item="${item.key}" title="${item.label}"><span class="fab-menu-item-icon">${item.icon}</span><span class="fab-menu-item-label">${item.label}</span></button>`
-        ).join('');
-        cont.querySelectorAll('[data-fab-item]').forEach(btn => btn.addEventListener('click', () => { switchTab(btn.dataset.fabItem); closeFABPanel(); }));
+        const cont = document.getElementById('fabMenuItems');
+        if (!cont) return;
+        cont.innerHTML = getFABVisibleItems().map(item => `
+          <button type="button" class="desktop-item" data-fab-item="${item.key}" title="${item.label}">
+            <span style="font-size:16px;">${item.icon}</span><span>${item.label}</span>
+          </button>
+        `).join('');
+        cont.querySelectorAll('[data-fab-item]').forEach(btn => {
+            btn.addEventListener('click', () => runFABItem(btn.dataset.fabItem));
+        });
     }
+
+    function renderFABEditMode() {
+        const cont = document.getElementById('fabEditList');
+        if (!cont) return;
+        document.getElementById('fabEditMode')?.classList.remove('hidden');
+        document.querySelector('.fab-menu-section')?.classList.add('hidden');
+        document.querySelector('.fab-desktop-actions')?.classList.add('hidden');
+        cont.innerHTML = getFABOrder().map(item => `
+          <li class="fab-edit-item" draggable="true" data-fab-order-key="${item.key}">
+            <span class="fab-edit-drag">⠿</span><span class="fab-edit-icon">${item.icon}</span>
+            <span class="fab-edit-label">${item.label}${fabHiddenItems.includes(item.key) ? ' (پنهان)' : ''}</span>
+          </li>
+        `).join('');
+        let draggedKey = null;
+        cont.querySelectorAll('.fab-edit-item').forEach(li => {
+            li.addEventListener('dragstart', () => { draggedKey = li.dataset.fabOrderKey; li.classList.add('dragging'); });
+            li.addEventListener('dragend', () => li.classList.remove('dragging'));
+            li.addEventListener('dragover', e => { e.preventDefault(); if (li.dataset.fabOrderKey !== draggedKey) li.classList.add('drag-over'); });
+            li.addEventListener('dragleave', () => li.classList.remove('drag-over'));
+            li.addEventListener('drop', e => {
+                e.preventDefault(); li.classList.remove('drag-over');
+                if (!draggedKey || draggedKey === li.dataset.fabOrderKey) return;
+                const keys = getFABOrder().map(x => x.key);
+                const from = keys.indexOf(draggedKey), to = keys.indexOf(li.dataset.fabOrderKey);
+                if (from < 0 || to < 0) return;
+                const [moved] = keys.splice(from, 1); keys.splice(to, 0, moved);
+                fabOrder = keys; saveFABOrder(); renderFABEditMode();
+            });
+        });
+    }
+
     function renderFABMobileGrid() {
-        const modal = document.getElementById('fabMobileModal');
         const grid = document.getElementById('fabMobileGrid');
         const hiddenList = document.getElementById('fabMobileHiddenList');
         if (!grid || !hiddenList) return;
-        const visible = getFABOrder().filter(item => !fabHidden.includes(item.key));
-        const hidden = getFABOrder().filter(item => fabHidden.includes(item.key));
-        grid.innerHTML = visible.map(item => `<button type="button" class="fab-mobile-cell" draggable="${fabEditMode}" data-fab-key="${item.key}"><span class="fab-mobile-hide-badge" data-fab-hide="${item.key}">✕</span><span class="fab-mobile-cell-icon">${item.icon}</span><span class="fab-mobile-cell-label">${item.label}</span></button>`).join('');
-        hiddenList.innerHTML = hidden.map(item => `<button type="button" class="fab-mobile-restore-chip" data-fab-restore="${item.key}">${item.icon} ${item.label} +</button>`).join('');
-        grid.querySelectorAll('[data-fab-key]').forEach(cell => {
-            cell.addEventListener('click', e => {
-                const hide = e.target.closest('[data-fab-hide]');
-                if (fabEditMode && hide) { fabHidden.push(hide.dataset.fabHide); saveFABHidden(); renderFABMobileGrid(); return; }
-                if (!fabEditMode) { switchTab(cell.dataset.fabKey); closeFABPanel(); }
+        const visible = getFABVisibleItems();
+        const hidden = getFABOrder().filter(item => fabHiddenItems.includes(item.key));
+        grid.innerHTML = '';
+        visible.forEach(item => {
+            const cell = document.createElement('div');
+            cell.className = 'mobile-cell';
+            cell.draggable = fabEditMode;
+            cell.dataset.key = item.key;
+            cell.innerHTML = `<button type="button" class="mobile-hide-badge" aria-label="پنهان کردن">✕</button><span class="mobile-cell-icon">${item.icon}</span><span class="mobile-cell-label">${item.label}</span>`;
+            cell.querySelector('.mobile-hide-badge').addEventListener('click', e => {
+                e.stopPropagation();
+                if (!fabEditMode) return;
+                fabHiddenItems = [...new Set([...fabHiddenItems, item.key])];
+                saveFABHiddenItems(); renderFABMobileGrid();
             });
-            if (fabEditMode) {
-                cell.addEventListener('dragstart', () => { fabDraggedKey = cell.dataset.fabKey; cell.style.opacity = '.3'; });
+            if (!fabEditMode) {
+                cell.addEventListener('click', () => runFABItem(item.key));
+            } else {
+                cell.addEventListener('dragstart', () => { fabDraggedKey = item.key; cell.style.opacity = '0.35'; });
                 cell.addEventListener('dragend', () => { cell.style.opacity = '1'; });
                 cell.addEventListener('dragover', e => e.preventDefault());
                 cell.addEventListener('drop', e => {
-                    e.preventDefault(); const target = cell.dataset.fabKey;
-                    if (!fabDraggedKey || fabDraggedKey === target) return;
-                    const keys = getFABOrder().map(x => x.key); const from = keys.indexOf(fabDraggedKey), to = keys.indexOf(target);
-                    if (from >= 0 && to >= 0) { const [moved] = keys.splice(from, 1); keys.splice(to, 0, moved); fabOrder = keys; saveFABOrder(); renderFABMobileGrid(); }
+                    e.preventDefault();
+                    if (!fabDraggedKey || fabDraggedKey === item.key) return;
+                    const keys = getFABOrder().map(x => x.key);
+                    const from = keys.indexOf(fabDraggedKey), to = keys.indexOf(item.key);
+                    if (from < 0 || to < 0) return;
+                    const [moved] = keys.splice(from, 1); keys.splice(to, 0, moved);
+                    fabOrder = keys; saveFABOrder(); fabDraggedKey = null; renderFABMobileGrid();
                 });
             }
+            grid.appendChild(cell);
         });
-        hiddenList.querySelectorAll('[data-fab-restore]').forEach(btn => btn.addEventListener('click', () => { fabHidden = fabHidden.filter(k => k !== btn.dataset.fabRestore); saveFABHidden(); renderFABMobileGrid(); }));
+        hiddenList.innerHTML = '';
+        hidden.forEach(item => {
+            const chip = document.createElement('button');
+            chip.type = 'button'; chip.className = 'mobile-restore-chip';
+            chip.textContent = `${item.icon} ${item.label} +`;
+            chip.addEventListener('click', () => {
+                fabHiddenItems = fabHiddenItems.filter(key => key !== item.key);
+                saveFABHiddenItems(); renderFABMobileGrid();
+            });
+            hiddenList.appendChild(chip);
+        });
+        document.getElementById('fabMobileDropHide')?.classList.toggle('drag-over', false);
+    }
+
+    let fabDraggedKey = null;
+
+    function syncFABLessonSelects() {
+        const desktop = document.getElementById('fabLessonSelect');
+        const mobile = document.getElementById('fabLessonSelectMobile');
+        if (!desktop || !mobile) return;
+        mobile.innerHTML = desktop.innerHTML;
+        mobile.value = desktop.value;
+    }
+
+    function changeLessonFromFAB(value) {
+        if (!value || value === state.activeLessonId) return;
+        if (practice.active) exitPractice();
+        state.activeLessonId = value;
+        currentContentType = 'all';
+        save();
+        renderAll();
+        populateLessonTargets();
+        syncFABLessonSelects();
+        toast('📖 درس تغییر کرد', 'success');
+    }
+
+    function updateFABMediaUI() {
+        const stickyActive = !!stickyPlayerState.active && !!stickyPlayerState.currentItem;
+        const audioEl = document.getElementById('stickyAudioEl');
+        const directAudioActive = !!currentAudio;
+        const speechActive = !!(window.speechSynthesis && window.speechSynthesis.speaking);
+        const active = stickyActive || directAudioActive || speechActive;
+        const item = stickyActive ? stickyPlayerState.currentItem : {};
+        const titleText = stickyActive ? (item.title || '—') : (currentAudio?._fabTitle || 'تلفظ آلمانی');
+        const subText = stickyActive ? (item.subtitle || (stickyPlayerState.source === 'video' ? 'ویدیوی آموزشی' : 'در حال پخش')) : 'تلفظ واژه';
+        const playing = stickyActive ? !!(audioEl && !audioEl.paused) : directAudioActive ? !currentAudio.paused : speechActive && !window.speechSynthesis.paused;
+        const trigger = document.getElementById('fabBtn');
+        trigger?.classList.toggle('music-playing', active && playing);
+        const views = [
+            { box: 'fabDesktopMediaBox', title: 'fabDesktopMediaTitle', sub: 'fabDesktopMediaSub', cover: 'fabDesktopMediaCover', play: 'fabDesktopPlay' },
+            { box: 'fabMobileMediaBox', title: 'fabMobileMediaTitle', sub: 'fabMobileMediaSub', cover: 'fabMobileMediaCover', play: 'fabMobilePlay' }
+        ];
+        views.forEach(view => {
+            const box = document.getElementById(view.box);
+            if (!box) return;
+            box.classList.toggle('visible', active);
+            const title = document.getElementById(view.title);
+            const sub = document.getElementById(view.sub);
+            const cover = document.getElementById(view.cover);
+            const play = document.getElementById(view.play);
+            if (title) title.textContent = titleText;
+            if (sub) sub.textContent = subText;
+            if (cover) {
+                const src = safeImageSrc(item.coverImage);
+                cover.textContent = src ? '' : (stickyActive ? (stickyPlayerState.source === 'video' ? '🎬' : '🎙') : '🔊');
+                cover.style.backgroundImage = src ? `url("${src.replace(/"/g, '')}")` : '';
+                cover.style.backgroundColor = src ? 'transparent' : safeCoverColor(item.coverColor);
+            }
+            if (play) play.textContent = playing ? '❚❚' : '▶';
+            const prev = document.getElementById(view.box === 'fabDesktopMediaBox' ? 'fabDesktopPrev' : 'fabMobilePrev');
+            const next = document.getElementById(view.box === 'fabDesktopMediaBox' ? 'fabDesktopNext' : 'fabMobileNext');
+            if (prev) prev.disabled = !stickyActive || stickyPlayerState.index <= 0;
+            if (next) next.disabled = !stickyActive || stickyPlayerState.index >= stickyPlayerState.queue.length - 1;
+        });
+    }
+
+    function toggleFABMedia() {
+        const audioEl = document.getElementById('stickyAudioEl');
+        if (stickyPlayerState.active && audioEl) {
+            if (audioEl.paused) audioEl.play().catch(() => { });
+            else audioEl.pause();
+        } else if (currentAudio) {
+            if (currentAudio.paused) currentAudio.play().catch(() => { });
+            else currentAudio.pause();
+        } else if (window.speechSynthesis && window.speechSynthesis.speaking) {
+            if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+            else window.speechSynthesis.pause();
+        }
         updateFABMediaUI();
     }
-    let fabDraggedKey = null;
+
+    function closeFABMedia() {
+        if (stickyPlayerState.active) closeStickyPlayer();
+        if (currentAudio) { try { currentAudio.pause(); currentAudio.currentTime = 0; } catch (e) { } currentAudio = null; }
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        updateFABMediaUI();
+    }
+
     function setupFABDrag() {
-        const fab = document.getElementById('fabBtn'), container = document.getElementById('fabContainer');
+        const fab = document.getElementById('fabBtn');
+        const container = document.getElementById('fabContainer');
         if (!fab || !container) return;
+        let dragging = false, moved = false;
+        let startX = 0, startY = 0, offsetX = 0, offsetY = 0;
         if (fabPosition.x !== null && fabPosition.y !== null) {
             container.style.left = fabPosition.x + 'px'; container.style.top = fabPosition.y + 'px';
             container.style.right = 'auto'; container.style.bottom = 'auto';
         }
-        let dragging = false, moved = false, sx = 0, sy = 0, sl = 0, st = 0;
-        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-        function start(e) {
-            if (e.button !== undefined && e.button !== 0) return;
-            const p = e.touches ? e.touches[0] : e; const r = container.getBoundingClientRect();
-            dragging = true; moved = false; sx = p.clientX; sy = p.clientY; sl = r.left; st = r.top;
-            container.style.right = 'auto'; container.style.bottom = 'auto'; container.style.left = sl + 'px'; container.style.top = st + 'px';
-        }
-        function move(e) {
-            if (!dragging) return; const p = e.touches ? e.touches[0] : e;
-            if (Math.abs(p.clientX-sx) > 4 || Math.abs(p.clientY-sy) > 4) moved = true;
-            if (!moved) return;
-            const maxX = window.innerWidth - 52, maxY = window.innerHeight - 52;
-            container.style.left = clamp(sl + p.clientX-sx, 8, maxX-8) + 'px';
-            container.style.top = clamp(st + p.clientY-sy, 8, maxY-8) + 'px';
-        }
-        function end() {
-            if (!dragging) return; dragging = false;
-            if (moved) { const r = container.getBoundingClientRect(); fabPosition = {x:r.left,y:r.top}; try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(fabPosition)); } catch(e) {} }
-        }
-        fab.addEventListener('mousedown', e => { start(e); if (!dragging) return; const mm = ev => move(ev); const mu = () => { document.removeEventListener('mousemove',mm); end(); }; document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu,{once:true}); });
-        fab.addEventListener('touchstart', e => start(e), {passive:true});
-        fab.addEventListener('touchmove', e => { if (dragging) { move(e); if (moved) e.preventDefault(); } }, {passive:false});
-        fab.addEventListener('touchend', end);
-        fab.addEventListener('click', e => { if (moved) { moved = false; e.preventDefault(); return; } toggleFABPanel(); });
-    }
-    function updateFABMediaUI() {
-        const stickyAudio = document.getElementById('stickyAudioEl');
-        const stickyActive = !!(stickyPlayerState.active && stickyAudio && stickyAudio.src);
-        const inlineActive = !!(fabActiveAudio && (fabActiveAudio.src || fabActiveAudio.currentSrc));
-        const usingSticky = stickyActive && (!fabActiveAudio || !fabActiveAudioRoot || !fabActiveAudio.paused);
-        const audio = usingSticky ? stickyAudio : (inlineActive ? fabActiveAudio : (stickyActive ? stickyAudio : null));
-        const root = usingSticky ? null : fabActiveAudioRoot;
-        const active = !!audio;
-        const playing = !!(audio && !audio.paused && !audio.ended);
-        const item = usingSticky ? (stickyPlayerState.currentItem || {}) : {};
-        const inlineTitle = root?.querySelector('.audio-player-label')?.textContent?.trim() || root?.querySelector('h1,h2,h3')?.textContent?.trim() || 'داستان صوتی';
-        const titleText = usingSticky ? (item.title || document.getElementById('stickyPlayerTitle')?.textContent || '—') : inlineTitle;
-        const subText = usingSticky ? (item.subtitle || document.getElementById('stickyPlayerSubtitle')?.textContent || 'پادکست صوتی') : 'فایل صوتی داستان';
-        ['Desktop','Mobile'].forEach(kind => {
-            const box = document.getElementById(`fab${kind}MediaBox`); if (!box) return;
-            box.classList.toggle('visible', active && !box.dataset.dismissed);
-            const title = document.getElementById(`fab${kind}Title`), sub = document.getElementById(`fab${kind}Sub`), cover = document.getElementById(`fab${kind}Cover`);
-            if (title) title.textContent = titleText;
-            if (sub) sub.textContent = subText;
-            if (cover) {
-                const image = usingSticky ? safeImageSrc(item.coverImage) : '';
-                cover.textContent = image ? '' : '🎙';
-                cover.style.backgroundImage = image ? `url("${image}")` : '';
-            }
-            const play = box.querySelector('[data-fab-play]'); if (play) play.textContent = playing ? '❚❚' : '▶';
-            const prev = box.querySelector('[data-fab-prev]'), next = box.querySelector('[data-fab-next]');
-            if (prev) prev.disabled = usingSticky ? stickyPlayerState.index <= 0 : !root?.querySelector('[data-prev-btn]:not(:disabled)');
-            if (next) next.disabled = usingSticky ? stickyPlayerState.index >= stickyPlayerState.queue.length-1 : !root?.querySelector('[data-next-btn]:not(:disabled)');
-        });
-        document.getElementById('fabBtn')?.classList.toggle('music-playing', active);
-    }
-    let fabIdleTimer = null;
-    function resetFABIdle() {
-        const container = document.getElementById('fabContainer');
-        if (!container) return;
-        container.classList.remove('idle');
-        clearTimeout(fabIdleTimer);
-        fabIdleTimer = setTimeout(() => {
-            const mobileOpen = !document.getElementById('fabMobileOverlay')?.classList.contains('hidden');
-            if (!fabOpen && !mobileOpen) container.classList.add('idle');
-        }, 4000);
-    }
-    function setupFAB() {
-        const fabBtn = document.getElementById('fabBtn'); if (!fabBtn) return;
-        setupFABDrag();
-        ['mousemove','mousedown','touchstart','scroll'].forEach(ev => document.addEventListener(ev, resetFABIdle, {passive:true}));
-        resetFABIdle();
-        document.getElementById('fabClosePanelBtn')?.addEventListener('click', closeFABPanel);
-        document.getElementById('fabMobileClose')?.addEventListener('click', closeFABPanel);
-        document.getElementById('fabMobileEditBtn')?.addEventListener('click', () => { fabEditMode = true; document.getElementById('fabMobileModal')?.classList.add('edit-mode'); renderFABMobileGrid(); });
-        document.getElementById('fabMobileDoneBtn')?.addEventListener('click', () => { fabEditMode = false; document.getElementById('fabMobileModal')?.classList.remove('edit-mode'); renderFABMobileGrid(); });
-        const drop = document.getElementById('fabMobileDropHide');
-        drop?.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
-        drop?.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
-        drop?.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag-over'); if (fabDraggedKey && !fabHidden.includes(fabDraggedKey)) { fabHidden.push(fabDraggedKey); saveFABHidden(); renderFABMobileGrid(); } });
-        const syncLessons = () => {
-            const source = document.getElementById('fabLessonSelect'); const mobile = document.getElementById('fabMobileLessonSelect');
-            if (!source || !mobile) return;
-            mobile.innerHTML = source.innerHTML; mobile.value = source.value;
+        const setPosition = (x, y) => {
+            const maxX = window.innerWidth - 52 - 10, maxY = window.innerHeight - 52 - 10;
+            x = Math.max(10, Math.min(maxX, x)); y = Math.max(10, Math.min(maxY, y));
+            container.style.left = x + 'px'; container.style.top = y + 'px';
+            container.style.right = 'auto'; container.style.bottom = 'auto';
         };
-        const lesson = document.getElementById('fabLessonSelect');
-        lesson?.addEventListener('change', e => {
-            if (practice.active) exitPractice(); state.activeLessonId = e.target.value; currentContentType = 'all'; save(); renderAll(); toast('📖 درس تغییر کرد', 'success'); syncLessons();
+        const start = (x, y) => {
+            const rect = container.getBoundingClientRect();
+            startX = x; startY = y; offsetX = x - rect.left; offsetY = y - rect.top;
+            dragging = true; moved = false; container.style.transition = 'opacity 0.4s ease';
+        };
+        const move = (x, y) => {
+            if (!dragging) return;
+            if (Math.abs(x - startX) > 4 || Math.abs(y - startY) > 4) moved = true;
+            if (moved) setPosition(x - offsetX, y - offsetY);
+        };
+        const end = () => {
+            if (!dragging) return;
+            dragging = false;
+            if (moved) {
+                const rect = container.getBoundingClientRect();
+                fabPosition = { x: rect.left, y: rect.top };
+                try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(fabPosition)); } catch (e) { }
+            }
+        };
+        fab.addEventListener('mousedown', e => {
+            if (e.button !== 0) return;
+            start(e.clientX, e.clientY);
+            const onMove = ev => move(ev.clientX, ev.clientY);
+            const onUp = () => { document.removeEventListener('mousemove', onMove); end(); };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp, { once: true });
         });
-        document.getElementById('fabMobileLessonSelect')?.addEventListener('change', e => { if (lesson) { lesson.value = e.target.value; lesson.dispatchEvent(new Event('change')); } });
-        const observer = new MutationObserver(syncLessons); if (lesson) observer.observe(lesson,{childList:true,subtree:true,attributes:true}); syncLessons();
-        document.querySelectorAll('[data-fab-prev]').forEach(b => b.addEventListener('click', () => {
-            const stickyAudio = document.getElementById('stickyAudioEl');
-            if (stickyPlayerState.active && stickyAudio?.src) document.getElementById('stickyPrevBtn')?.click();
-            else fabActiveAudioRoot?.querySelector('[data-prev-btn]:not(:disabled)')?.click();
-        }));
-        document.querySelectorAll('[data-fab-next]').forEach(b => b.addEventListener('click', () => {
-            const stickyAudio = document.getElementById('stickyAudioEl');
-            if (stickyPlayerState.active && stickyAudio?.src) document.getElementById('stickyNextBtn')?.click();
-            else fabActiveAudioRoot?.querySelector('[data-next-btn]:not(:disabled)')?.click();
-        }));
-        document.querySelectorAll('[data-fab-play]').forEach(b => b.addEventListener('click', () => {
-            const stickyAudio = document.getElementById('stickyAudioEl');
-            const usingSticky = stickyPlayerState.active && stickyAudio?.src && (!fabActiveAudio || !fabActiveAudioRoot || !fabActiveAudio.paused);
-            if (usingSticky) document.getElementById('stickyPlayBtn')?.click();
-            else if (fabActiveAudio) { if (fabActiveAudio.paused) fabActiveAudio.play().catch(() => {}); else fabActiveAudio.pause(); }
-        }));
-        document.querySelectorAll('[data-fab-media-close]').forEach(b => b.addEventListener('click', () => { const box=b.closest('.fab-media-box'); if(box) { box.dataset.dismissed='1'; box.classList.remove('visible'); } }));
-        const audio = document.getElementById('stickyAudioEl');
-        ['play','pause','loadedmetadata','emptied','ended'].forEach(ev => audio?.addEventListener(ev, () => { document.querySelectorAll('.fab-media-box').forEach(box => { delete box.dataset.dismissed; }); updateFABMediaUI(); }));
-        const sticky = document.getElementById('stickyPlayer'); if (sticky) new MutationObserver(updateFABMediaUI).observe(sticky,{attributes:true,attributeFilter:['class']});
-        renderFABMenuItems(); updateFABMediaUI();
+        fab.addEventListener('touchstart', e => start(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+        fab.addEventListener('touchmove', e => {
+            if (!dragging) return;
+            move(e.touches[0].clientX, e.touches[0].clientY);
+            if (moved) e.preventDefault();
+        }, { passive: false });
+        fab.addEventListener('touchend', end, { passive: true });
+        fab.addEventListener('click', e => {
+            if (moved) { moved = false; e.preventDefault(); e.stopImmediatePropagation(); }
+        }, true);
+    }
+
+    function setupFABMobileModalDrag() {
+        const modal = document.getElementById('fabMobileModal');
+        const header = modal?.querySelector('.mobile-header');
+        if (!modal || !header) return;
+
+        let dragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        header.addEventListener('pointerdown', e => {
+            if (e.target.closest('button')) return;
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+            const rect = modal.getBoundingClientRect();
+            modal.style.left = rect.left + 'px';
+            modal.style.top = rect.top + 'px';
+            modal.style.right = 'auto';
+            modal.style.bottom = 'auto';
+            modal.style.transform = 'none';
+
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            dragging = true;
+            header.classList.add('dragging');
+            header.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        });
+
+        header.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            const maxX = window.innerWidth - modal.offsetWidth - 8;
+            const maxY = window.innerHeight - modal.offsetHeight - 8;
+            const x = Math.max(8, Math.min(maxX, e.clientX - offsetX));
+            const y = Math.max(8, Math.min(maxY, e.clientY - offsetY));
+            modal.style.left = x + 'px';
+            modal.style.top = y + 'px';
+        });
+
+        const stopDragging = () => {
+            dragging = false;
+            header.classList.remove('dragging');
+        };
+        header.addEventListener('pointerup', stopDragging);
+        header.addEventListener('pointercancel', stopDragging);
+    }
+
+    function setupFAB() {
+        const fabBtn = document.getElementById('fabBtn');
+        if (!fabBtn) return;
+        setupFABDrag();
+        setupFABMobileModalDrag();
+        window.addEventListener('resize', () => {
+            if (fabOpen) positionFABDesktopPanel();
+        });
+        fabBtn.addEventListener('click', toggleFABPanel);
+        document.getElementById('fabClosePanelBtn')?.addEventListener('click', closeFABPanel);
+        document.getElementById('fabEditMenuBtn')?.addEventListener('click', () => { fabEditMode = true; renderFABEditMode(); });
+        document.getElementById('fabDoneEditBtn')?.addEventListener('click', () => {
+            fabEditMode = false;
+            document.getElementById('fabEditMode')?.classList.add('hidden');
+            document.querySelector('.fab-menu-section')?.classList.remove('hidden');
+            document.querySelector('.fab-desktop-actions')?.classList.remove('hidden');
+            renderFABMenuItems();
+        });
+        const desktopSel = document.getElementById('fabLessonSelect');
+        const mobileSel = document.getElementById('fabLessonSelectMobile');
+        desktopSel?.addEventListener('change', e => { changeLessonFromFAB(e.target.value); if (mobileSel) mobileSel.value = e.target.value; });
+        mobileSel?.addEventListener('change', e => { changeLessonFromFAB(e.target.value); if (desktopSel) desktopSel.value = e.target.value; });
+
+        document.getElementById('fabMobileClose')?.addEventListener('click', closeFABPanel);
+        document.getElementById('fabMobileEditBtn')?.addEventListener('click', () => {
+            fabEditMode = true;
+            document.getElementById('fabMobileModal')?.classList.add('edit-mode');
+            document.getElementById('fabMobileEditBtn').style.display = 'none';
+            document.getElementById('fabMobileDoneBtn').style.display = 'block';
+            renderFABMobileGrid();
+        });
+        document.getElementById('fabMobileDoneBtn')?.addEventListener('click', () => {
+            fabEditMode = false;
+            document.getElementById('fabMobileModal')?.classList.remove('edit-mode');
+            document.getElementById('fabMobileEditBtn').style.display = 'block';
+            document.getElementById('fabMobileDoneBtn').style.display = 'none';
+            renderFABMobileGrid();
+        });
+        const dropHide = document.getElementById('fabMobileDropHide');
+        dropHide?.addEventListener('dragover', e => { e.preventDefault(); dropHide.classList.add('drag-over'); });
+        dropHide?.addEventListener('dragleave', () => dropHide.classList.remove('drag-over'));
+        dropHide?.addEventListener('drop', e => {
+            e.preventDefault(); dropHide.classList.remove('drag-over');
+            if (!fabDraggedKey) return;
+            fabHiddenItems = [...new Set([...fabHiddenItems, fabDraggedKey])];
+            fabDraggedKey = null; saveFABHiddenItems(); renderFABMobileGrid();
+        });
+
+        const bindMediaControls = (prefix) => {
+            document.getElementById(prefix + 'Play')?.addEventListener('click', toggleFABMedia);
+            document.getElementById(prefix + 'Prev')?.addEventListener('click', () => document.getElementById('stickyPrevBtn')?.click());
+            document.getElementById(prefix + 'Next')?.addEventListener('click', () => document.getElementById('stickyNextBtn')?.click());
+            document.getElementById(prefix + 'MediaClose')?.addEventListener('click', closeFABMedia);
+        };
+        bindMediaControls('fabDesktop');
+        bindMediaControls('fabMobile');
+
         document.addEventListener('click', e => {
-            const overlay = document.getElementById('fabMobileOverlay');
-            if (overlay && e.target === overlay) closeFABPanel();
+            const container = document.getElementById('fabContainer');
+            const mobile = document.getElementById('fabMobileOverlay');
+            if (fabOpen && container && !container.contains(e.target) && (!mobile || !mobile.contains(e.target))) closeFABPanel();
         });
-        window.addEventListener('resize', () => { if (fabOpen) updateFABPanelPlacement(); });
-        window.addEventListener('scroll', () => { if (fabOpen) updateFABPanelPlacement(); }, true);
+
+        let idleTimer = null;
+        const resetIdle = () => {
+            const container = document.getElementById('fabContainer');
+            if (!container) return;
+            container.classList.remove('idle');
+            clearTimeout(idleTimer);
+
+            idleTimer = setTimeout(() => {
+                if (fabOpen) return;
+
+                // انتقال به نزدیک‌ترین گوشه در موبایل و دسکتاپ
+                const rect = container.getBoundingClientRect();
+                const margin = window.innerWidth <= 640 ? 10 : 16;
+
+                const maxX = Math.max(margin, window.innerWidth - rect.width - margin);
+                const maxY = Math.max(margin, window.innerHeight - rect.height - margin);
+
+                const x = rect.left + rect.width / 2 < window.innerWidth / 2 ? margin : maxX;
+                const y = rect.top + rect.height / 2 < window.innerHeight / 2 ? margin : maxY;
+
+                container.style.left = x + 'px';
+                container.style.top = y + 'px';
+                container.style.right = 'auto';
+                container.style.bottom = 'auto';
+
+                fabPosition = { x, y };
+
+                try {
+                    localStorage.setItem(FAB_POS_KEY, JSON.stringify(fabPosition));
+                } catch (e) { }
+
+                container.classList.add('idle');
+            }, 4000);
+        };
+        ['mousemove', 'mousedown', 'touchstart', 'scroll'].forEach(eventName => document.addEventListener(eventName, resetIdle, { passive: true }));
+        resetIdle();
+        renderFABMenuItems();
+        updateFABMediaUI();
     }
 
     // ═══════════════════════════════════════════════════════════════════
